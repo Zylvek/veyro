@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:veyro/design/components.dart';
 
 /// Модальный запрос пароля. Возвращает пароль (не пустой) или `null`.
+/// Кнопка подтверждения оживает прямо при наборе: на каждый ввод текста
+/// диалог перерисовывается (раньше кнопка оставалась серой, пока её
+/// случайно не тронешь глазик — перерисовку дёргал только он).
 Future<String?> promptPassword(
   BuildContext context, {
   required String title,
@@ -24,11 +27,14 @@ Future<String?> promptPassword(
           controller: controller,
           autofocus: true,
           obscureText: obscure,
+          textInputAction: TextInputAction.done,
           autofillHints: const [AutofillHints.password],
+          onChanged: (_) => setDialogState(() {}),
           onSubmitted: (v) =>
               Navigator.of(dialogContext).pop(v.trim().isEmpty ? null : v),
           decoration: InputDecoration(
             labelText: 'Пароль',
+            hintText: 'Пароль кошелька',
             suffixIcon: IconButton(
               icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
               onPressed: () => setDialogState(() => obscure = !obscure),
