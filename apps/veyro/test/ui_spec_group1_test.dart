@@ -143,15 +143,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Восемь реальных разделов по аудиту UI §8 (Overview, Assets,
-    // Transactions, Wallets, Address Book, Backup, Settings, About).
-    expect(find.byType(NavigationDestination), findsNWidgets(8));
+    // Пять разделов навигации (решение владельца): бэкап, «О VEYRO» и
+    // адресная книга открываются из «Настроек».
+    expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
     expect(find.text('Транзакции'), findsOneWidget);
-    expect(find.text('Адреса'), findsOneWidget);
-    expect(find.text('Настройки'), findsOneWidget);
-    expect(find.text('Сеть'), findsNothing); // настроено из Настроек
+    // «Кошельки» и в навигации, и в AppBar открытого раздела.
+    expect(find.text('Кошельки'), findsWidgets);
+    expect(find.text('Настройки'), findsWidgets);
+    // Эти разделы — из «Настроек»: их нет в нижней навигации.
+    expect(find.text('Бэкап'), findsNothing);
+    expect(find.text('Адреса'), findsNothing);
   });
 
   testWidgets('Каркас: выбор раздела обновляет и сайдбар, и контент',

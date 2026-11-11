@@ -526,9 +526,9 @@ void main() {
     });
   });
 
-  group('Каркас: восемь разделов навигации (аудит UI §8)', () {
-    test('реестр kShellDestinations: 8 назначений, порядок и id', () {
-      expect(kShellDestinations.length, 8);
+  group('Каркас: пять разделов навигации (решение владельца)', () {
+    test('реестр kShellDestinations: 5 назначений, порядок и id', () {
+      expect(kShellDestinations.length, 5);
       expect(
         [for (final d in kShellDestinations) d.id],
         [
@@ -536,24 +536,21 @@ void main() {
           'assets',
           'transactions',
           'wallets',
-          'addresses',
-          'backup',
           'settings',
-          'about',
         ],
       );
       final labels = [for (final d in kShellDestinations) d.label];
-      // Полная архитектура навигации аудита; «Сеть» остаётся настройкой.
       expect(labels, containsAll([
         'Обзор',
         'Активы',
         'Транзакции',
         'Кошельки',
-        'Адреса',
-        'Бэкап',
         'Настройки',
-        'О VEYRO',
       ]));
+      // Бэкап / «О VEYRO» / адресная книга — из «Настроек», не в навигации.
+      expect(labels.contains('Бэкап'), isFalse);
+      expect(labels.contains('О VEYRO'), isFalse);
+      expect(labels.contains('Адреса'), isFalse);
       expect(labels.contains('Сеть'), isFalse);
     });
 

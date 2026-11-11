@@ -14,12 +14,9 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
-import '../screens/address_book_screen.dart';
-import '../screens/backup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/wallets_screen.dart';
-import '../screens/about_screen.dart';
 
 /// Раздел каркаса. Все разделы реализованы (builder обязателен).
 class ShellDestination {
@@ -37,11 +34,10 @@ class ShellDestination {
   });
 }
 
-/// Реестр разделов каркаса (аудит UI §8): Обзор, Активы, Транзакции,
-/// Кошельки, Адресная книга, Бэкап, Настройки, О VEYRO. Нереализованные
-/// экраны внутри разделов показывают честные состояния, не работающие
-/// кнопки; раздел «Транзакции» при закрытой сессии — честное пустое
-/// состояние.
+/// Реестр разделов каркаса (решение владельца): Обзор, Активы, Транзакции,
+/// Кошельки, Настройки — пять пунктов навигации. Бэкап, «О VEYRO» и
+/// адресная книга открываются из «Настроек» (карточка «Разделы»);
+/// раздел «Транзакции» при закрытой сессии показывает честное состояние.
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -68,28 +64,10 @@ const List<ShellDestination> kShellDestinations = [
     builder: _buildWallets,
   ),
   ShellDestination(
-    id: 'addresses',
-    icon: Icons.import_contacts_outlined,
-    label: 'Адреса',
-    builder: _buildAddresses,
-  ),
-  ShellDestination(
-    id: 'backup',
-    icon: Icons.backup_outlined,
-    label: 'Бэкап',
-    builder: _buildBackup,
-  ),
-  ShellDestination(
     id: 'settings',
     icon: Icons.tune_outlined,
     label: 'Настройки',
     builder: _buildSettings,
-  ),
-  ShellDestination(
-    id: 'about',
-    icon: Icons.info_outline,
-    label: 'О VEYRO',
-    builder: _buildAbout,
   ),
 ];
 
@@ -97,11 +75,7 @@ Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
 Widget _buildTransactions(BuildContext context) => const TransactionsScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
-Widget _buildAddresses(BuildContext context) => const AddressBookScreen();
-Widget _buildBackup(BuildContext context) => const BackupScreen();
 Widget _buildSettings(BuildContext context) => const SettingsScreen();
-Widget _buildAbout(BuildContext context) => const AboutScreen();
-
 /// Порог, ниже которого каркас переключается на нижнюю навигацию
 /// (Android-телефон); десктопные окна шире и получают сайдбар 240 px.
 const double kShellWideBreakpoint = 960;
