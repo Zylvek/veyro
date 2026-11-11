@@ -216,17 +216,6 @@ class _Sidebar extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Text(
-                'Некастодиально. Подпись — локально в Rust-ядре.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall!
-                    .copyWith(fontSize: 10.5),
-              ),
-            ),
           ],
         ),
       ),
