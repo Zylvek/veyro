@@ -2,9 +2,10 @@
 //! Android layout). Desktop: постоянный левый сайдбар 240 px + отзывчивый
 //! контент. Узкие экраны (Android): нижняя навигация.
 //!
-//! С группы 2 все шесть разделов каркаса — реальные экраны (Обзор,
-//! Активы, Кошельки, Бэкап, Сеть, О VEYRO). Дочерние экраны (детали
-//! актива, BTC, Receive/Send) открываются push-навигацией из разделов.
+//! С группы 4 все семь разделов каркаса — реальные экраны (Обзор, Активы,
+//! Кошельки, Адресная книга, Бэкап, Настройки, О VEYRO). Настройки сети —
+//! раздел «Настройки» (и центр управления BTC); дочерние экраны
+//! (детали актива, BTC, Receive/Send) открываются push-навигацией.
 
 import 'package:flutter/material.dart';
 
@@ -13,8 +14,9 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
+import '../screens/address_book_screen.dart';
 import '../screens/backup_screen.dart';
-import '../screens/network_settings_screen.dart';
+import '../screens/settings_screen.dart';
 import '../screens/wallets_screen.dart';
 import '../screens/about_screen.dart';
 
@@ -34,8 +36,9 @@ class ShellDestination {
   });
 }
 
-/// Реестр разделов каркаса. Группа 1: Кошельки/Бэкап/Сеть/О VEYRO;
-/// группа 2 добавила реальные Обзор и Активы.
+/// Реестр разделов каркаса. Группа 1: каркас и Welcome; группа 2 —
+/// реальные Обзор и Активы; группа 4 — Адресная книга и Настройки
+/// (экран сети остаётся доступным из Настроек и центра BTC).
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -56,16 +59,22 @@ const List<ShellDestination> kShellDestinations = [
     builder: _buildWallets,
   ),
   ShellDestination(
+    id: 'addresses',
+    icon: Icons.import_contacts_outlined,
+    label: 'Адреса',
+    builder: _buildAddresses,
+  ),
+  ShellDestination(
     id: 'backup',
     icon: Icons.backup_outlined,
     label: 'Бэкап',
     builder: _buildBackup,
   ),
   ShellDestination(
-    id: 'network',
-    icon: Icons.public_outlined,
-    label: 'Сеть',
-    builder: _buildNetwork,
+    id: 'settings',
+    icon: Icons.tune_outlined,
+    label: 'Настройки',
+    builder: _buildSettings,
   ),
   ShellDestination(
     id: 'about',
@@ -78,8 +87,9 @@ const List<ShellDestination> kShellDestinations = [
 Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
+Widget _buildAddresses(BuildContext context) => const AddressBookScreen();
 Widget _buildBackup(BuildContext context) => const BackupScreen();
-Widget _buildNetwork(BuildContext context) => const NetworkSettingsScreen();
+Widget _buildSettings(BuildContext context) => const SettingsScreen();
 Widget _buildAbout(BuildContext context) => const AboutScreen();
 
 /// Порог, ниже которого каркас переключается на нижнюю навигацию
@@ -296,7 +306,7 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return NavigationBar(
       selectedIndex:
-          kShellDestinations.indexWhere((d) => d.id == currentId).clamp(0, 5),
+          kShellDestinations.indexWhere((d) => d.id == currentId).clamp(0, kShellDestinations.length - 1),
       destinations: [
         for (final dest in kShellDestinations)
           NavigationDestination(

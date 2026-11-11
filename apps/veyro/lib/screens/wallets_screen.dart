@@ -1,13 +1,18 @@
 //! Экран 19 спеки (Wallet manager): реестр кошельков ядра (list_wallets),
-//! показ фразы по паролю, вход в портфель. Создание и импорт — отдельные
-//! полноэкранные сценарии (create_wallet_flow / import_wallet_screen);
-//! резервное копирование — через AppBar и раздел «Бэкап».
-//! Все данные из ядра, без моков.
+//! показ фразы только по паролю, вход в портфель. Создание и импорт —
+//! отдельные полноэкранные сценарии (create_wallet_flow /
+//! import_wallet_screen); резервное копирование — через AppBar и раздел
+//! «Бэкап». Группа 4: честное состояние BTC-сессии (глобальное — DTO
+//! сессии не содержит id кошелька, поэтому блокировка показывается общим
+//! чипом, а не по-кошельково), тип «vault» и дата создания; переименование
+//! и удаление ядром не поддерживаются — честные пометки, без имитации
+//! кнопками. Все данные из ядра, без моков.
 
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -18,7 +23,14 @@ import 'import_wallet_screen.dart';
 import 'portfolio_screen.dart';
 
 class WalletsScreen extends StatefulWidget {
-  const WalletsScreen({super.key});
+  /// Точка замены для виджет-тестов (без RustLib): состояние BTC-сессии.
+  final Future<BtcSessionStateDto?> Function()? sessionLoader;
+
+  /// Точка замены для виджет-тестов: реестр кошельков (по умолчанию —
+  /// реальный listWallets по vault-директории).
+  final Future<List<WalletInfoDto>> Function()? walletLoader;
+
+  const WalletsScreen({super.key, this.sessionLoader, this.walletLoader});
 
   @override
   State<WalletsScreen> createState() => _WalletsScreenState();
@@ -28,6 +40,10 @@ class _WalletsScreenState extends State<WalletsScreen> {
   List<WalletInfoDto>? _wallets;
   String? _error;
   bool _loading = true;
+
+  BtcSessionStateDto? _session;
+  bool _sessionChecked = false;
+  String? _sessionError;
 
   @override
   void initState() {
@@ -41,7 +57,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
       _error = null;
     });
     try {
-      final list = await listWallets(walletsDir: walletsDir());
+      final loader = widget.walletLoader;
+      final list =
+          loader != null ? await loader() : await listWallets(walletsDir: walletsDir());
       if (!mounted) return;
       setState(() {
         _wallets = list;
@@ -52,6 +70,28 @@ class _WalletsScreenState extends State<WalletsScreen> {
       setState(() {
         _error = e.toString();
         _loading = false;
+      });
+    }
+    await _loadSession();
+  }
+
+  Future<void> _loadSession() async {
+    try {
+      final loader = widget.sessionLoader;
+      final session =
+          loader != null ? await loader() : await btcSessionState();
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+        _sessionChecked = true;
+        _sessionError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _session = null;
+        _sessionChecked = true;
+        _sessionError = e.toString();
       });
     }
   }
@@ -181,6 +221,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildSessionCard(context),
+          const SizedBox(height: 12),
           VCard(
             icon: Icons.tune_outlined,
             title: 'Кошельки',
@@ -213,6 +255,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
                         'показывается только по паролю кошелька.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              const SizedBox(height: 6),
+              Text(
+                'Переименование и удаление кошельков ядром не '
+                'поддерживаются (API отсутствует) — кнопок-имитаций нет. '
+                'Блокировка ключей — кнопкой BTC-сессии; экспорт — '
+                'иконкой бэкапа выше.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -243,10 +293,23 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       ),
                     ),
                     title: Text(info.name),
-                    subtitle: Text(
-                      'ID: ${info.id.substring(0, info.id.length.clamp(0, 8))}…',
-                      style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 2),
+                        Text(
+                          'Тип: vault · создан ${_formatDate(info.createdAtUnix)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'ID: ${info.id.substring(0, info.id.length.clamp(0, 8))}…',
+                          style: const TextStyle(
+                              fontFamily: 'JetBrainsMono', fontSize: 12),
+                        ),
+                      ],
                     ),
+                    isThreeLine: true,
                     trailing: IconButton(
                       tooltip: 'Показать seed-фразу',
                       icon: const Icon(Icons.key_outlined),
@@ -265,5 +328,68 @@ class _WalletsScreenState extends State<WalletsScreen> {
         ],
       ),
     );
+  }
+
+  /// Состояние блокировки BTC-сессии. Честное ограничение: DTO сессии
+  /// не содержит id кошелька, поэтому состояние — глобальное по ядру,
+  /// а не по-кошельково (так и подписано).
+  Widget _buildSessionCard(BuildContext context) {
+    final session = _session;
+    return VCard(
+      icon: Icons.lock_outline,
+      title: 'Состояние BTC-сессии',
+      children: [
+        if (!_sessionChecked)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_sessionError != null)
+                const VStatusChip('Сессия не прочитана', kind: VChipKind.warning)
+              else if (session != null)
+                VStatusChip(
+                  'Ключи в памяти ядра · ${session.networkDisplay}',
+                  kind: VChipKind.warning,
+                )
+              else
+                const VStatusChip(
+                  'Не загружены (заблокирована / не открывалась)',
+                  kind: VChipKind.success,
+                ),
+            ],
+          ),
+          if (_sessionError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Не удалось прочитать состояние сессии: $_sessionError',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall!
+                    .copyWith(color: VColors.error),
+              ),
+            ),
+          const SizedBox(height: 6),
+          Text(
+            'Открыть/заблокировать сессию — в центре управления BTC '
+            '(портфель кошелька); состояние общее для ядра: DTO сессии '
+            'не содержит id кошелька.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatDate(BigInt createdUnix) {
+    final d = DateTime.fromMillisecondsSinceEpoch(createdUnix.toInt());
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$dd.$mm.${d.year}';
   }
 }
