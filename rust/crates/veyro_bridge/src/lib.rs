@@ -20,6 +20,7 @@
 //! file only.
 
 pub mod api;
+mod btc_session;
 mod frb_generated;
 
 use crypto_vault::KdfParams;

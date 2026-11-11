@@ -4,6 +4,8 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/backup.dart';
+import 'api/btc.dart';
+import 'api/session.dart';
 import 'api/storage.dart';
 import 'api/wallet.dart';
 
@@ -36,7 +38,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  BtcSessionStateDto dco_decode_box_autoadd_btc_session_state_dto(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   WalletRowDto dco_decode_box_autoadd_wallet_row_dto(dynamic raw);
+
+  @protected
+  BtcAddressDto dco_decode_btc_address_dto(dynamic raw);
+
+  @protected
+  BtcFeeRatesDto dco_decode_btc_fee_rates_dto(dynamic raw);
+
+  @protected
+  BtcHistoryItemDto dco_decode_btc_history_item_dto(dynamic raw);
+
+  @protected
+  BtcSendResultDto dco_decode_btc_send_result_dto(dynamic raw);
+
+  @protected
+  BtcSessionStateDto dco_decode_btc_session_state_dto(dynamic raw);
+
+  @protected
+  BtcSyncDto dco_decode_btc_sync_dto(dynamic raw);
+
+  @protected
+  BtcTxStatusDto dco_decode_btc_tx_status_dto(dynamic raw);
+
+  @protected
+  BtcUnlockDto dco_decode_btc_unlock_dto(dynamic raw);
 
   @protected
   CreatedWalletDto dco_decode_created_wallet_dto(dynamic raw);
@@ -46,6 +81,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<BackupWalletRequest> dco_decode_list_backup_wallet_request(dynamic raw);
+
+  @protected
+  List<BtcAddressDto> dco_decode_list_btc_address_dto(dynamic raw);
+
+  @protected
+  List<BtcHistoryItemDto> dco_decode_list_btc_history_item_dto(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -58,6 +99,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  BtcSessionStateDto? dco_decode_opt_box_autoadd_btc_session_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -92,9 +144,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  BtcSessionStateDto sse_decode_box_autoadd_btc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   WalletRowDto sse_decode_box_autoadd_wallet_row_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BtcAddressDto sse_decode_btc_address_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcFeeRatesDto sse_decode_btc_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcHistoryItemDto sse_decode_btc_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BtcSendResultDto sse_decode_btc_send_result_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcSessionStateDto sse_decode_btc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BtcSyncDto sse_decode_btc_sync_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcTxStatusDto sse_decode_btc_tx_status_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcUnlockDto sse_decode_btc_unlock_dto(SseDeserializer deserializer);
 
   @protected
   CreatedWalletDto sse_decode_created_wallet_dto(SseDeserializer deserializer);
@@ -104,6 +195,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<BackupWalletRequest> sse_decode_list_backup_wallet_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BtcAddressDto> sse_decode_list_btc_address_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BtcHistoryItemDto> sse_decode_list_btc_history_item_dto(
     SseDeserializer deserializer,
   );
 
@@ -122,6 +223,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  BtcSessionStateDto? sse_decode_opt_box_autoadd_btc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -163,10 +275,61 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_btc_session_state_dto(
+    BtcSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_wallet_row_dto(
     WalletRowDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_btc_address_dto(BtcAddressDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_btc_fee_rates_dto(
+    BtcFeeRatesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_btc_history_item_dto(
+    BtcHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_btc_send_result_dto(
+    BtcSendResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_btc_session_state_dto(
+    BtcSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_btc_sync_dto(BtcSyncDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_btc_tx_status_dto(
+    BtcTxStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_btc_unlock_dto(BtcUnlockDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_created_wallet_dto(
@@ -180,6 +343,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_backup_wallet_request(
     List<BackupWalletRequest> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_btc_address_dto(
+    List<BtcAddressDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_btc_history_item_dto(
+    List<BtcHistoryItemDto> self,
     SseSerializer serializer,
   );
 
@@ -203,6 +378,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_btc_session_state_dto(
+    BtcSessionStateDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

@@ -4,5 +4,7 @@
 //! surface thin: real logic lives in the core crates, which own the tests.
 
 pub mod backup;
+pub mod btc;
+pub mod session;
 pub mod storage;
 pub mod wallet;
