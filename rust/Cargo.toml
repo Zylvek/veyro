@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/crypto_vault",
+    "crates/key_manager",
+    "crates/wallet_core",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Криптография: только аудируемые RustCrypto-реализации.
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+bip39 = { version = "3", features = ["zeroize", "rand_core"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+zeroize = "1.8"
+
+# Сериализация/утилиты.
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[profile.release]
+lto = "thin"
+strip = true

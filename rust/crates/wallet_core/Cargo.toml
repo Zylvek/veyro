@@ -1,0 +1,17 @@
+[package]
+name = "wallet_core"
+description = "Wallet lifecycle for MultiWallet: create, restore, unlock, list (encrypted local storage)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crypto_vault = { path = "../crypto_vault" }
+key_manager = { path = "../key_manager" }
+hex = { workspace = true }
+rand_core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }

@@ -1,0 +1,22 @@
+# Rust
+target/
+
+# Flutter (появятся на Phase 6)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Локальные артефакты
+*.tmp
+tmp/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# ОС
+Thumbs.db
+.DS_Store
