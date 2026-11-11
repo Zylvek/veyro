@@ -6,6 +6,7 @@ members = [
     "crates/wallet_core",
     "crates/storage",
     "crates/backup_manager",
+    "crates/chains",
     "crates/veyro_bridge",
 ]
 

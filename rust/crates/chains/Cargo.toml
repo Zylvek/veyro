@@ -1,0 +1,33 @@
+[package]
+name = "chains"
+description = "Blockchain adapters for VEYRO (per-network; first adapter: Bitcoin BIP84 via Electrum)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# rust-bitcoin: contains bip32 (Xpriv/xpub/DerivationPath), address/Amount/Script,
+# sighash (BIP143 via SighashCache) and a secp256k1 re-export (single consistent
+# crypto version across the crate tree). License: MIT OR CC0-1.0 OR Apache-2.0
+# (compatible with the workspace MIT OR Apache-2.0).
+bitcoin = "0.32"
+
+# Electrum protocol client (light access without VEYRO servers). Verified on
+# crates.io 2026-11-11: electrum-client 0.24/0.25 requires `bitcoin ^0.32`
+# (same major line we use) and speaks TLS via rustls 0.23 + webpki-roots.
+# License: MIT.
+electrum-client = { version = "0.24", features = ["use-rustls"] }
+
+zeroize = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+sha2 = "0.10"
+# Same crate rust-bitcoin uses internally for hash traits (kept aligned: ^0.14).
+bitcoin_hashes = "0.14"
+
+[dev-dependencies]
+serde_json = { workspace = true }
+# The BIP84/BIP143 test files rebuild the seed from the official vector
+# mnemonic through the audited crate (dev-only dependency).
+bip39 = { workspace = true }
