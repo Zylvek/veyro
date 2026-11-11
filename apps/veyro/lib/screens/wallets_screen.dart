@@ -82,9 +82,10 @@ class _WalletsScreenState extends State<WalletsScreen> {
     await _loadSession();
 
     // Сразу в кошелёк (решение владельца): при закрытой сессии один раз
-    // за вход открываем выбранный (DisplayPrefs) или единственный
-    // кошелёк — портфель перебрасывает в BTC, а тот сразу просит пароль.
-    // Отмена пароля не превращается в nagging: флаг на экземпляр экрана.
+    // за вход открываем выбранный (DisplayPrefs) кошелёк, а если выбор
+    // не сохранён — первый из реестра: пароль всё равно спрашивается тут
+    // же, а активный кошелёк переключается на Обзоре. Отмена пароля не
+    // превращается в nagging: флаг на экземпляр экрана.
     if (!_autoOpened && _wallets != null && _sessionChecked && mounted) {
       _autoOpened = true;
       if (_session == null && _wallets!.isNotEmpty) {
@@ -93,12 +94,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
         for (final w in _wallets!) {
           if (w.id == preferredId) chosen = w;
         }
-        if (chosen == null && _wallets!.length == 1) {
-          chosen = _wallets!.first;
-        }
-        if (chosen != null) {
-          await _push(PortfolioScreen(info: chosen));
-        }
+        chosen ??= _wallets!.first;
+        await _push(PortfolioScreen(info: chosen));
       }
     }
   }

@@ -216,9 +216,8 @@ class _BtcScreenState extends State<BtcScreen> {
                     icon: Icons.lock_outline,
                     children: [
                       const Text(
-                        'Подключитесь к Electrum-серверу: пароль от кошелька, '
-                        'сеть и сервер — из настроек сети. Пароль остаётся между '
-                        'Dart и Rust и не хранится нигде.',
+                        'Подключение к Electrum-серверу выбранной сети.',
+                        style: TextStyle(color: Colors.white60),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
@@ -228,7 +227,7 @@ class _BtcScreenState extends State<BtcScreen> {
                       const SizedBox(height: 8),
                       OutlinedButton(
                         onPressed: _openNetworkSettings,
-                        child: const Text('Настройки сети'),
+                        child: const Text('Сервер и сеть'),
                       ),
                     ],
                   )

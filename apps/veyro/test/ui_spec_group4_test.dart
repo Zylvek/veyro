@@ -190,6 +190,25 @@ void main() {
       expect(find.byType(PortfolioScreen), findsOneWidget);
       expect(find.text('Состояние недоступно'), findsOneWidget);
     });
+
+    testWidgets('закрытая сессия, два кошелька без выбора: открывается '
+        'первый (регрессия молчаливого ожидания выбранного)', (tester) async {
+      await pumpWallets(
+        tester,
+        walletLoader: () async =>
+            [_wallet('w1', 'Основной', 1699000000), _wallet('w2', 'Запасной', 1700000000)],
+        sessionLoader: () async => null,
+      );
+      await tester.pumpAndSettle();
+      // Без сохранённого выбора авто-переход больше не «молчит»:
+      // открывается первый кошелёк с текущим паролем.
+      expect(find.byType(PortfolioScreen), findsOneWidget);
+      // Список под непрозрачным роутом помечен offstage — ищем с учётом его.
+      expect(
+        find.textContaining('создан 03.11.2023', skipOffstage: false),
+        findsOneWidget,
+      );
+    });
   });
 
   group('Каркас: пять разделов навигации (решение владельца)', () {
