@@ -1,5 +1,6 @@
 // Smoke-тест каркаса VEYRO: приложение собирается, тема применяется,
-// экран честно отражает статус интеграции. Никаких фейковых данных.
+// Welcome честно отражает статус интеграции и открывает список кошельков.
+// Никаких фейковых данных.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +20,10 @@ void main() {
     expect(find.byIcon(Icons.construction_outlined), findsOneWidget);
     expect(find.textContaining('flutter_rust_bridge'), findsOneWidget);
 
-    // Никаких имитаций данных кошелька в каркасе.
+    // Реальный вход в кошельки (не имитация).
+    expect(find.text('Открыть кошельки'), findsOneWidget);
+
+    // Никаких имитаций данных кошелька на Welcome.
     expect(find.text('Баланс'), findsNothing);
     expect(find.text('Создать кошелёк'), findsNothing);
   });

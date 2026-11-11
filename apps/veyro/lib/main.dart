@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
 
-import 'src/rust/frb_generated.dart';
+import 'package:veyro/src/rust/api/storage.dart';
+import 'package:veyro/src/rust/frb_generated.dart';
+import 'package:veyro/util/app_dirs.dart';
+
+import 'screens/wallets_screen.dart';
 
 Future<void> main() async {
   // Подключение Rust-ядра через FFI. Должно завершиться до запуска UI:
   // все экраны обращаются к ядру через RustLib.
   await RustLib.init();
+
+  // SQLite-хранилище метаданных (настройки сети BTC: btc.network,
+  // node_endpoints.*). Один коннект на старт; сбой не блокирует приложение —
+  // экран настроек честно покажет причину при попытке чтения.
+  try {
+    await dbOpen(path: appDbPath());
+  } catch (e) {
+    debugPrint('veyro: db_open failed, settings unavailable: $e');
+  }
+
   runApp(const VeyroApp());
 }
 
 /// VEYRO — некастодиальный мультивалютный криптовалютный кошелёк.
 ///
-/// Каркас интерфейса (Phase 6). Ядро кошелька на Rust подключено через
-/// flutter_rust_bridge (RustLib.init в main). Никаких фейковых балансов
-/// и данных — экран честно сообщает текущее состояние интеграции.
+/// Ядро на Rust подключено через flutter_rust_bridge (RustLib.init в main).
+/// Восемь экранов BTC (план PHASE 4 §5) поверх реальных FFI-вызовов, без
+/// моков: что не реализовано — не показывается как доступное.
 class VeyroApp extends StatelessWidget {
   const VeyroApp({super.key});
 
@@ -97,9 +111,16 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
                   const _IntegrationStatusCard(),
-                  const SizedBox(height: 32),
-                  // Кнопки создания/импорта кошелька появятся вместе с
-                  // подключением ядра (flutter_rust_bridge). Пока честно скрыты.
+                  const SizedBox(height: 24),
+                  // Реальный вход в кошельки: список → портфель → BTC.
+                  FilledButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => const WalletsScreen(),
+                      ));
+                    },
+                    child: const Text('Открыть кошельки'),
+                  ),
                 ],
               ),
             ),
@@ -157,20 +178,26 @@ class _IntegrationStatusCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Идёт сборка кошелька',
-                  style: Theme.of(context).textTheme.titleMedium,
+                Expanded(
+                  child: Text(
+                    'Сборка кошелька продолжается',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             const Text(
               'Ядро кошелька на Rust подключено к интерфейсу через '
-              'flutter_rust_bridge: шифрование секретов (Argon2id + '
-              'XChaCha20-Poly1305), BIP39-мнемоники, зашифрованные бэкапы и '
-              'хранение данных уже работают.\n\n'
-              'Балансы и транзакции появятся только после интеграции с '
-              'реальными блокчейнами — никаких имитаций.',
+              'flutter_rust_bridge:\n\n'
+              '• работают: шифрование секретов (Argon2id + '
+              'XChaCha20-Poly1305), BIP39-мнемоники, зашифрованные бэкапы, '
+              'хранение данных;\n'
+              '• BTC-интеграция готова и проверяется на testnet: BIP84-адреса, '
+              'сканирование, локальная подпись BIP143, Electrum-сервер — и '
+              'все восемь экранов кошелька;\n'
+              '• остальные монеты появятся только со своими адаптерами.\n\n'
+              'Никаких имитаций данных.',
               style: TextStyle(color: Colors.white60, height: 1.5),
             ),
           ],
