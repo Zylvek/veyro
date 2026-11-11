@@ -195,6 +195,7 @@ void main() {
         home: DashboardScreen(
           walletLoader: () async => wallets,
           sessionLoader: () async => null,
+          autoOpenWallet: false, // верстка без авто-перехода к паролю
         ),
       ));
       await tester.pumpAndSettle();
@@ -283,6 +284,7 @@ void main() {
         home: DashboardScreen(
           walletLoader: () async => [_wallet('w1', 'Основной')],
           sessionLoader: () async => null,
+          autoOpenWallet: false,
         ),
       ));
       await tester.pumpAndSettle();

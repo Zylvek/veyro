@@ -85,9 +85,10 @@ const double kSidebarWidth = 240;
 
 /// Каркас приложения: выбранный раздел + рамка навигации.
 class VeyroShell extends StatefulWidget {
+  /// Стартовый раздел. По умолчанию — «Обзор» (решение владельца).
   final String initialDestination;
 
-  const VeyroShell({super.key, this.initialDestination = 'wallets'});
+  const VeyroShell({super.key, this.initialDestination = 'overview'});
 
   @override
   State<VeyroShell> createState() => _VeyroShellState();
@@ -101,7 +102,7 @@ class _VeyroShellState extends State<VeyroShell> {
     super.initState();
     _current = kShellDestinations.firstWhere(
       (d) => d.id == widget.initialDestination,
-      orElse: () => kShellDestinations.firstWhere((d) => d.id == 'wallets'),
+      orElse: () => kShellDestinations.firstWhere((d) => d.id == 'overview'),
     );
   }
 

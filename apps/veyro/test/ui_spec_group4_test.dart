@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veyro/navigation/app_shell.dart';
+import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/network_settings_screen.dart';
 import 'package:veyro/screens/portfolio_screen.dart';
 import 'package:veyro/screens/settings_screen.dart';
@@ -177,37 +178,45 @@ void main() {
       expect(find.textContaining('Не загружены'), findsOneWidget);
     });
 
-    testWidgets('закрытая сессия и один кошелёк: сразу открывается '
-        'портфель (решение владельца — сразу в кошелёк)', (tester) async {
-      await pumpWallets(
-        tester,
-        walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
-        sessionLoader: () async => null,
-      );
+    testWidgets('закрытая сессия: Обзор сам открывает кошелёк → портфель '
+        '(один кошелёк)', (tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        home: DashboardScreen(
+          walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
+          sessionLoader: () async => null,
+        ),
+      ));
       await tester.pumpAndSettle();
-      // Портфель открылся сам (его честная ошибка состояния без ядра),
-      // список кошельков остался под ним.
+      // Авто-цепочка: портфель открыт (сверху) — его честная ошибка
+      // состояния без ядра; Обзор остаётся под ним.
       expect(find.byType(PortfolioScreen), findsOneWidget);
-      expect(find.text('Состояние недоступно'), findsOneWidget);
+      expect(
+        find.text('Обзор', skipOffstage: false),
+        findsWidgets,
+      );
     });
 
     testWidgets('закрытая сессия, два кошелька без выбора: открывается '
         'первый (регрессия молчаливого ожидания выбранного)', (tester) async {
-      await pumpWallets(
-        tester,
-        walletLoader: () async =>
-            [_wallet('w1', 'Основной', 1699000000), _wallet('w2', 'Запасной', 1700000000)],
-        sessionLoader: () async => null,
-      );
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        home: DashboardScreen(
+          walletLoader: () async => [
+            _wallet('w1', 'Основной', 1699000000),
+            _wallet('w2', 'Запасной', 1700000000),
+          ],
+          sessionLoader: () async => null,
+        ),
+      ));
       await tester.pumpAndSettle();
-      // Без сохранённого выбора авто-переход больше не «молчит»:
-      // открывается первый кошелёк с текущим паролем.
       expect(find.byType(PortfolioScreen), findsOneWidget);
-      // Список под непрозрачным роутом помечен offstage — ищем с учётом его.
-      expect(
-        find.textContaining('создан 03.11.2023', skipOffstage: false),
-        findsOneWidget,
-      );
+      // Обзор остаётся под непрозрачным роутом (offstage).
+      expect(find.text('Обзор', skipOffstage: false), findsWidgets);
     });
   });
 

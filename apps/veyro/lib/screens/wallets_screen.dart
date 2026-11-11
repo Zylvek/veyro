@@ -15,7 +15,6 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
-import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -48,10 +47,6 @@ class _WalletsScreenState extends State<WalletsScreen> {
   bool _sessionChecked = false;
   String? _sessionError;
 
-  /// Авто-открытие кошелька один раз за вход (решение владельца:
-  /// «сразу в кошелёк и сразу пароль»).
-  var _autoOpened = false;
-
   @override
   void initState() {
     super.initState();
@@ -80,24 +75,6 @@ class _WalletsScreenState extends State<WalletsScreen> {
       });
     }
     await _loadSession();
-
-    // Сразу в кошелёк (решение владельца): при закрытой сессии один раз
-    // за вход открываем выбранный (DisplayPrefs) кошелёк, а если выбор
-    // не сохранён — первый из реестра: пароль всё равно спрашивается тут
-    // же, а активный кошелёк переключается на Обзоре. Отмена пароля не
-    // превращается в nagging: флаг на экземпляр экрана.
-    if (!_autoOpened && _wallets != null && _sessionChecked && mounted) {
-      _autoOpened = true;
-      if (_session == null && _wallets!.isNotEmpty) {
-        final preferredId = DisplayPrefs.walletId;
-        WalletInfoDto? chosen;
-        for (final w in _wallets!) {
-          if (w.id == preferredId) chosen = w;
-        }
-        chosen ??= _wallets!.first;
-        await _push(PortfolioScreen(info: chosen));
-      }
-    }
   }
 
   Future<void> _loadSession() async {
