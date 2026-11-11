@@ -26,16 +26,7 @@ class SendScreen extends StatefulWidget {
   /// Точка замены для виджет-тестов (без RustLib): пресеты комиссии.
   final Future<BtcFeeRatesDto> Function()? feesLoader;
 
-  /// Предзаполнение получателя (из адресной книги). Чистый UI-параметр,
-  /// ничего не подписывает: все проверки ядра стоят на месте.
-  final String? initialRecipient;
-
-  const SendScreen({
-    super.key,
-    this.availableSat,
-    this.feesLoader,
-    this.initialRecipient,
-  });
+  const SendScreen({super.key, this.availableSat, this.feesLoader});
 
   @override
   State<SendScreen> createState() => _SendScreenState();
@@ -58,10 +49,6 @@ class _SendScreenState extends State<SendScreen> {
   @override
   void initState() {
     super.initState();
-    final initial = widget.initialRecipient;
-    if (initial != null && initial.isNotEmpty) {
-      _recipientController.text = initial;
-    }
     _loadFees();
   }
 

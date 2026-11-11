@@ -19,7 +19,6 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'about_screen.dart';
-import 'address_book_screen.dart';
 import 'backup_screen.dart';
 import 'network_settings_screen.dart';
 
@@ -420,19 +419,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => const AboutScreen(),
-              ));
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: VButton.secondary(
-            'Адресная книга',
-            icon: Icons.import_contacts_outlined,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const AddressBookScreen(),
               ));
             },
           ),
