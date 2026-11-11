@@ -1,6 +1,7 @@
 //! Экран 1: список кошельков — реестр (list_wallets из ядра), создание нового
 //! кошелька (мнемоника показывается ровно один раз), восстановление из фразы.
-//! Выбор кошелька открывает портфель. Все данные из ядра, без моков.
+//! Выбор кошелька открывает портфель. Резервное копирование (AppBar) —
+//! backup_screens.dart. Все данные из ядра, без моков.
 
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
+import 'backup_screens.dart';
 import 'portfolio_screen.dart';
 
 class WalletsScreen extends StatefulWidget {
@@ -240,10 +242,70 @@ class _WalletsScreenState extends State<WalletsScreen> {
     }
   }
 
+  /// Меню резервных копий (AppBar): экспорт выбранных кошельков в один
+  /// зашифрованный файл и импорт на это устройство. Диалоги в
+  /// backup_screens.dart; после импорта реестр перечитывается.
+  Future<void> _openBackupMenu() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Экспорт бэкапа'),
+              subtitle: const Text('Выбранные кошельки — в зашифрованный файл'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _exportBackup();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.unarchive_outlined),
+              title: const Text('Импорт бэкапа'),
+              subtitle: const Text('Кошельки из файла-копии на это устройство'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _importBackup();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportBackup() async {
+    final wallets = _wallets ?? const [];
+    if (wallets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Экспортировать нечего: кошельков нет')),
+      );
+      return;
+    }
+    await showBackupExportDialog(context, wallets: wallets);
+  }
+
+  Future<void> _importBackup() async {
+    await showBackupImportDialog(context);
+    // Импорт меняет реестр кошельков — перечитать список.
+    if (mounted) await _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Кошельки')),
+      appBar: AppBar(
+        title: const Text('Кошельки'),
+        actions: [
+          IconButton(
+            tooltip: 'Резервная копия',
+            icon: const Icon(Icons.archive_outlined),
+            onPressed: _openBackupMenu,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showModalBottomSheet<void>(
