@@ -33,14 +33,31 @@ class _BtcScreenState extends State<BtcScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Диалог пароля показывается автоматически один раз на вход (решение
+  /// владельца: «подключаться сразу», без лишних нажатий). После отмены
+  /// остаются ручные кнопки — повторно сам не выскакивает.
+  var _autoPrompted = false;
+
   @override
   void initState() {
     super.initState();
-    _refresh(autosyncIfUnlocked: true);
+    _entry();
+  }
+
+  Future<void> _entry() async {
+    await _refresh(autosyncIfUnlocked: true);
+    await _maybeAutoPrompt();
+  }
+
+  Future<void> _maybeAutoPrompt() async {
+    if (_state != null || _autoPrompted || _busy || !mounted) return;
+    _autoPrompted = true;
+    await _unlock();
   }
 
   /// Перечитать состояние сессии; если разблокирована и данных ещё нет —
-  /// синхронизировать (unlock в рантайме не «переезжает» между экранами).
+  /// синхронизировать без кнопки (решение владельца: автосинхронизация
+  /// сразу после подключения).
   Future<void> _refresh({bool autosyncIfUnlocked = false}) async {
     setState(() {
       _busy = true;
@@ -50,7 +67,7 @@ class _BtcScreenState extends State<BtcScreen> {
       final state = await btcSessionState();
       if (!mounted) return;
       setState(() => _state = state);
-      if (autosyncIfUnlocked && state != null) {
+      if (state != null && (autosyncIfUnlocked || _sync == null)) {
         await _doSync();
         return; // _doSync уже снял busy
       }

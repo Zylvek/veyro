@@ -1,7 +1,8 @@
-//! Экран 1 (спека: Welcome). Бренд-блок + честный статус интеграции ядра +
-//! реальные входы: создание кошелька, импорт из фразы, каталог кошельков
-//! (если они есть), импорт зашифрованного бэкапа. Фейковые балансы и
-//! «быстрые демо» запрещены спекой.
+//! Экран 1 (спека: Welcome). Бренд-блок + реальные входы: создание
+//! кошелька, импорт из фразы, вход в каркас (если кошельки есть), импорт
+//! зашифрованного бэкапа. Фейковые балансы и «быстрые демо» запрещены
+//! спекой; технические статусы ядра на бренд-экране не показываются
+//! (решение владельца — не шуметь техникой на первом экране).
 
 import 'package:flutter/material.dart';
 
@@ -110,25 +111,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         fontWeight: FontWeight.w600,
                         letterSpacing: 2.4,
                         color: VColors.secondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Некастодиальный мультивалютный кошелёк.\n'
-                      'Ядро — Rust, подпись транзакций — локально.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 22),
-                    const Center(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          VStatusChip('Ядро: FFI подключено', kind: VChipKind.success),
-                          VStatusChip('BTC: Send — проверено на testnet', kind: VChipKind.info),
-                        ],
+                        decoration: TextDecoration.none,
                       ),
                     ),
                     const SizedBox(height: 28),

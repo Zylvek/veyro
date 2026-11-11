@@ -105,8 +105,8 @@ void main() {
     );
     await tester.pump();
 
-    // Сайдбар: логотип и все семь реальных разделов (с группы 4
-    // заглушки отсутствуют).
+    // Сайдбар: логотип и все шесть реальных разделов (заглушки
+    // отсутствуют).
     expect(find.text('VEYRO'), findsOneWidget);
     expect(find.text('Кошельки'), findsWidgets); // нав. элемент + заголовок
     expect(find.text('Обзор'), findsOneWidget);
@@ -141,11 +141,10 @@ void main() {
     await tester.pump();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Все семь реальных разделов (с группы 4; экран сети — из Настроек).
-    expect(find.byType(NavigationDestination), findsNWidgets(7));
+    // Все шесть реальных разделов (адресная книга — из «Настроек»).
+    expect(find.byType(NavigationDestination), findsNWidgets(6));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
-    expect(find.text('Адреса'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Сеть'), findsNothing); // назначение удалено
   });

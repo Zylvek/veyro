@@ -21,10 +21,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('VEYRO'), findsOneWidget);
-    expect(
-      find.textContaining('Некастодиальный мультивалютный кошелёк'),
-      findsOneWidget,
-    );
+    // Технический статус ядра на бренд-экране не показывается (решение
+    // владельца): только бренд и действия.
+    expect(find.textContaining('Некастодиальный'), findsNothing);
+    expect(find.text('Ядро: FFI подключено'), findsNothing);
     // Ваш CRYPTO/TAGLINE на месте.
     expect(find.text('YOUR CRYPTO. YOUR CONTROL.'), findsOneWidget);
 

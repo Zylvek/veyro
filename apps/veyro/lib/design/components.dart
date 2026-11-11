@@ -419,3 +419,76 @@ class VMonoCopyRow extends StatelessWidget {
     );
   }
 }
+
+/// Сетка слов BIP39-фразы: 4 колонки по 6 слов (24 слова) на широких
+/// экранах, 2 колонки на узких (телефон). Номер — маленькая плашка,
+/// слово — моноширинно. Кнопки копирования нет намеренно: фразу
+/// переписывают руками на бумагу.
+class VMnemonicGrid extends StatelessWidget {
+  final List<String> words;
+
+  const VMnemonicGrid({super.key, required this.words});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 460 ? 4 : 2;
+        final rowCount = (words.length / columns).ceil();
+        return Column(
+          children: [
+            for (var r = 0; r < rowCount; r++) ...[
+              if (r > 0) const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (var c = 0; c < columns; c++) ...[
+                    if (c > 0) const SizedBox(width: 8),
+                    Expanded(child: _cell(r * columns + c)),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _cell(int index) {
+    if (index >= words.length) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: VColors.elevated),
+        color: VColors.elevated.withValues(alpha: 0.35),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${index + 1}',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: VColors.textSecondary.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              words[index],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: kMonoFont,
+                fontSize: 12.5,
+                color: VColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

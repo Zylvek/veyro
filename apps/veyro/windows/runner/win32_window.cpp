@@ -197,6 +197,18 @@ Win32Window::MessageHandler(HWND hwnd,
 
       return 0;
     }
+    case WM_GETMINMAXINFO: {
+      // Минимальные размеры окна (DPI-aware): интерфейс рассчитан на
+      // мобильную раскладку от 480x640 логических пикселей.
+      auto *info = reinterpret_cast<MINMAXINFO *>(lparam);
+      UINT dpi = GetDpiForWindow(hwnd);
+      if (dpi == 0) {
+        dpi = 96;
+      }
+      info->ptMinTrackSize.x = MulDiv(480, dpi, 96);
+      info->ptMinTrackSize.y = MulDiv(640, dpi, 96);
+      return 0;
+    }
     case WM_SIZE: {
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {

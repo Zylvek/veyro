@@ -14,7 +14,6 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
-import '../screens/address_book_screen.dart';
 import '../screens/backup_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/wallets_screen.dart';
@@ -37,8 +36,9 @@ class ShellDestination {
 }
 
 /// Реестр разделов каркаса. Группа 1: каркас и Welcome; группа 2 —
-/// реальные Обзор и Активы; группа 4 — Адресная книга и Настройки
-/// (экран сети остаётся доступным из Настроек и центра BTC).
+/// реальные Обзор и Активы; группа 4 — Настройки. Адресная книга убрана
+/// из навигации по решению владельца (экран остаётся доступным из
+/// «Настроек»), сетевые настройки — из «Настроек» и центра BTC.
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -57,12 +57,6 @@ const List<ShellDestination> kShellDestinations = [
     icon: Icons.wallet_outlined,
     label: 'Кошельки',
     builder: _buildWallets,
-  ),
-  ShellDestination(
-    id: 'addresses',
-    icon: Icons.import_contacts_outlined,
-    label: 'Адреса',
-    builder: _buildAddresses,
   ),
   ShellDestination(
     id: 'backup',
@@ -87,7 +81,6 @@ const List<ShellDestination> kShellDestinations = [
 Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
-Widget _buildAddresses(BuildContext context) => const AddressBookScreen();
 Widget _buildBackup(BuildContext context) => const BackupScreen();
 Widget _buildSettings(BuildContext context) => const SettingsScreen();
 Widget _buildAbout(BuildContext context) => const AboutScreen();
@@ -192,6 +185,7 @@ class _Sidebar extends StatelessWidget {
                             fontSize: 17,
                             letterSpacing: 3,
                             color: VColors.textPrimary,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                         Text(
@@ -201,6 +195,7 @@ class _Sidebar extends StatelessWidget {
                             letterSpacing: 1.2,
                             fontWeight: FontWeight.w600,
                             color: VColors.textSecondary,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                       ],
@@ -263,10 +258,12 @@ class _NavItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected ? VColors.elevated : Colors.transparent,
+          // Заливка плюс рамка: выбранный раздел виден сразу (отзыв
+          // владельца — «не показывается, в какой я вкладке»).
+          color: selected ? VColors.primary.withValues(alpha: 0.16) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: selected
-              ? Border.all(color: VColors.primary.withValues(alpha: 0.4))
+              ? Border.all(color: VColors.primary.withValues(alpha: 0.75), width: 1.4)
               : null,
         ),
         child: Material(
@@ -279,9 +276,10 @@ class _NavItem extends StatelessWidget {
             title: Text(
               dest.label,
               style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                 color: selected ? VColors.textPrimary : VColors.textSecondary,
+                decoration: TextDecoration.none,
               ),
             ),
             trailing: selected

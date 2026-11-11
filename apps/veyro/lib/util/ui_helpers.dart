@@ -4,6 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:veyro/design/components.dart';
+
 /// Модальный запрос пароля. Возвращает пароль (не пустой) или `null`.
 Future<String?> promptPassword(
   BuildContext context, {
@@ -51,60 +53,19 @@ Future<String?> promptPassword(
 }
 
 /// Показ мнемонической фразы (один из немногих секретов, которые легально
-/// пересекают границу: пользователь сам попросил «показать»). Копируется
-/// только явным действием; в логи не попадает.
+/// пересекают границу: пользователь сам попросил «показать»). Сетка 4×6
+/// в красивых окошках, на телефоне — две колонки; без кнопки копирования
+/// (решение владельца: слова переписывают руками).
 Future<void> showMnemonicDialog(BuildContext context, String phrase) {
   final words = phrase.trim().split(RegExp(r'\s+'));
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Seed-фаза'),
+      title: const Text('Seed-фраза'),
       content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(dialogContext).colorScheme.outline),
-              ),
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 6,
-                children: [
-                  for (var i = 0; i < words.length; i++)
-                    Text(
-                      '${i + 1}. ${words[i]}',
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 14,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Запишите фразу на бумаге и храните в безопасном месте. '
-              'Кто получит фразу — получит доступ ко всем средствам.',
-              style: TextStyle(fontSize: 13, color: Colors.white70),
-            ),
-          ],
-        ),
+        child: VMnemonicGrid(words: words),
       ),
       actions: [
-        TextButton.icon(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: phrase));
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('Фраза скопирована в буфер обмена')),
-            );
-          },
-          icon: const Icon(Icons.copy_outlined),
-          label: const Text('Копировать'),
-        ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('Закрыть'),

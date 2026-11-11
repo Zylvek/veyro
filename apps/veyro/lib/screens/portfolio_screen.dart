@@ -25,6 +25,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   String? _error;
   bool _loading = true;
 
+  /// Открытие BTC автоматом один раз за вход (решение владельца:
+  /// «сразу к подключению»); после отмены пароля остаются ручные кнопки.
+  var _btcAutoOpened = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +53,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         _error = e.toString();
         _loading = false;
       });
+      return;
+    }
+    if (_btcState == null && !_btcAutoOpened && mounted) {
+      _btcAutoOpened = true;
+      await _openBtc();
     }
   }
 

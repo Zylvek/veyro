@@ -510,23 +510,24 @@ void main() {
     });
   });
 
-  group('Каркас: семь реальных разделов (группа 4)', () {
-    test('реестр kShellDestinations: 7 назначений, порядок и id', () {
-      expect(kShellDestinations.length, 7);
+  group('Каркас: шесть реальных разделов (адресная книга — из Настроек)', () {
+    test('реестр kShellDestinations: 6 назначений, порядок и id', () {
+      expect(kShellDestinations.length, 6);
       expect(
         [for (final d in kShellDestinations) d.id],
         [
           'overview',
           'assets',
           'wallets',
-          'addresses',
           'backup',
           'settings',
           'about',
         ],
       );
       final labels = [for (final d in kShellDestinations) d.label];
-      expect(labels.contains('Адреса'), isTrue);
+      // Адресная книга убрана из навигации (решение владельца): экран
+      // открывается из «Настроек», назначение в каркасе отсутствует.
+      expect(labels.contains('Адреса'), isFalse);
       expect(labels.contains('Настройки'), isTrue);
       // Назначение «Сеть» удалено: сетевые настройки — из экрана настроек.
       expect(labels.contains('Сеть'), isFalse);

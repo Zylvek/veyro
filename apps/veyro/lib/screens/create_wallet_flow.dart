@@ -37,12 +37,19 @@ class CreateWalletFlow extends StatefulWidget {
 
 enum _Step { profile, password, phrase, verify }
 
+/// Минимальная длина пароля кошелька (решение владельца — 8 символов).
+const int _kMinPasswordLength = 8;
+
 class _CreateWalletFlowState extends State<CreateWalletFlow> {
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _phraseChecks = <TextEditingController, int>{};
-  var _wordCount = 24;
+
+  /// Фраза всегда 24 слова (256 бит энтропии) — выбор длины убран по
+  /// решению владельца: безопасная длина по умолчанию, меньше настроек.
+  static const int _wordCount = 24;
+
   var _wroteItDown = false;
   var _busy = false;
   CreatedWalletDto? _created;
@@ -64,7 +71,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
       case _Step.profile:
         return _nameController.text.trim().isNotEmpty;
       case _Step.password:
-        return _passwordController.text.isNotEmpty &&
+        return _passwordController.text.length >= _kMinPasswordLength &&
             _passwordController.text == _confirmController.text;
       case _Step.phrase:
         return _wroteItDown;
@@ -269,7 +276,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const VSectionHeader(
-          title: 'Имя и мнемоника',
+          title: 'Имя кошелька',
           subtitle: 'Шаг 1 из 4. Кошелёк храняется зашифрованным на этом '
               'устройстве.',
         ),
@@ -284,18 +291,6 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               maxLength: 40,
               decoration: const InputDecoration(labelText: 'Название'),
               onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: _wordCount,
-              items: const [
-                DropdownMenuItem(value: 12, child: Text('12 слов')),
-                DropdownMenuItem(value: 24, child: Text('24 слова')),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Длина BIP39-фразы',
-              ),
-              onChanged: (v) => setState(() => _wordCount = v ?? 24),
             ),
           ],
         ),
@@ -322,7 +317,10 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               autofocus: true,
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
-              decoration: const InputDecoration(labelText: 'Пароль'),
+              decoration: const InputDecoration(
+                labelText: 'Пароль',
+                helperText: 'Минимум $_kMinPasswordLength символов',
+              ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
@@ -333,12 +331,17 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               decoration: const InputDecoration(labelText: 'Повтор пароля'),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Шифрование хранилища: Argon2id + XChaCha20-Poly1305, ключ '
-              'считается в Rust-ядре. Пароль никогда не покидает устройство.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            if (_passwordController.text.length < _kMinPasswordLength) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Пароль короче $_kMinPasswordLength символов — кнопка '
+                'создания заблокирована.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall!
+                    .copyWith(color: VColors.warning),
+              ),
+            ],
           ],
         ),
       ],
@@ -358,43 +361,14 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
         const SizedBox(height: 16),
         VCard(
           icon: Icons.key_outlined,
-          title: 'BIP39-фраза',
+          title: 'BIP39-фраза — 24 слова',
           children: [
-            Row(
-              children: [
-                VStatusChip('показ один раз', kind: VChipKind.warning),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(text: _created!.mnemonicPhrase),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Фраза скопирована в буфер обмена')),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_outlined, size: 16),
-                  label: const Text('Копировать'),
-                ),
-              ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: VStatusChip('показ один раз', kind: VChipKind.warning),
             ),
-            const Divider(height: 20),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                for (var i = 0; i < words.length; i++)
-                  Text(
-                    '${i + 1}. ${words[i]}',
-                    style: const TextStyle(
-                      fontFamily: kMonoFont,
-                      fontSize: 13.5,
-                      color: VColors.textPrimary,
-                    ),
-                  ),
-              ],
-            ),
+            const SizedBox(height: 12),
+            VMnemonicGrid(words: words),
             const Divider(height: 20),
             CheckboxListTile(
               dense: true,
@@ -402,11 +376,6 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               value: _wroteItDown,
               title: const Text('Я записал фразу на бумаге'),
               onChanged: (v) => setState(() => _wroteItDown = v ?? false),
-            ),
-            Text(
-              'Кто владеет фразой — владеет средствами. VEYRO хранит фразу '
-              'только зашифрованной и не отправляет её через сеть.',
-              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
