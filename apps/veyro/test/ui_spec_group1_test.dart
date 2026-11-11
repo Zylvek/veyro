@@ -105,11 +105,13 @@ void main() {
     );
     await tester.pump();
 
-    // Сайдбар: логотип и разделы; заглушки помечены группой.
+    // Сайдбар: логотип и все шесть реальных разделов (с группы 2
+    // заглушки отсутствуют).
     expect(find.text('VEYRO'), findsOneWidget);
     expect(find.text('Кошельки'), findsWidgets); // нав. элемент + заголовок
     expect(find.text('Обзор'), findsOneWidget);
-    expect(find.text('группа 2'), findsWidgets);
+    expect(find.text('Активы'), findsOneWidget);
+    expect(find.text('группа 2'), findsNothing);
 
     // Контент реального раздела (экран кошельков из ядра — FFI не вызывается
     // в тесте: экран покажет прогресс/состояние, каркас не падает).
@@ -139,9 +141,9 @@ void main() {
     await tester.pump();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Только доступные разделы: Кошельки/Бэкап/Сеть/О VEYRO.
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
-    // Заглушки не попадают в нижнюю навигацию.
-    expect(find.text('Обзор'), findsNothing);
+    // Все шесть реальных разделов (с группы 2 — без заглушек).
+    expect(find.byType(NavigationDestination), findsNWidgets(6));
+    expect(find.text('Обзор'), findsOneWidget);
+    expect(find.text('Активы'), findsOneWidget);
   });
 }

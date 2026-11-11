@@ -2,59 +2,52 @@
 //! Android layout). Desktop: постоянный левый сайдбар 240 px + отзывчивый
 //! контент. Узкие экраны (Android): нижняя навигация.
 //!
-//! Разделы, не реализованные к текущей группе разработки, отображаются
-//! ЧЕСТНО: «группа N» — без имитации содержимого. Каждая следующая группа
-//! заменяет свои заглушки реальными экранами (docs/UI_SPEC.md — порядок).
+//! С группы 2 все шесть разделов каркаса — реальные экраны (Обзор,
+//! Активы, Кошельки, Бэкап, Сеть, О VEYRO). Дочерние экраны (детали
+//! актива, BTC, Receive/Send) открываются push-навигацией из разделов.
 
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/screens/asset_catalog_screen.dart';
+import 'package:veyro/screens/dashboard_screen.dart';
 
 import '../screens/backup_screen.dart';
 import '../screens/network_settings_screen.dart';
 import '../screens/wallets_screen.dart';
 import '../screens/about_screen.dart';
 
-/// Раздел каркаса.
+/// Раздел каркаса. Все разделы реализованы (builder обязателен).
 class ShellDestination {
   /// Стабильный идентификатор (не индекс — списки desktop/mobile различаются).
   final String id;
   final IconData icon;
   final String label;
-
-  /// Экран раздела. Для заглушек — null (отображается честная карточка).
-  final WidgetBuilder? builder;
-
-  /// Группа разработки (спека «Development sequence»), в которой раздел
-  /// получает реализацию. Для готовых разделов 0.
-  final int pendingGroup;
+  final WidgetBuilder builder;
 
   const ShellDestination({
     required this.id,
     required this.icon,
     required this.label,
-    this.builder,
-    this.pendingGroup = 0,
+    required this.builder,
   });
-
-  bool get available => builder != null && pendingGroup == 0;
 }
 
-/// Реестр разделов каркаса. Группа 1: реальны Кошельки, Бэкап, Сеть,
-/// О программе; Обзор и Активы — честные заглушки группы 2.
+/// Реестр разделов каркаса. Группа 1: Кошельки/Бэкап/Сеть/О VEYRO;
+/// группа 2 добавила реальные Обзор и Активы.
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
     icon: Icons.space_dashboard_outlined,
     label: 'Обзор',
-    pendingGroup: 2,
+    builder: _buildOverview,
   ),
   ShellDestination(
     id: 'assets',
     icon: Icons.grid_view_outlined,
     label: 'Активы',
-    pendingGroup: 2,
+    builder: _buildAssets,
   ),
   ShellDestination(
     id: 'wallets',
@@ -82,6 +75,8 @@ const List<ShellDestination> kShellDestinations = [
   ),
 ];
 
+Widget _buildOverview(BuildContext context) => const DashboardScreen();
+Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
 Widget _buildBackup(BuildContext context) => const BackupScreen();
 Widget _buildNetwork(BuildContext context) => const NetworkSettingsScreen();
@@ -111,9 +106,8 @@ class _VeyroShellState extends State<VeyroShell> {
   void initState() {
     super.initState();
     _current = kShellDestinations.firstWhere(
-      (d) => d.id == widget.initialDestination && d.available,
-      orElse: () => kShellDestinations
-          .firstWhere((d) => d.id == 'wallets'),
+      (d) => d.id == widget.initialDestination,
+      orElse: () => kShellDestinations.firstWhere((d) => d.id == 'wallets'),
     );
   }
 
@@ -147,7 +141,7 @@ class _VeyroShellState extends State<VeyroShell> {
 
   Widget _content() => KeyedSubtree(
         key: ValueKey(_current.id),
-        child: _current.builder?.call(context) ?? ShellStubScreen(dest: _current),
+        child: _current.builder(context),
       );
 
   void _selectById(String id) {
@@ -214,13 +208,11 @@ class _Sidebar extends StatelessWidget {
                     _NavItem(
                       dest: dest,
                       selected: dest.id == selection.id,
-                      onTap: dest.available
-                          ? () {
-                              final shell =
-                                  context.findAncestorStateOfType<_VeyroShellState>();
-                              shell?._selectById(dest.id);
-                            }
-                          : null,
+                      onTap: () {
+                        final shell =
+                            context.findAncestorStateOfType<_VeyroShellState>();
+                        shell?._selectById(dest.id);
+                      },
                     ),
                 ],
               ),
@@ -229,7 +221,7 @@ class _Sidebar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(14),
               child: Text(
-                'Некастодиально.\nПодпись — локально в Rust-ядре.',
+                'Некастодиально. Подпись — локально в Rust-ядре.',
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall!
@@ -246,7 +238,7 @@ class _Sidebar extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   final ShellDestination dest;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const _NavItem({
     required this.dest,
@@ -256,10 +248,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final available = dest.available;
-    final color = available
-        ? (selected ? VColors.primary : VColors.textSecondary)
-        : VColors.textSecondary;
+    final color = selected ? VColors.primary : VColors.textSecondary;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DecoratedBox(
@@ -273,25 +262,23 @@ class _NavItem extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: ListTile(
-          dense: true,
-          enabled: available,
-          selected: selected,
-          visualDensity: VisualDensity.compact,
-          leading: Icon(dest.icon, size: 20, color: color),
-          title: Text(
-            dest.label,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: available ? VColors.textPrimary : VColors.textSecondary,
+            dense: true,
+            selected: selected,
+            visualDensity: VisualDensity.compact,
+            leading: Icon(dest.icon, size: 20, color: color),
+            title: Text(
+              dest.label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? VColors.textPrimary : VColors.textSecondary,
+              ),
             ),
-          ),
-          trailing: available
-              ? (selected
-                  ? Icon(Icons.arrow_right, color: VColors.primary, size: 20)
-                  : null)
-              : VStatusChip('группа ${dest.pendingGroup}', kind: VChipKind.neutral),
-          onTap: onTap,
+            trailing: selected
+                ? const Icon(Icons.arrow_right,
+                    color: VColors.primary, size: 20)
+                : null,
+            onTap: onTap,
           ),
         ),
       ),
@@ -307,48 +294,18 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = kShellDestinations.where((d) => d.available).toList();
     return NavigationBar(
-      selectedIndex: items.indexWhere((d) => d.id == currentId).clamp(0, items.length - 1),
+      selectedIndex:
+          kShellDestinations.indexWhere((d) => d.id == currentId).clamp(0, 5),
       destinations: [
-        for (final dest in items)
+        for (final dest in kShellDestinations)
           NavigationDestination(
             icon: Icon(dest.icon),
             selectedIcon: Icon(dest.icon, color: VColors.primary),
             label: dest.label,
           ),
       ],
-      onDestinationSelected: (index) => onSelect(items[index].id),
-    );
-  }
-}
-
-/// Честная заглушка нереализованного раздела: имя группы по спеке,
-/// никакого имитированного содержимого.
-class ShellStubScreen extends StatelessWidget {
-  final ShellDestination dest;
-
-  const ShellStubScreen({super.key, required this.dest});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(dest.label)),
-      body: VScreen(
-        child: VCard(
-          icon: Icons.schedule,
-          title: 'Раздел в разработке',
-          children: [
-            Text(
-              'Раздел «${dest.label}» реализуется группой ${dest.pendingGroup} '
-              'по принятой спецификации UI (docs/UI_SPEC.md, Development '
-              'sequence). Имитировать содержимое не допускается — этот экран '
-              'сознательно пуст до своей группы.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ],
-        ),
-      ),
+      onDestinationSelected: (index) => onSelect(kShellDestinations[index].id),
     );
   }
 }
