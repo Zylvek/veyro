@@ -28,7 +28,6 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
-  int? _walletCount;
   bool _counting = true;
 
   @override
@@ -38,33 +37,32 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Future<void> _loadWalletCount() async {
-    setState(() {
-      _counting = true;
-      _walletCount = null;
-    });
+    setState(() => _counting = true);
     try {
       final loader = widget.walletCountLoader ??
           () async => (await listWallets(walletsDir: walletsDir())).length;
       final count = await loader();
       if (!mounted) return;
-      setState(() {
-        _walletCount = count;
-        _counting = false;
-      });
+      setState(() => _counting = false);
+      // Сразу в кошелёк (решение владельца): если кошельки есть, Welcome
+      // показывать не нужно — перебрасываем в каркас (кошелёк далее
+      // сам откроется и запросит пароль). Один раз на вход в Welcome.
+      if (count != null && count > 0 && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+          (route) => false,
+        );
+      }
     } catch (_) {
       // Реестр недоступен (например, ядро без базы) — Welcome продолжает
       // работать: кнопки создания и импорта не зависят от реестра.
       if (!mounted) return;
-      setState(() {
-        _walletCount = null;
-        _counting = false;
-      });
+      setState(() => _counting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasWallets = (_walletCount ?? 0) > 0;
     return Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
@@ -121,14 +119,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (hasWallets) ...[
-                            VButton.primary(
-                              'Войти в кошелёк',
-                              icon: Icons.login,
-                              onPressed: () => _openShell(),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
+                          // «Войти в кошелёк» не нужен: при наличии
+                          // кошельков Welcome сразу перебрасывает в каркас
+                          // (решение владельца).
                           VButton.primary(
                             'Создать кошелёк',
                             icon: Icons.add_circle_outline,
@@ -174,12 +167,5 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _push(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
     if (mounted) await _loadWalletCount();
-  }
-
-  void _openShell() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
-      (route) => false,
-    );
   }
 }

@@ -3,6 +3,8 @@
 //! ядра createWallet (фраза показывается ровно один раз, потом проверка
 //! знания 4 позиций). Никаких локальных моков.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -155,18 +157,35 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
   }
 
   Future<bool> _confirmLeave() async {
-    if (_step == _Step.profile || _step == _Step.password) return true;
-    // Кошелёк уже создан: предупреждаем, что фраза показывается ещё раз
-    // только по запросу (reveal на карточке кошелька).
-    return confirmAction(
+    if (_created == null) return true; // до создания кошелька выход свободен
+    // Кошелёк уже записан на диск, но сценарий не завершён (фраза или
+    // проверка). Отмена = полностью удалить недоделанный кошелёк
+    // (решение владельца: «отменил — значит не создался»). Удаляем
+    // строго vault-файл этого сценария, другой трогать нельзя.
+    final leave = await confirmAction(
       context,
-      title: 'Прервать сценарий?',
-      body: 'Кошелёк уже создан и зашифрован в этом каталоге. Фразу можно '
-          'посмотреть позже по паролю (иконка ключа на карточке кошелька). '
-          'Без записанной фразы восстановление невозможно.',
-      confirmLabel: 'Выйти',
+      title: 'Прервать создание?',
+      body: 'Кошелёк ещё не прошёл проверку фразы. Отмена удалит его '
+          'насовсем — вместе с записанной фразой. Если фраза уже переписана '
+          'на бумагу и кошелёк нужен — пройдите проверку до конца.',
+      confirmLabel: 'Удалить и выйти',
       destructive: true,
     );
+    if (!leave) return false;
+    try {
+      final id = _created!.info.id;
+      final file = File(
+        '${walletsDir()}${Platform.pathSeparator}$id.wallet.json',
+      );
+      if (await file.exists()) {
+        await file.delete();
+      }
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      showError(context, e);
+      return false;
+    }
   }
 
   @override

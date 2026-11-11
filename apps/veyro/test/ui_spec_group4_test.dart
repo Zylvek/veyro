@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/address_book_screen.dart';
 import 'package:veyro/screens/network_settings_screen.dart';
+import 'package:veyro/screens/portfolio_screen.dart';
 import 'package:veyro/screens/settings_screen.dart';
 import 'package:veyro/screens/wallets_screen.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -507,6 +508,20 @@ void main() {
         sessionLoader: () async => null,
       );
       expect(find.textContaining('Не загружены'), findsOneWidget);
+    });
+
+    testWidgets('закрытая сессия и один кошелёк: сразу открывается '
+        'портфель (решение владельца — сразу в кошелёк)', (tester) async {
+      await pumpWallets(
+        tester,
+        walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
+        sessionLoader: () async => null,
+      );
+      await tester.pumpAndSettle();
+      // Портфель открылся сам (его честная ошибка состояния без ядра),
+      // список кошельков остался под ним.
+      expect(find.byType(PortfolioScreen), findsOneWidget);
+      expect(find.text('Состояние недоступно'), findsOneWidget);
     });
   });
 

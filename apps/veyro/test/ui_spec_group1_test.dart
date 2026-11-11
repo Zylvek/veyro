@@ -138,7 +138,7 @@ void main() {
         home: const VeyroShell(initialDestination: 'wallets'),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
     // Все шесть реальных разделов (адресная книга — из «Настроек»).
@@ -147,5 +147,22 @@ void main() {
     expect(find.text('Активы'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Сеть'), findsNothing); // назначение удалено
+  });
+
+  testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildVeyroTheme(),
+        home: WelcomeScreen(walletCountLoader: () async => 2),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Каркас открыт вместо Welcome (решение владельца: сразу в кошелёк);
+    // кнопки Welcome исчезли (кроме «Войти», которой больше нет).
+    expect(find.byType(VeyroShell), findsOneWidget);
+    expect(find.text('Создать кошелёк'), findsNothing);
+    expect(find.text('Войти в кошелёк'), findsNothing);
   });
 }
