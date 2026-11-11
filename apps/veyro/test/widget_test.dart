@@ -1,30 +1,37 @@
-// Smoke-тест каркаса VEYRO: приложение собирается, тема применяется,
-// Welcome честно отражает статус интеграции и открывает список кошельков.
-// Никаких фейковых данных.
+//! Smoke-тест приложения: тема применяется, Welcome показывает бренд и
+//! честные действия без фейковых кошельков (спека docs/UI_SPEC.md).
+//! Детальная проверка группы 1 — ui_spec_group1_test.dart.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:veyro/main.dart';
+import 'package:veyro/design/v_theme.dart';
+import 'package:veyro/screens/welcome_screen.dart';
 
 void main() {
-  testWidgets('Welcome screen renders with honest integration status',
+  testWidgets('App + Welcome: бренд, честные действия, никаких балансов',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const VeyroApp());
+    // Welcome без реестра (loader не вызывается): каркас приложения + экран.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildVeyroTheme(),
+        home: WelcomeScreen(walletCountLoader: () async => null),
+      ),
+    );
+    await tester.pump();
 
-    // Брендинг на месте.
     expect(find.text('VEYRO'), findsOneWidget);
-    expect(find.text('Некастодиальный мультивалютный кошелёк'), findsOneWidget);
+    expect(
+      find.textContaining('Некастодиальный мультивалютный кошелёк'),
+      findsOneWidget,
+    );
+    // Ваш CRYPTO/TAGLINE на месте.
+    expect(find.text('YOUR CRYPTO. YOUR CONTROL.'), findsOneWidget);
 
-    // Честный статус интеграции вместо фейковых кнопок и балансов.
-    expect(find.byIcon(Icons.construction_outlined), findsOneWidget);
-    expect(find.textContaining('flutter_rust_bridge'), findsOneWidget);
-
-    // Реальный вход в кошельки (не имитация).
-    expect(find.text('Открыть кошельки'), findsOneWidget);
-
-    // Никаких имитаций данных кошелька на Welcome.
+    // Честные действия спеки (создать/импорт), ни одного фейкового баланса.
+    expect(find.text('Создать кошелёк'), findsOneWidget);
+    expect(find.text('Импорт кошелька из фразы'), findsOneWidget);
     expect(find.text('Баланс'), findsNothing);
-    expect(find.text('Создать кошелёк'), findsNothing);
+    expect(find.textContaining('0.00'), findsNothing);
   });
 }
