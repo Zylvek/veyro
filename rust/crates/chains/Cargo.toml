@@ -29,5 +29,6 @@ bitcoin_hashes = "0.14"
 [dev-dependencies]
 serde_json = { workspace = true }
 # The BIP84/BIP143 test files rebuild the seed from the official vector
-# mnemonic through the audited crate (dev-only dependency).
-bip39 = { workspace = true }
+# mnemonic through the audited crate (dev-only dependency); the "rand"
+# feature lets the gated E2E probe print a fresh faucet phrase.
+bip39 = { workspace = true, features = ["rand"] }
