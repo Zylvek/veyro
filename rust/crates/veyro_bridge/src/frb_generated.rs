@@ -1005,10 +1005,12 @@ impl SseDecode for crate::api::btc::BtcFeeRatesDto {
         let mut var_fastSatVb = <u64>::sse_decode(deserializer);
         let mut var_normalSatVb = <u64>::sse_decode(deserializer);
         let mut var_slowSatVb = <u64>::sse_decode(deserializer);
+        let mut var_fallback = <bool>::sse_decode(deserializer);
         return crate::api::btc::BtcFeeRatesDto {
             fast_sat_vb: var_fastSatVb,
             normal_sat_vb: var_normalSatVb,
             slow_sat_vb: var_slowSatVb,
+            fallback: var_fallback,
         };
     }
 }
@@ -1462,6 +1464,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::btc::BtcFeeRatesDto {
             self.fast_sat_vb.into_into_dart().into_dart(),
             self.normal_sat_vb.into_into_dart().into_dart(),
             self.slow_sat_vb.into_into_dart().into_dart(),
+            self.fallback.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1743,6 +1746,7 @@ impl SseEncode for crate::api::btc::BtcFeeRatesDto {
         <u64>::sse_encode(self.fast_sat_vb, serializer);
         <u64>::sse_encode(self.normal_sat_vb, serializer);
         <u64>::sse_encode(self.slow_sat_vb, serializer);
+        <bool>::sse_encode(self.fallback, serializer);
     }
 }
 

@@ -7,6 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`
+
 /// Non-secret session state for the UI; `None` when locked.
 Future<BtcSessionStateDto?> btcSessionState() =>
     RustLib.instance.api.crateApiSessionBtcSessionState();

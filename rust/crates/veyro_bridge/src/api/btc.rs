@@ -23,7 +23,7 @@ use chains::bitcoin::scan::{
     TxStatus,
 };
 use chains::bitcoin::tx::{
-    estimate_fee_rates, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
+    estimate_fee_rates_with_fallback, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
 };
 use chains::electrum::{ElectrumGateway, Gateway};
 use zeroize::Zeroizing;
@@ -225,22 +225,29 @@ pub fn btc_receive_address() -> Result<BtcAddressDto> {
     })
 }
 
-/// Fee presets in sat/vB (integers).
+/// Fee presets in sat/vB (integers). `fallback == true` means the server had
+/// no fee estimate (Electrum answers -1) and the values are the conservative
+/// static presets — surfaced so the UI never presents a guess as measured.
 #[derive(Debug)]
 pub struct BtcFeeRatesDto {
     pub fast_sat_vb: u64,
     pub normal_sat_vb: u64,
     pub slow_sat_vb: u64,
+    pub fallback: bool,
 }
 
-/// Server fee estimates for the 1/3/6-block depth presets.
+/// Fee presets for the 1/3/6-block depth (fast/normal/slow): live server
+/// estimates when available, conservative fallback otherwise. Never an error
+/// for a missing estimate — the missing one is always decidable.
 pub fn btc_fees() -> Result<BtcFeeRatesDto> {
     let (gateway, _account, _network) = snapshot()?;
-    let rates = estimate_fee_rates(&gateway).map_err(|e| anyhow!("{e}"))?;
+    let (rates, fallback) =
+        estimate_fee_rates_with_fallback(&gateway).map_err(|e| anyhow!("{e}"))?;
     Ok(BtcFeeRatesDto {
         fast_sat_vb: rates.fast_sat_vb,
         normal_sat_vb: rates.normal_sat_vb,
         slow_sat_vb: rates.slow_sat_vb,
+        fallback,
     })
 }
 

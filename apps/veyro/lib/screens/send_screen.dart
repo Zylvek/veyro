@@ -310,44 +310,58 @@ class _SendScreenState extends State<SendScreen> {
             ],
           )
         else
-          RadioGroup<_FeeChoice>(
-            groupValue: _feeChoice,
-            onChanged: (v) => setState(() => _feeChoice = v ?? _feeChoice),
-            child: Column(
-              children: [
-                RadioListTile<_FeeChoice>(
-                  value: _FeeChoice.fast,
-                  title: Text('Быстро — ${fees!.fastSatVb.toInt()} sat/vB'),
-                ),
-                RadioListTile<_FeeChoice>(
-                  value: _FeeChoice.normal,
-                  title: Text('Обычно — ${fees.normalSatVb.toInt()} sat/vB'),
-                ),
-                RadioListTile<_FeeChoice>(
-                  value: _FeeChoice.slow,
-                  title: Text('Медленно — ${fees.slowSatVb.toInt()} sat/vB'),
-                ),
-                RadioListTile<_FeeChoice>(
-                  value: _FeeChoice.manual,
-                  title: SizedBox(
-                    width: 200,
-                    child: TextField(
-                      controller: _manualRateController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Своя ставка, sat/vB',
-                        hintStyle: TextStyle(fontSize: 12),
-                      ),
-                      onTap: () {
-                        if (_feeChoice != _FeeChoice.manual) {
-                          setState(() => _feeChoice = _FeeChoice.manual);
-                        }
-                      },
-                    ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (fees!.fallback)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Сервер не дал оценку комиссии — показаны консервативные '
+                    'дефолты, а не измерение. Ставку можно ввести вручную.',
+                    style: TextStyle(color: Colors.amber.shade200, fontSize: 12),
                   ),
                 ),
-              ],
-            ),
+              RadioGroup<_FeeChoice>(
+                groupValue: _feeChoice,
+                onChanged: (v) => setState(() => _feeChoice = v ?? _feeChoice),
+                child: Column(
+                  children: [
+                    RadioListTile<_FeeChoice>(
+                      value: _FeeChoice.fast,
+                      title: Text('Быстро — ${fees.fastSatVb.toInt()} sat/vB'),
+                    ),
+                    RadioListTile<_FeeChoice>(
+                      value: _FeeChoice.normal,
+                      title: Text('Обычно — ${fees.normalSatVb.toInt()} sat/vB'),
+                    ),
+                    RadioListTile<_FeeChoice>(
+                      value: _FeeChoice.slow,
+                      title: Text('Медленно — ${fees.slowSatVb.toInt()} sat/vB'),
+                    ),
+                    RadioListTile<_FeeChoice>(
+                      value: _FeeChoice.manual,
+                      title: SizedBox(
+                        width: 200,
+                        child: TextField(
+                          controller: _manualRateController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Своя ставка, sat/vB',
+                            hintStyle: TextStyle(fontSize: 12),
+                          ),
+                          onTap: () {
+                            if (_feeChoice != _FeeChoice.manual) {
+                              setState(() => _feeChoice = _FeeChoice.manual);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         if (_feesError != null || _fees == null)
           TextField(

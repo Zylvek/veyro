@@ -110,10 +110,14 @@ fn full_cycle_testnet() {
     );
 
     // 4. Server fee presets; keep the slowest above the relay minimum.
+    //    When the server cannot estimate (Electrum -1, typical on testnet)
+    //    the bridge returns conservative fallback presets and says so.
     let fees = btc::btc_fees().expect("btc_fees");
     let rate = std::cmp::max(fees.slow_sat_vb, 1);
-    println!("[4] fees sat/vB fast={} normal={} slow={} (using {rate})",
-        fees.fast_sat_vb, fees.normal_sat_vb, fees.slow_sat_vb);
+    println!(
+        "[4] fees sat/vB fast={} normal={} slow={} (using {rate}) fallback={}",
+        fees.fast_sat_vb, fees.normal_sat_vb, fees.slow_sat_vb, fees.fallback
+    );
 
     // 5. Self-transfer to our own fresh address.
     let recv = btc::btc_receive_address().expect("receive address");

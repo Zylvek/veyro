@@ -1021,12 +1021,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BtcFeeRatesDto dco_decode_btc_fee_rates_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return BtcFeeRatesDto(
       fastSatVb: dco_decode_u_64(arr[0]),
       normalSatVb: dco_decode_u_64(arr[1]),
       slowSatVb: dco_decode_u_64(arr[2]),
+      fallback: dco_decode_bool(arr[3]),
     );
   }
 
@@ -1351,10 +1352,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_fastSatVb = sse_decode_u_64(deserializer);
     var var_normalSatVb = sse_decode_u_64(deserializer);
     var var_slowSatVb = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
     return BtcFeeRatesDto(
       fastSatVb: var_fastSatVb,
       normalSatVb: var_normalSatVb,
       slowSatVb: var_slowSatVb,
+      fallback: var_fallback,
     );
   }
 
@@ -1773,6 +1776,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_64(self.fastSatVb, serializer);
     sse_encode_u_64(self.normalSatVb, serializer);
     sse_encode_u_64(self.slowSatVb, serializer);
+    sse_encode_bool(self.fallback, serializer);
   }
 
   @protected

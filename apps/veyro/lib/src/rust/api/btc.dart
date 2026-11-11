@@ -8,6 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `address_dto`, `derive_dto`, `map_status`, `scanned_scripts`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Unlock a wallet for BTC operations (must be re-done per app run; `btc_lock`
 /// wipes the in-Rust seed).
@@ -42,7 +43,9 @@ Future<BtcSyncDto> btcSync({required int gapLimit}) =>
 Future<BtcAddressDto> btcReceiveAddress() =>
     RustLib.instance.api.crateApiBtcBtcReceiveAddress();
 
-/// Server fee estimates for the 1/3/6-block depth presets.
+/// Fee presets for the 1/3/6-block depth (fast/normal/slow): live server
+/// estimates when available, conservative fallback otherwise. Never an error
+/// for a missing estimate — the missing one is always decidable.
 Future<BtcFeeRatesDto> btcFees() => RustLib.instance.api.crateApiBtcBtcFees();
 
 /// Plan, sign (locally, BIP143) and broadcast a transfer.
@@ -113,21 +116,28 @@ class BtcAddressDto {
           used == other.used;
 }
 
-/// Fee presets in sat/vB (integers).
+/// Fee presets in sat/vB (integers). `fallback == true` means the server had
+/// no fee estimate (Electrum answers -1) and the values are the conservative
+/// static presets — surfaced so the UI never presents a guess as measured.
 class BtcFeeRatesDto {
   final BigInt fastSatVb;
   final BigInt normalSatVb;
   final BigInt slowSatVb;
+  final bool fallback;
 
   const BtcFeeRatesDto({
     required this.fastSatVb,
     required this.normalSatVb,
     required this.slowSatVb,
+    required this.fallback,
   });
 
   @override
   int get hashCode =>
-      fastSatVb.hashCode ^ normalSatVb.hashCode ^ slowSatVb.hashCode;
+      fastSatVb.hashCode ^
+      normalSatVb.hashCode ^
+      slowSatVb.hashCode ^
+      fallback.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -136,7 +146,8 @@ class BtcFeeRatesDto {
           runtimeType == other.runtimeType &&
           fastSatVb == other.fastSatVb &&
           normalSatVb == other.normalSatVb &&
-          slowSatVb == other.slowSatVb;
+          slowSatVb == other.slowSatVb &&
+          fallback == other.fallback;
 }
 
 /// One wallet transaction with its amounts (satoshis only).

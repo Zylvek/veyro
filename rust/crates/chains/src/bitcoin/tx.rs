@@ -58,6 +58,38 @@ pub fn estimate_fee_rates<G: Gateway + ?Sized>(gateway: &G) -> Result<FeeRates, 
     })
 }
 
+/// Conservative fallback presets for servers that cannot estimate fees.
+///
+/// Electrum `estimatefee` may legitimately answer `-1` ("unknown at this
+/// depth") — a routine condition on low-activity testnets and occasionally on
+/// mainnet. The wallet must not die on it: these static sat/vB presets are
+/// used instead. They err on the safe side (overpay a bit rather than stall);
+/// re-review before mainnet release.
+pub const FALLBACK_FAST_SAT_VB: u64 = 20;
+pub const FALLBACK_NORMAL_SAT_VB: u64 = 8;
+pub const FALLBACK_SLOW_SAT_VB: u64 = 3;
+
+/// Server estimates when the server can produce them, the fallback presets
+/// otherwise. The `bool` says the fallback was used (`false` — live server
+/// values); callers surface this so the user is never shown a guess
+/// presented as a server measurement.
+pub fn estimate_fee_rates_with_fallback<G: Gateway + ?Sized>(
+    gateway: &G,
+) -> Result<(FeeRates, bool), ChainError> {
+    match estimate_fee_rates(gateway) {
+        Ok(rates) => Ok((rates, false)),
+        Err(ChainError::FeeEstimateUnavailable(_)) => Ok((
+            FeeRates {
+                fast_sat_vb: FALLBACK_FAST_SAT_VB,
+                normal_sat_vb: FALLBACK_NORMAL_SAT_VB,
+                slow_sat_vb: FALLBACK_SLOW_SAT_VB,
+            },
+            true,
+        )),
+        Err(e) => Err(e),
+    }
+}
+
 /// vsize estimate for a transaction made of P2WPKH inputs and standard
 /// outputs. Weight (BIP141) = legacy bytes × 4 + witness bytes × 1.
 pub fn estimate_vsize(input_count: usize, output_script_lens: &[usize]) -> u64 {

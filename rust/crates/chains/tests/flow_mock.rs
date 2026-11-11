@@ -15,8 +15,9 @@ use chains::bitcoin::scan::{
     collect_utxos, discover, history_with_amounts, tx_status, HistoryDirection, TxStatus,
 };
 use chains::bitcoin::tx::{
-    estimate_fee_rates, idempotent_broadcast, plan_transfer, sat_per_vb_from_btc_per_kb,
-    estimate_vsize, SignedTransferBuilder,
+    estimate_fee_rates, estimate_fee_rates_with_fallback, sat_per_vb_from_btc_per_kb,
+    estimate_vsize, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
+    FALLBACK_FAST_SAT_VB, FALLBACK_NORMAL_SAT_VB, FALLBACK_SLOW_SAT_VB,
 };
 use chains::electrum::{BtcNetwork, Gateway, HistoryEntry, ScriptBalance, Utxo};
 use chains::ChainError;
@@ -363,6 +364,41 @@ fn recv0_pubkey_of(seed: &[u8; 64]) -> Vec<u8> {
 }
 
 // --------------------------------------------------------- error paths ---
+
+#[test]
+fn fee_fallback_when_server_reports_unknown() {
+    // Electrum "no estimate at this depth" — the server answers -1.
+    let gw = FakeGateway::new(BtcNetwork::Testnet, 800_000, -1.0);
+
+    // The strict pipeline refuses (documented behavior kept for callers that
+    // want a hard error).
+    assert!(matches!(
+        estimate_fee_rates(&gw),
+        Err(ChainError::FeeEstimateUnavailable(_))
+    ));
+
+    // The wallet-facing pipeline decides anyway: conservative presets, and
+    // the caller is told these are not server measurements.
+    let (rates, fallback) = estimate_fee_rates_with_fallback(&gw).expect("decidable rates");
+    assert!(fallback, "fallback flag must be set");
+    assert_eq!(rates.fast_sat_vb, FALLBACK_FAST_SAT_VB);
+    assert_eq!(rates.normal_sat_vb, FALLBACK_NORMAL_SAT_VB);
+    assert_eq!(rates.slow_sat_vb, FALLBACK_SLOW_SAT_VB);
+    assert!(
+        rates.slow_sat_vb >= 1
+            && rates.normal_sat_vb > rates.slow_sat_vb
+            && rates.fast_sat_vb > rates.normal_sat_vb,
+        "fallback presets must be positive and ordered"
+    );
+
+    // The live path is unchanged: real estimates come with fallback=false.
+    let live = FakeGateway::new(BtcNetwork::Testnet, 800_000, 0.0001 /* BTC/kB */);
+    let (rates, fallback) = estimate_fee_rates_with_fallback(&live).expect("live rates");
+    assert!(!fallback);
+    assert_eq!(rates.fast_sat_vb, 10);
+    assert_eq!(rates.normal_sat_vb, 10);
+    assert_eq!(rates.slow_sat_vb, 10);
+}
 
 #[test]
 fn insufficient_funds_is_reported_with_numbers() {
