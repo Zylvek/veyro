@@ -54,6 +54,26 @@ impl BtcNetwork {
         }
     }
 
+    /// Stable wire/UI code: `0` mainnet, `1` testnet3, `2` testnet4.
+    /// Documented in the bridge (`network_from_code`).
+    pub fn code(self) -> u32 {
+        match self {
+            BtcNetwork::Mainnet => 0,
+            BtcNetwork::Testnet => 1,
+            BtcNetwork::Testnet4 => 2,
+        }
+    }
+
+    /// Inverse of [`BtcNetwork::code`]; `None` for any other value.
+    pub fn from_code(code: u32) -> Option<Self> {
+        match code {
+            0 => Some(BtcNetwork::Mainnet),
+            1 => Some(BtcNetwork::Testnet),
+            2 => Some(BtcNetwork::Testnet4),
+            _ => None,
+        }
+    }
+
     /// First block hash of the chain, per `docs/coins/BTC.md` (genesis
     /// vectors are pinned there). Hex here is written in the conventional
     /// big-endian display order, byte 0 first — same order Electrum reports
@@ -193,9 +213,11 @@ pub trait Gateway {
     }
 }
 
-/// Production gateway over the `electrum-client` crate.
+/// Production gateway over the `electrum-client` crate. Cloneable (the
+/// client is shared behind an `Arc`) — cheap snapshots for the bridge session.
+#[derive(Clone)]
 pub struct ElectrumGateway {
-    client: electrum_client::Client,
+    client: std::sync::Arc<electrum_client::Client>,
     network: BtcNetwork,
     url: String,
 }
@@ -227,7 +249,7 @@ impl ElectrumGateway {
         let client = electrum_client::Client::new(url)
             .map_err(|e| ChainError::Transport(format!("{url}: {e}")))?;
         Ok(Self {
-            client,
+            client: std::sync::Arc::new(client),
             network,
             url: url.to_string(),
         })

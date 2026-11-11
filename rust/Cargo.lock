@@ -1350,11 +1350,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "backup_manager",
+ "bitcoin",
+ "chains",
  "crypto_vault",
  "flutter_rust_bridge",
+ "hex",
  "key_manager",
  "storage",
  "wallet_core",
+ "zeroize",
 ]
 
 [[package]]
