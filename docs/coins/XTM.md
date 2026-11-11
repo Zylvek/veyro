@@ -3,7 +3,7 @@
 > Составлено 11.11.2026. Только проверенные факты; неподтверждённое помечено
 > `НЕ ПОДТВЕРЖДЕНО`.
 
-- **Тикер(ы):** **XTM** — базовый токен L1 (Minotari). Родственные обозначения: **TARI** — токен L2 «Ootle» (запуск mainnet 11.11.2026; создаётся только сжиганием XTM 1:1); **XTR** — биржевая нотация L2-токена, которую использует XT.com (см. паспорт XTR.md); **WXTM** — wrapped-представление. RFC-сайт так и называет слой: «The Base Layer (XTM)».
+- **Тикер(ы):** **XTM** — базовый токен L1 (Minotari). Родственные обозначения: **TARI** — токен L2 «Ootle» (запуск mainnet 11.11.2026; создаётся только сжиганием XTM 1:1; статус и детали — паспорт TARI.md, исторические XTR-константы в L2-коде); **XTR** — биржевая нотация L2-токена, которую использует XT.com (см. паспорта XTR.md и TARI.md); **WXTM** — wrapped-представление. RFC-сайт так и называет слой: «The Base Layer (XTM)».
 - **Официальное название проекта:** Tari (L1 называется Minotari; разработка — Tari Labs / Tari Developer Community)
 - **Официальный сайт:** https://tari.com (downloads, tokenomics, lessons)
 - **Официальный репозиторий:** https://github.com/tari-project/tari (Rust, BSD-3-Clause); криптобиблиотека: https://github.com/tari-project/tari-crypto
@@ -81,7 +81,7 @@
 ## Безопасность и ограничения
 
 - **Известные ограничения:** Mimblewimble — балансы/адреса не видны в эксплорере; интерактивные адреса непригодны для депозитов (обязательная валидация 2-го байта); 4 PoW-полосы — поддержка майнинга требует всех четырёх конфигураций; блоки ~2 мин → ждать подтверждений дольше, чем в QTC-подобных сетях; seed-фраза несовместима с BIP39.
-- **Риски безопасности:** **двухтокеновая модель** — с 11.11.2026 существует L2-токен TARI (сжигание XTM 1:1, Turbine Model); сторонние ресурсы называют L2 то TARI, то XTR (XT.com) — высокий риск путаницы у пользователей; UX-баги импорта seed (universe #3128); публичные RPC раскрывают транзакции провайдеру.
+- **Риски безопасности:** **двухтокеновая модель** — 11.11.2026 на L2 «Ootle» существует/запускается токен TARI: сжигание XTM 1:1 подтверждено живо на 11.11.2026 (mainnet-индексер показывает ClaimBurn-транзакции и ~106,9 млн TARI в supply), пег-аута нет (Turbine Model); официальный анонс запуска при этом ещё не снял «placeholder»-статус значений mainnet в доках — статус см. в паспорте TARI.md (XTR = историческое обозначение, TARI = актуальное, tTARI = тестнет); сторонние ресурсы называют L2 то TARI, то XTR (XT.com) — высокий риск путаницы у пользователей; мост one-way: сожжённые XTM не вернуть. UX-баги импорта seed (universe #3128); публичные RPC раскрывают транзакции провайдеру.
 - **Блокеры:** нет. Все кошелёчные операции покрываются gRPC/FFI; в репозитории есть proto-описания и эталонный гайд для бирж.
 
 ## Вывод для матрицы поддержки
@@ -100,7 +100,7 @@
 8. https://tari.com/tokenomics — эмиссия 21 млрд, премайн, затухание
 9. https://github.com/tari-project/tari — монорепозиторий (LICENSE BSD-3, Cargo.toml: minotari_wallet, wallet_ffi, ledger_wallet, mcp_wallet)
 10. https://github.com/tari-project/tari-crypto — криптобиблиотека (Ristretto255, domain-separated hashing)
-11. https://github.com/tari-project/tari-ootle и https://rfc.tari.com/RFC-0320_TurbineModel.html — L2 Ootle, токен TARI, сжигание XTM 1:1
+11. https://github.com/tari-project/tari-ootle и https://rfc.tari.com/RFC-0320_TurbineModel.html — L2 Ootle, токен TARI, сжигание XTM 1:1 (полный разбор L2 и его статус — паспорт TARI.md)
 12. https://pool.kryptex.com/xtm-sha3x (и /xtm-rx, /xtm-c29) — пулы Kryptex, порты 7039/7038/7040
 13. https://www.coingecko.com/en/coins/minotari — тикеры XTM/USDT (MEXC, BTSE, SafeTrade, Biconomy)
 14. https://xtsupport.zendesk.com/hc/en-us/articles/46646509443353 — XT: листинг XTM (Tari), старт торгов 12.06.2025
