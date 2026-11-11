@@ -247,4 +247,4 @@
 6. https://github.com/kaspanet/kaspa-python-sdk — ISC, PyPI 2.0.1/2.0.2rc1, Python 3.10–3.14, события RPC (utxos-changed, virtual-chain-changed и др.)
 7. https://kaspanet.github.io/kaspa-python-sdk — API/документация (Resolver, Wallet, storage_mass post-Toccata)
 8. https://kaspa.stream — официальный explorer; https://api.kaspa.org/docs — публичный REST API; https://faucet-testnet.kaspanet.io — кран TN10
-9. https://github.com/kaspanet/kips — KIP-16/17/20/21 (Toccata); https://gi
+9. https://github.com/kaspanet/kips — KIP-16/17/20/21 (Toccata); https://github.com/kaspanet/kaspad — deprecated Go-узел
