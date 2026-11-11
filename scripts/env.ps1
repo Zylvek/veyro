@@ -14,6 +14,9 @@ $env:Path = "D:\flutter\flutter\bin;$env:Path"
 # 4. Каталог для временных данных интеграционных тестов
 $env:VEYRO_TEST_TMP = "D:\tmp\veyro-tests"
 
+# 4.1 Кэш Dart-пакетов (pub) — на диске D (по умолчанию был бы на C)
+$env:PUB_CACHE = "D:\flutter\pub-cache"
+
 # 5. Android (всё установлено на диске D)
 $env:ANDROID_HOME      = "D:\Users\Admin\AppData\Local\Android\Sdk"
 $env:ANDROID_SDK_ROOT  = $env:ANDROID_HOME

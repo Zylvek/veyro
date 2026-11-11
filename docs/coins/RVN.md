@@ -1,0 +1,206 @@
+# Технический паспорт монеты: RVN
+
+> Паспорт составлен по состоянию на ноябрь 2026. Критические параметры — из
+> официальных исходников RavenProject/Ravencoin и официальных релизов.
+> Неподтверждённое помечено `НЕ ПОДТВЕРЖДЕНО`.
+
+- **Тикер(ы):** RVN (Ravencoin; у пулов обозначений-синонимов нет)
+- **Официальное название проекта:** Ravencoin
+- **Официальный сайт:** https://ravencoin.org; вики: https://raven.wiki
+- **Официальный репозиторий:** https://github.com/RavenProject/Ravencoin
+  (MIT, ветка master)
+- **Официальная документация:** `doc/` в репозитории, raven.wiki, release notes
+  на GitHub, протокол ElectrumX-RVN (electrumx-ravencoin.readthedocs.io)
+- **Статус исследования:** завершено (desk research, ноябрь 2026; сетевые тесты
+  не проводились)
+
+## Идентификация сети
+
+- **Mainnet:**
+  - Genesis-хэш:
+    `0000006b444bc2f2ffe627be9d9e7e7a0730000870ef6eb6da46c8eae389df90`,
+    merkle root
+    `28ff00a867739a352523808d301f504bc4547699398d70faf2266a8bae5f3516`
+    (источник: `src/chainparams.cpp` официального репозитория)
+  - Magic bytes: `0x52415643` (ASCII «RAVN»)
+  - Порты: P2P `8767`, RPC `8766`
+  - Блок: **60 секунд**; PoW **KAWPOW** (форк ProgPoW/ethash c DAG), активация
+    2020-05-06 18:00 UTC (unix 1588788000); до этого X16R.
+  - Награда: старт 5,000 RVN; халвинг каждые 2,100,000 блоков (~4 года):
+    1-й халвинг — блок 2,100,000 (январь 2022) → 2,500 RVN; 2-й халвинг — блок
+    4,200,000 (январь 2026) → **1,250 RVN (текущая)**. Независимое
+    подтверждение: трекеры халвингов показывают текущий блок ~4.6M, награду
+    1,250 RVN, следующий халвинг на блоке 6,300,000 (~январь 2030).
+- **Testnet:** «testnet7», magic «RVNT» `0x52564e54`, P2P `18770`, RPC `18766`
+  (datadir `testnet7`).
+- **Regtest:** magic «CROW», порты 18444/18443.
+- **Проверка идентичности:** тикер однозначен. RVN — оригинальный
+  KAWPOW-чейн проекта RavenProject (запуск январь 2018; KAWPOW с мая 2020);
+  тикер закреплён пулами и биржами; SLIP-44 coin type 175; genesis/magic/порты
+  из официальных исходников. Двусмысленности нет.
+
+## Криптография и ключи
+
+- **Формат адреса:** base58 только (SegWit в сети не активирован, bech32
+  отсутствует в chainparams — адреса `bc1`-типа RVN не использует):
+  - P2PKH, префиксный байт `60` → адреса `R...`
+  - P2SH, префикс `122` → адреса `r...`
+  - Burn-адреса (уничтожение активов): `RX...`
+- **Формат публичного ключа:** SEC1 secp256k1 (как Bitcoin).
+- **Формат приватного ключа:** WIF, префикс `128` (как BTC); xprv/xpub
+  стандартные Bitcoin (`0x0488ADE4`/`0x0488B21E`).
+- **Схема деривации ключей:** BIP32/BIP44, SLIP-44 coin type **175**
+  (`nExtCoinType = 175` в chainparams узла; BIP39-поддержка добавлена в Core
+  v4.1.0, 2020). Стандартный путь: `m/44'/175'/a'/c/i` — единственный
+  общесетевой (Core-кошелёк, Electrum-RVN, аппаратные кошельки).
+- **Мнемонический стандарт:** BIP39.
+- **Алгоритм подписи:** ECDSA secp256k1.
+- **Совместимость восстановления из фразы:** высокая — одна BIP39-фраза,
+  один путь `m/44'/175'`; известных расхождений деривации между кошельками нет
+  (Electrum-RVN и Core используют coin type 175).
+
+## Транзакции
+
+- **Структура транзакции:** Bitcoin-подобная UTXO + расширение активов:
+  OP-префикс `OP_RVN_ASSET = 0xC0` (issue/reissue/transfer и т.д.);
+  asset-выходы внутри стандартных tx. Asset-слой активирован на высоте
+  435,456; messaging/restricted assets — 1,092,672.
+- **Размер блока:** 4,000,000 weight (константа `MAX_BLOCK_WEIGHT`); после
+  активации RIP2 — 8,000,000 weight (`MAX_BLOCK_WEIGHT_RIP2`); высота
+  активации RIP2 в рамках исследования `НЕ ПОДТВЕРЖДЕНА` — сверить в
+  `chainparams.cpp` при реализации.
+- **Расчёт комиссии:** sat/vByte (weight-модель Bitcoin).
+- **Блокировки/имматурность:** coinbase maturity **100 блоков** (~100 минут;
+  `COINBASE_MATURITY = 100`, `src/consensus/consensus.h`).
+- **Модель баланса:** UTXO (RVN + UTXO-активы).
+- **Особые поля:** asset-поля (тип операции, количество, единицы reissuable,
+  ipfs-хэши) — для исходного охвата VEYRO (майнинговые выплаты RVN) не
+  требуются; asset-операции — вне начального scope, но чтение asset-выходов
+  полезно для отображения истории.
+
+## Доступ к сети
+
+- **Методы RPC:** стандартный набор Bitcoin Core (`getblockchaininfo`,
+  `getblock`, `getblockheader`, `getrawtransaction`, `gettxout`,
+  `getrawmempool`, `estimatesmartfee`, `sendrawtransaction`, …) +
+  asset-методы (`getassetdata` и др.). Порт `8766`.
+- **P2P-протокол:** порт `8767`, wire-протокол Bitcoin-совместимый
+  (magic «RAVN»), заголовки содержат KAWPOW-поля.
+- **Лёгкий клиент:** **есть, зрелая инфраструктура Electrum**:
+  - Клиент: electrum-ravencoin (Electrum-RVN-SIG, форк Electrum, MIT) —
+    RVN + просмотр/отправка активов, Ledger и Trezor.
+  - Сервер: electrumx-ravencoin (MIT, форк ElectrumX; послед. релиз 1.12.1 от
+    марта 2024); поддерживаемый community-форк ALENOC/electrumx-ravencoin
+    требует Core 4.8+ и валидирует бэкенд fail-closed.
+  - Протокол: Electrum + RVN-расширения (`asset.addresses`, `asset.meta`,
+    scripthash-методы, TLS 50002; тестнет-сервер `testnet.rvn.rocks:50002`
+    подтверждён документацией Dart-пакета raven_electrum).
+  - Публичные mainnet-серверы: community-run (список в конфигурации
+    Electrum-RVN); конкретные хосты в паспорте не фиксируются — снять при
+    интеграции.
+- **Узел:** Ravencoin Core **v4.8.0** (официальный релиз от 19.08.2026,
+  GPG-ключ B5690EEEBB952194) — **минимально допустимая версия** после
+  инцидента августа 2026 (см. «Безопасность»). Диск: полная цепь — десятки ГБ
+  (`НЕ ПОДТВЕРЖДЕНО` точно).
+- **Публичные RPC:** официальных нет; публичные Electrum-серверы —
+  community-run. Приватность: Electrum-сервер видит запрашиваемые адреса —
+  шифровать (TLS), распределять запросы, допускать пользовательские серверы.
+- **Explorer:** канонический официальный explorer `НЕ ПОДТВЕРЖДЁН`; для ссылок
+  истории зафиксировать community-решение при реализации (raven.wiki ведёт
+  список).
+
+## SDK и библиотеки
+
+- **Официальные SDK:** Ravencoin Core (RPC); Electrum-RVN-SIG (клиент+сервер,
+  MIT); официальный сайт ведёт на оба.
+- **Rust-библиотеки:** зрелого кошелькового крейта нет. Рекомендуемый путь:
+  `rust-bitcoin` (MIT OR Apache-2.0) + кастомные параметры (base58 60/122,
+  WIF 128) + asset-скрипты (`0xC0`) при необходимости. Дополнительно:
+  `hasherkawpow-sys` 0.1.0 (MIT, опубликован июль 2026) — FFI-биндинги
+  KAWPOW-хэша: нужен только для валидации PoW, не для кошелька. Майнер
+  kawpowminer — GPL-3.0, **не включать** в VEYRO (несовместимая лицензия).
+- **Flutter/Dart-интеграции:** **`raven_electrum` 2.0.0 на pub.dev** — готовый
+  Dart-клиент ElectrumX-RVN (balance, history, unspent, broadcast, подписки
+  headers/scripthash/asset, asset-методы) — прямой кандидат для Flutter-слоя
+  VEYRO (лицензию проверить при подключении).
+- **Лицензии зависимостей:** Ravencoin Core — MIT; electrumx-ravencoin и
+  electrum-ravencoin — MIT; rust-bitcoin — MIT OR Apache-2.0. Совместимо с
+  ядром VEYRO.
+
+## Совместимость кошелька
+
+Отметка = реализуемо существующими средствами (фактический статус — только
+после тестов):
+
+- [x] Создание кошелька — BIP39/BIP32, coin type 175
+- [x] Импорт кошелька — WIF, xprv, фраза
+- [x] Восстановление — `m/44'/175'` (единый сетевой стандарт)
+- [x] Получение — адреса `R...` (P2PKH) / `r...` (P2SH); URI-схема
+  (`raven:R...`?) `НЕ ПОДТВЕРЖДЕНА` — сверить с Electrum-RVN при интеграции
+- [x] Баланс — UTXO через ElectrumX (`blockchain.scripthash.get_balance`)
+- [x] История транзакций — ElectrumX scripthash history
+- [x] Отправка — построение/подпись rust-bitcoin, бродкаст
+  `blockchain.transaction.broadcast`
+- [x] Мониторинг подтверждений — subscribe headers/scripthash
+
+## Безопасность и ограничения
+
+- **Инцидент консенсуса августа 2026 (критично):**
+  - 07.08.2026 на mainnet был эксплуатирован майнинговый баг KAWPOW
+    (обход DAG/GPU-требований, побочный эффект — узлы не могли
+    синхронизироваться/перезапуститься); первый вредоносный блок — высота
+    4,487,776.
+  - Спасение цепи: официальный **Core v4.8.0** (19.08.2026) — фикс + чекпоинт
+    4,487,775 (все узлы/бэкенды обязаны быть ≥ v4.8.0).
+  - Также v4.8.0 включает фикс asset transfer qty overflow (2^64-qty),
+    патч которого ранее был в v4.7.0 (14.06.2026), но v4.7.0 не активировалась
+    (BIP9-голосование не завершилось до необходимости v4.8.0).
+  - Следствие для VEYRO: любой подключаемый Electrum-сервер должен быть
+    построен на Core 4.8.0+ (как минимум поддерживаемый форк ALENOC);
+    SPV-заголовки валидировать с учётом чекпоинта v4.8.0.
+- **Инфраструктурный риск:** автор electrum-ravencoin объявил о прекращении
+  личного сопровождения клиента («no longer updated by me») — проект ищет
+  мейнтейнера; серверное ПО electrumx-ravencoin не имеет свежих официальных
+  релизов (1.12.1, март 2024), живёт через community-форки.
+- **Приватность:** community Electrum-серверы видят адреса клиента.
+- **Блокеры:** нет (при обязательном использовании бэкендов на Core ≥ 4.8.0).
+
+## Вывод для матрицы
+
+- **Идентичность:** подтверждена (официальный репозиторий, SLIP-44 175,
+  genesis/magic из исходников; два независимых источника критических
+  параметров).
+- **Реализуемость:** полная — зрелый Electrum-стек + готовый Dart-клиент
+  `raven_electrum` (прямой путь для Flutter-слоя VEYRO).
+- **Главный риск:** пост-эксплойт-состояние консенсуса — жёсткое требование
+  Core v4.8.0+ у бэкендов; стагнация официального Electrum-клиента.
+- **Предлагаемый статус:** `Research required` → после полного тестового цикла
+  кандидат на `Full support` (первый по порядку реализации среди пяти
+  исследуемых — минимальные доработки). До тестов статус не менять.
+
+## Источники
+
+1. https://github.com/RavenProject/Ravencoin — официальный репозиторий (MIT):
+   `src/chainparams.cpp` (genesis, magic «RAVN», порты 8767/8766, base58
+   60/122, nExtCoinType 175), `src/consensus/consensus.h`
+   (COINBASE_MATURITY 100, MAX_BLOCK_WEIGHT 4M/8M RIP2)
+2. https://github.com/RavenProject/Ravencoin/releases/tag/v4.8.0 — официальный
+   релиз v4.8.0 (19.08.2026): патчи KAWPOW-эксплойта (атака 07.08.2026) и
+   asset transfer qty overflow; чекпоинт цепи
+3. https://github.com/RavenProject/Ravencoin/releases/tag/v4.7.0 — v4.7.0
+   (14.06.2026): asset qty overflow fix, не активирована по BIP9
+4. https://electrum-rvn-sig.github.io/electrum-sig-info — Electrum SIG
+   (подгруппа Ravencoin Code Committee): клиент, сервер, поддержка Ledger/Trezor
+5. https://github.com/Electrum-RVN-SIG/electrumx-ravencoin — ElectrumX-сервер
+   RVN (MIT); поддерживаемый форк: https://github.com/ALENOC/electrumx-ravencoin
+   (требует Core 4.8+, fail-closed валидация бэкенда, привязка к официальному
+   v4.8.0 после «August 2026 Ravencoin incident»)
+6. https://pub.dev/packages/raven_electrum — Dart-клиент ElectrumX-RVN 2.0.0
+   (методы balance/history/unspent/broadcast, asset-методы, подписки;
+   testnet.rvn.rocks:50002)
+7. https://ravencoin.org, https://raven.wiki — официальные ресурсы проекта
+8. https://github.com/satoshilabs/slips/blob/master/slip-0044.md — SLIP-44:
+   coin type 175
+9. Трекеры халвингов (asicminervalue.com/halving) — независимое подтверждение
+   текущей награды 1,250 RVN и следующего халвинга на блоке 6,300,000
+10. https://docs.rs/hasherkawpow-sys — Rust-биндинги KAWPOW (MIT, июль 2026)
