@@ -126,7 +126,10 @@ class _VeyroShellState extends State<VeyroShell> {
                 width: kSidebarWidth,
                 child: KeyedSubtree(
                   key: const Key('shell-sidebar'),
-                  child: const _Sidebar(),
+                  // НЕ const: сайдбар обязан перестраиваться при каждом
+                  // переключении раздела, иначе подсветка выбранного
+                  // элемента замерзает на стартовой вкладке.
+                  child: _Sidebar(),
                 ),
               ),
               const VerticalDivider(width: 1, color: VColors.elevated),

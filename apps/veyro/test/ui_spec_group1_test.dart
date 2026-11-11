@@ -11,7 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/v_theme.dart';
 import 'package:veyro/navigation/app_shell.dart';
+import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/create_wallet_flow.dart';
+import 'package:veyro/screens/wallets_screen.dart';
 import 'package:veyro/screens/welcome_screen.dart';
 
 void main() {
@@ -147,6 +149,59 @@ void main() {
     expect(find.text('Активы'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
     expect(find.text('Сеть'), findsNothing); // назначение удалено
+  });
+
+  testWidgets('Каркас: выбор раздела обновляет и сайдбар, и контент',
+      (tester) async {
+    // Регрессия: сайдбар был const-виджетом и не перерисовывался при
+    // переключении — подсветка «замерзала» на стартовой вкладке
+    // (отзыв владельца: «слева ничего не меняется»).
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildVeyroTheme(),
+        home: const VeyroShell(initialDestination: 'wallets'),
+      ),
+    );
+    await tester.pump();
+
+    Finder sidebarSelected() => find.descendant(
+          of: find.byKey(const Key('shell-sidebar')),
+          matching: find.byWidgetPredicate(
+            (w) => w is ListTile && w.selected == true,
+          ),
+        );
+
+    // Стартовая подсветка — «Кошельки».
+    var selectedTiles = tester
+        .widgetList<ListTile>(sidebarSelected())
+        .where((t) => t.selected)
+        .toList();
+    expect((selectedTiles.single.title as Text).data, 'Кошельки');
+
+    // Переключение на «Активы»: контент — реальный каталог...
+    await tester.tap(find.text('Активы'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AssetCatalogScreen), findsOneWidget);
+    // ...и подсветка сайдбара переехала (сайдбар перестроился).
+    selectedTiles = tester
+        .widgetList<ListTile>(sidebarSelected())
+        .where((t) => t.selected)
+        .toList();
+    expect((selectedTiles.single.title as Text).data, 'Активы');
+
+    // Обратное переключение.
+    await tester.tap(find.text('Кошельки'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WalletsScreen), findsOneWidget);
+    selectedTiles = tester
+        .widgetList<ListTile>(sidebarSelected())
+        .where((t) => t.selected)
+        .toList();
+    expect((selectedTiles.single.title as Text).data, 'Кошельки');
   });
 
   testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',
