@@ -14,8 +14,10 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
+import '../screens/address_book_screen.dart';
 import '../screens/backup_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/transactions_screen.dart';
 import '../screens/wallets_screen.dart';
 import '../screens/about_screen.dart';
 
@@ -35,10 +37,11 @@ class ShellDestination {
   });
 }
 
-/// Реестр разделов каркаса. Группа 1: каркас и Welcome; группа 2 —
-/// реальные Обзор и Активы; группа 4 — Настройки. Адресная книга убрана
-/// из навигации по решению владельца (экран остаётся доступным из
-/// «Настроек»), сетевые настройки — из «Настроек» и центра BTC.
+/// Реестр разделов каркаса (аудит UI §8): Обзор, Активы, Транзакции,
+/// Кошельки, Адресная книга, Бэкап, Настройки, О VEYRO. Нереализованные
+/// экраны внутри разделов показывают честные состояния, не работающие
+/// кнопки; раздел «Транзакции» при закрытой сессии — честное пустое
+/// состояние.
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -53,10 +56,22 @@ const List<ShellDestination> kShellDestinations = [
     builder: _buildAssets,
   ),
   ShellDestination(
+    id: 'transactions',
+    icon: Icons.receipt_long_outlined,
+    label: 'Транзакции',
+    builder: _buildTransactions,
+  ),
+  ShellDestination(
     id: 'wallets',
     icon: Icons.wallet_outlined,
     label: 'Кошельки',
     builder: _buildWallets,
+  ),
+  ShellDestination(
+    id: 'addresses',
+    icon: Icons.import_contacts_outlined,
+    label: 'Адреса',
+    builder: _buildAddresses,
   ),
   ShellDestination(
     id: 'backup',
@@ -80,7 +95,9 @@ const List<ShellDestination> kShellDestinations = [
 
 Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
+Widget _buildTransactions(BuildContext context) => const TransactionsScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
+Widget _buildAddresses(BuildContext context) => const AddressBookScreen();
 Widget _buildBackup(BuildContext context) => const BackupScreen();
 Widget _buildSettings(BuildContext context) => const SettingsScreen();
 Widget _buildAbout(BuildContext context) => const AboutScreen();

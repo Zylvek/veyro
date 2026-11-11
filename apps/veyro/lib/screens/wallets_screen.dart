@@ -16,9 +16,11 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'backup_screens.dart';
+import 'backup_screen.dart';
 import 'create_wallet_flow.dart';
 import 'import_wallet_screen.dart';
 import 'portfolio_screen.dart';
@@ -231,11 +233,16 @@ class _WalletsScreenState extends State<WalletsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 40, color: Colors.white54),
+            const Icon(Icons.cloud_off_outlined,
+                size: 40, color: VColors.textSecondary),
             const SizedBox(height: 12),
-            Text('Не удалось прочитать реестр: $_error'),
+            Text('Не удалось прочитать реестр: $_error',
+                textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: _reload, child: const Text('Повторить')),
+            FilledButton.tonal(
+              onPressed: _reload,
+              child: const Text('Повторить'),
+            ),
           ],
         ),
       );
@@ -243,122 +250,148 @@ class _WalletsScreenState extends State<WalletsScreen> {
     final wallets = _wallets ?? const [];
     final isEmpty = wallets.isEmpty;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildSessionCard(context),
-          const SizedBox(height: 12),
-          VCard(
-            icon: Icons.tune_outlined,
-            title: 'Кошельки',
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _push(const CreateWalletFlow()),
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Создать'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _push(const ImportWalletScreen()),
-                      icon: const Icon(Icons.restore_outlined, size: 18),
-                      label: const Text('Импорт'),
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _push(const CreateWalletFlow()),
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: const Text('Создать'),
+                ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                isEmpty
-                    ? 'Реестр пуст. Первый кошелёк появится после создания '
-                        'или восстановления фразы.'
-                    : 'Нажмите на кошелёк, чтобы открыть его обзор. Фраза '
-                        'показывается только по паролю кошелька.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Переименование и удаление кошельков ядром не '
-                'поддерживаются (API отсутствует) — кнопок-имитаций нет. '
-                'Блокировка ключей — кнопкой BTC-сессии; экспорт — '
-                'иконкой бэкапа выше.',
-                style: Theme.of(context).textTheme.bodySmall,
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _push(const ImportWalletScreen()),
+                  icon: const Icon(Icons.restore_outlined, size: 18),
+                  label: const Text('Импорт'),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (isEmpty)
-            VEmptyState(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Кошельков пока нет',
-              message: 'Создайте новый кошелёк или восстановите существующий '
-                  'из BIP39-фразы. Резервная копия восстанавливается из '
-                  '.veybackup-файла.',
-            )
-          else
-            for (final info in wallets)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: VColors.elevated,
-                      child: Text(
-                        info.name.isEmpty
-                            ? '?'
-                            : info.name.characters.first.toUpperCase(),
-                        style: const TextStyle(
-                          color: VColors.primary,
-                          fontWeight: FontWeight.w700,
+          const SizedBox(height: 8),
+          Text(
+            isEmpty
+                ? 'Реестр пуст. Первый кошелёк появится после создания '
+                    'или восстановления фразы.'
+                : 'Нажмите на кошелёк, чтобы открыть его обзор. Фраза '
+                    'показывается только по паролю. Переименование и удаление '
+                    'ядром не поддерживаются — кнопок-имитаций нет.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 18),
+          VTwoColumn(
+            left: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (isEmpty)
+                  VEmptyState(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Кошельков пока нет',
+                    message: 'Создайте новый кошелёк или восстановите '
+                        'существующий из BIP39-фразы. Резервная копия '
+                        'восстанавливается из .veybackup-файла.',
+                  )
+                else
+                  for (final info in wallets)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: VColors.elevated,
+                            child: Text(
+                              info.name.isEmpty
+                                  ? '?'
+                                  : info.name.characters.first.toUpperCase(),
+                              style: const TextStyle(
+                                color: VColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          title: Text(info.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(
+                                'vault · создан '
+                                    '${formatWalletDate(info.createdAtUnix.toInt())}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ID: ${info.id.substring(0, info.id.length.clamp(0, 8))}…',
+                                style: const TextStyle(
+                                    fontFamily: 'JetBrainsMono',
+                                    fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                            tooltip: 'Показать seed-фразу',
+                            icon: const Icon(Icons.key_outlined),
+                            onPressed: () => _revealMnemonic(info),
+                          ),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                              builder: (_) => PortfolioScreen(info: info),
+                            ));
+                            // Состояние могло измениться (сессия
+                            // открыта/закрыта).
+                            if (mounted) await _reload();
+                          },
                         ),
                       ),
                     ),
-                    title: Text(info.name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 2),
-                        Text(
-                          'Тип: vault · создан ${_formatDate(info.createdAtUnix)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'ID: ${info.id.substring(0, info.id.length.clamp(0, 8))}…',
-                          style: const TextStyle(
-                              fontFamily: 'JetBrainsMono', fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    isThreeLine: true,
-                    trailing: IconButton(
-                      tooltip: 'Показать seed-фразу',
-                      icon: const Icon(Icons.key_outlined),
-                      onPressed: () => _revealMnemonic(info),
-                    ),
-                    onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) => PortfolioScreen(info: info),
-                      ));
-                      // Состояние могло измениться (сессия открыта/закрыта).
-                      if (mounted) await _reload();
-                    },
-                  ),
-                ),
-              ),
+              ],
+            ),
+            right: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSessionCard(context),
+                const SizedBox(height: 16),
+                _buildBackupHintCard(context),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  /// Состояние блокировки BTC-сессии. Честное ограничение: DTO сессии
-  /// не содержит id кошелька, поэтому состояние — глобальное по ядру,
-  /// а не по-кошельково (так и подписано).
+  /// Бэкап-подсказка справа (аудит §7 «доступные действия»): экспорт —
+  /// реальное действие иконки и меню; ссылка на раздел «Бэкап».
+  Widget _buildBackupHintCard(BuildContext context) {
+    return VCard(
+      icon: Icons.archive_outlined,
+      title: 'Резервная копия',
+      children: [
+        Text(
+          'Экспорт и импорт зашифрованных копий — в разделе «Бэкап» или '
+          'через иконку архива в панели приложения.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: VButton.secondary(
+            'Открыть бэкап',
+            icon: Icons.backup_outlined,
+            onPressed: () => _push(const BackupScreen()),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSessionCard(BuildContext context) {
     final session = _session;
     return VCard(
@@ -411,11 +444,5 @@ class _WalletsScreenState extends State<WalletsScreen> {
       ],
     );
   }
-
-  String _formatDate(BigInt createdUnix) {
-    final d = DateTime.fromMillisecondsSinceEpoch(createdUnix.toInt());
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$dd.$mm.${d.year}';
-  }
 }
+

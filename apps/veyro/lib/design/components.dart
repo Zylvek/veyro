@@ -7,6 +7,54 @@ import 'package:flutter/services.dart';
 
 import 'package:veyro/design/app_colors.dart';
 
+/// Максимальная ширина основного содержимого на desktop (аудит UI:
+/// «ориентировочно 1400 px»; экраны перестают быть узкой колонкой).
+const double kContentMaxWidth = 1400;
+
+/// Двухколоночная раскладка рабочего стола: на широком экране — две
+/// равные колонки со свободным пространством, на узком — стопка.
+/// Каждая колонка сама решает, что в неё положить; пустые секции
+/// возвращают SizedBox.shrink().
+class VTwoColumn extends StatelessWidget {
+  final Widget left;
+  final Widget right;
+  final double breakpoint;
+  final double gap;
+
+  const VTwoColumn({
+    super.key,
+    required this.left,
+    required this.right,
+    this.breakpoint = 1024,
+    this.gap = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= breakpoint) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              SizedBox(width: gap),
+              Expanded(child: right),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            SizedBox(width: double.infinity, child: left),
+            SizedBox(height: gap),
+            SizedBox(width: double.infinity, child: right),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// Карточка с заголовком-иконкой — базовый блок всех экранов (замена
 /// SectionCard из util/ui_helpers в новых экранах; старые экраны мигрируют
 /// в ходе своих групп).

@@ -23,6 +23,8 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
+import 'backup_screen.dart' show recordBackupExport;
+
 /// Экспорт: мультиселект кошельков с паролем для каждого выбранного, затем
 /// пароль файла (дважды) и полный путь к файлу. Каталог создаётся рекурсивно:
 /// Rust пишет файл обычной `fs::write` и родителей не создаёт.
@@ -185,6 +187,17 @@ Future<void> showBackupExportDialog(
                           requests: requests,
                           backupPassword: backupPasswordController.text,
                           outPath: outPath,
+                        );
+                        // Локальная запись о последнем экспорте (не-
+                        // секретные метаданные: время/путь/имена) — для
+                        // карточки «Последняя резервная копия».
+                        recordBackupExport(
+                          path: outPath,
+                          walletNames: [
+                            for (final wallet in wallets)
+                              if (selectedIds.contains(wallet.id))
+                                wallet.name,
+                          ],
                         );
                         if (!dialogContext.mounted) return;
                         Navigator.of(dialogContext).pop();

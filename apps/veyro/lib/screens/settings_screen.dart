@@ -21,7 +21,6 @@ import 'package:veyro/util/ui_helpers.dart';
 import 'about_screen.dart';
 import 'address_book_screen.dart';
 import 'backup_screen.dart';
-import 'dashboard_screen.dart' show kFiatCurrencies;
 import 'network_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -165,7 +164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     underline: const SizedBox.shrink(),
                     hint: const Text('—'),
                     items: [
-                      for (final code in kFiatCurrencies)
+                      for (final code in DisplayPrefs.fiatCurrencies)
                         DropdownMenuItem(value: code, child: Text(code)),
                     ],
                     onChanged: (code) {

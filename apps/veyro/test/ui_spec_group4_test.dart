@@ -20,6 +20,7 @@ import 'package:veyro/screens/wallets_screen.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/address_book.dart';
+import 'package:veyro/util/format.dart';
 
 const _session = BtcSessionStateDto(
   networkCode: 2,
@@ -490,7 +491,7 @@ void main() {
 
       expect(find.text('Состояние BTC-сессии'), findsOneWidget);
       expect(find.textContaining('Ключи в памяти ядра'), findsOneWidget);
-      expect(find.textContaining('Тип: vault · создан'), findsOneWidget);
+      expect(find.textContaining('vault · создан'), findsOneWidget);
       expect(find.textContaining('Переименование и удаление'), findsOneWidget);
       expect(find.textContaining('DTO сессии'), findsOneWidget);
       // Кнопки-имитации rename/delete отсутствуют.
@@ -525,27 +526,44 @@ void main() {
     });
   });
 
-  group('Каркас: шесть реальных разделов (адресная книга — из Настроек)', () {
-    test('реестр kShellDestinations: 6 назначений, порядок и id', () {
-      expect(kShellDestinations.length, 6);
+  group('Каркас: восемь разделов навигации (аудит UI §8)', () {
+    test('реестр kShellDestinations: 8 назначений, порядок и id', () {
+      expect(kShellDestinations.length, 8);
       expect(
         [for (final d in kShellDestinations) d.id],
         [
           'overview',
           'assets',
+          'transactions',
           'wallets',
+          'addresses',
           'backup',
           'settings',
           'about',
         ],
       );
       final labels = [for (final d in kShellDestinations) d.label];
-      // Адресная книга убрана из навигации (решение владельца): экран
-      // открывается из «Настроек», назначение в каркасе отсутствует.
-      expect(labels.contains('Адреса'), isFalse);
-      expect(labels.contains('Настройки'), isTrue);
-      // Назначение «Сеть» удалено: сетевые настройки — из экрана настроек.
+      // Полная архитектура навигации аудита; «Сеть» остаётся настройкой.
+      expect(labels, containsAll([
+        'Обзор',
+        'Активы',
+        'Транзакции',
+        'Кошельки',
+        'Адреса',
+        'Бэкап',
+        'Настройки',
+        'О VEYRO',
+      ]));
       expect(labels.contains('Сеть'), isFalse);
+    });
+
+    test('дата кошелька: unix-секунды ядра → dd.mm.yyyy без «1970»',
+        () {
+      // Регрессия «21.01.1970»: createdAtUnix передаётся в СЕКУНДАХ.
+      expect(formatWalletDate(1699000000), '03.11.2023');
+      expect(formatWalletDate(0), '01.01.1970');
     });
   });
 }
+
+// Транзакции-раздел — новый; импорт уже наверху файла.

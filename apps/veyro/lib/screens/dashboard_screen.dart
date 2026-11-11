@@ -21,9 +21,6 @@ import 'asset_picker_screen.dart';
 import 'history_screen.dart';
 import 'tx_details_screen.dart';
 
-// Валюты отображения — по мастер-плану (§13): USD, EUR, GBP, RUB.
-const List<String> kFiatCurrencies = ['USD', 'EUR', 'GBP', 'RUB'];
-
 class DashboardScreen extends StatefulWidget {
   /// Точки замены для виджет-тестов (обычно — реальные вызовы ядра).
   final Future<List<WalletInfoDto>?> Function()? walletLoader;
@@ -143,36 +140,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(title: const Text('Обзор')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
           child: RefreshIndicator(
             onRefresh: _refresh,
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? VEmptyState(
-                        icon: Icons.cloud_off_outlined,
-                        title: 'Ядро недоступно',
-                        message: '$_error\nПроверьте установку и повторите.',
-                        action: FilledButton.tonal(
-                          onPressed: _refresh,
-                          child: const Text('Повторить'),
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: VEmptyState(
+                          icon: Icons.cloud_off_outlined,
+                          title: 'Ядро недоступно',
+                          message: '$_error\nПроверьте установку и повторите.',
+                          action: FilledButton.tonal(
+                            onPressed: _refresh,
+                            child: const Text('Повторить'),
+                          ),
                         ),
                       )
                     : ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(20),
                         children: [
-                          _buildWalletCard(context),
+                          _buildTopPanel(context),
                           const SizedBox(height: 14),
-                          _buildPortfolioCard(context),
+                          _buildBalanceBlock(context),
                           const SizedBox(height: 14),
-                          _buildFavoritesCard(context),
-                          const SizedBox(height: 14),
-                          _buildAssetsCard(context),
-                          const SizedBox(height: 14),
-                          _buildNetworkCard(context),
-                          const SizedBox(height: 14),
-                          _buildRecentCard(context),
+                          _buildActionsRow(context),
+                          const SizedBox(height: 20),
+                          VTwoColumn(
+                            left: Column(
+                              children: [
+                                _buildAssetsCard(context),
+                                const SizedBox(height: 16),
+                                _buildFavoritesCard(context),
+                              ],
+                            ),
+                            right: Column(
+                              children: [
+                                _buildNetworkCard(context),
+                                const SizedBox(height: 16),
+                                _buildRecentCard(context),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
                         ],
                       ),
           ),
@@ -181,137 +193,138 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildWalletCard(BuildContext context) {
+  /// Компактная верхняя панель (аудит §4): выбор кошелька, чип состояния
+  /// BTC-сессии и переключатель скрытия сумм — в одну строку.
+  Widget _buildTopPanel(BuildContext context) {
     final wallets = _wallets ?? const <WalletInfoDto>[];
-    return VCard(
-      icon: Icons.account_balance_wallet_outlined,
-      title: 'Кошелёк',
+    final session = _session;
+    return Row(
       children: [
-        if (wallets.isEmpty)
-          Text('Кошельков нет — создайте или импортируйте в разделе '
-              '«Кошельки».', style: Theme.of(context).textTheme.bodyMedium)
-        else
-          DropdownButtonFormField<String>(
-            initialValue: _selectedId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Активный кошелёк'),
-            items: [
-              for (final w in wallets)
-                DropdownMenuItem(value: w.id, child: Text(w.name)),
+        Expanded(
+          flex: 3,
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: DropdownButtonFormField<String>(
+                initialValue: _selectedId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Активный кошелёк',
+                  border: InputBorder.none,
+                ),
+                items: [
+                  for (final w in wallets)
+                    DropdownMenuItem(value: w.id, child: Text(w.name)),
+                ],
+                onChanged: (id) {
+                  if (id != null) _selectWallet(id);
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              if (DisplayPrefs.degraded)
+                const VStatusChip(
+                  'БД настроек недоступна',
+                  kind: VChipKind.warning,
+                ),
+              if (session != null)
+                VStatusChip(
+                  'BTC: ${session.networkDisplay}',
+                  kind: VChipKind.success,
+                )
+              else
+                const VStatusChip(
+                  'BTC: сессия не активна',
+                  kind: VChipKind.neutral,
+                ),
+              IconButton(
+                tooltip: DisplayPrefs.hideBalances
+                    ? 'Показать суммы'
+                    : 'Скрыть суммы',
+                icon: Icon(
+                  DisplayPrefs.hideBalances
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: VColors.textSecondary,
+                ),
+                onPressed: _toggleHide,
+              ),
             ],
-            onChanged: (id) {
-              if (id != null) _selectWallet(id);
-            },
           ),
-        if (DisplayPrefs.degraded) ...[
-          const SizedBox(height: 8),
-          const VStatusChip(
-            'Настройки не сохраняются: БД недоступна',
-            kind: VChipKind.warning,
-          ),
-        ],
+        ),
       ],
     );
   }
 
-  Widget _buildPortfolioCard(BuildContext context) {
+  /// Крупный блок общего баланса (аудит §4): финансовые значения с
+  /// правильной иерархией. Честное отсутствие данных: ядро ещё не
+  /// синхронизировано — «—», без выдуманных значений. Источника цен
+  /// пока нет — фиатная строка не показывается вовсе.
+  Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
-    final selected = _selected;
     return VCard(
       icon: Icons.pie_chart_outline,
-      title: 'Итого',
+      title: 'Сумма портфеля',
       children: [
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Сумма портфеля',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                )),
-            const Spacer(),
-            IconButton(
-              tooltip: DisplayPrefs.hideBalances
-                  ? 'Показать суммы'
-                  : 'Скрыть суммы',
-              icon: Icon(
-                DisplayPrefs.hideBalances
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                color: VColors.textSecondary,
-              ),
-              onPressed: _toggleHide,
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        VAmount(_maskAmount('—'), suffix: 'нет данных', fontSize: 26),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (session != null) ...[
-              VStatusChip(
-                'BTC: ${session.networkDisplay} · сессия активна',
-                kind: VChipKind.success,
-              ),
-              if (session.hasSpendables)
-                const VStatusChip(
-                  'Есть синхронизированные средства',
-                  kind: VChipKind.success,
-                ),
-            ] else
-              const VStatusChip(
-                'BTC: сессия не активна',
-                kind: VChipKind.neutral,
-              ),
-          ],
-        ),
-        const Divider(height: 24),
-        Row(
-          children: [
-            const Text('Валюта отображения:', style: TextStyle(fontSize: 13)),
-            const Spacer(),
-            DropdownButton<String>(
-              value: DisplayPrefs.fiatCurrency,
-              underline: const SizedBox.shrink(),
-              hint: const Text('—'),
-              items: [
-                for (final code in kFiatCurrencies)
-                  DropdownMenuItem(value: code, child: Text(code)),
+            VAmount(_maskAmount('—'), suffix: 'нет данных', fontSize: 34),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (session != null && session.hasSpendables)
+                  const VStatusChip(
+                    'Есть синхронизированные средства',
+                    kind: VChipKind.success,
+                  ),
               ],
-              onChanged: (code) async {
-                if (code == null) return;
-                await DisplayPrefs.setFiatCurrency(code);
-                setState(() {});
-              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Сумма собирается синхронизацией BTC-актива после '
+              'разблокировки; цены в фиате появятся с источником курсов',
+              style: TextStyle(color: VColors.textSecondary, fontSize: 12.5),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: selected == null
-                    ? null
-                    : () =>
-                        _push(AssetPickerScreen(isReceive: true), reload: true),
-                icon: const Icon(Icons.south_west, size: 18),
-                label: const Text('Receive'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: selected == null
-                    ? null
-                    : () => _push(AssetPickerScreen(isReceive: false)),
-                icon: const Icon(Icons.north_east, size: 18),
-                label: const Text('Send'),
-              ),
-            ),
-          ],
+      ],
+    );
+  }
+
+  /// Receive / Send — реальный вход в поток через выбор актива.
+  Widget _buildActionsRow(BuildContext context) {
+    final selected = _selected;
+    return Row(
+      children: [
+        Expanded(
+          child: VButton.primary(
+            'Receive',
+            icon: Icons.south_west,
+            onPressed: selected == null
+                ? null
+                : () => _push(AssetPickerScreen(isReceive: true), reload: true),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: VButton.primary(
+            'Send',
+            icon: Icons.north_east,
+            onPressed: selected == null
+                ? null
+                : () => _push(AssetPickerScreen(isReceive: false)),
+          ),
         ),
       ],
     );

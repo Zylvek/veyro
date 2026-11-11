@@ -143,12 +143,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Все шесть реальных разделов (адресная книга — из «Настроек»).
-    expect(find.byType(NavigationDestination), findsNWidgets(6));
+    // Восемь реальных разделов по аудиту UI §8 (Overview, Assets,
+    // Transactions, Wallets, Address Book, Backup, Settings, About).
+    expect(find.byType(NavigationDestination), findsNWidgets(8));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
+    expect(find.text('Транзакции'), findsOneWidget);
+    expect(find.text('Адреса'), findsOneWidget);
     expect(find.text('Настройки'), findsOneWidget);
-    expect(find.text('Сеть'), findsNothing); // назначение удалено
+    expect(find.text('Сеть'), findsNothing); // настроено из Настроек
   });
 
   testWidgets('Каркас: выбор раздела обновляет и сайдбар, и контент',

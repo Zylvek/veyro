@@ -43,6 +43,20 @@ String groupDigits(int value) {
   return value < 0 ? '-${buf.toString()}' : buf.toString();
 }
 
+/// Дата создания кошелька из unix-времени.
+///
+/// Ядро отдаёт createdAtUnix в СЕКУНДАХ (SystemTime::as_secs в
+/// wallet_core). Конверсия в миллисекунды происходит здесь, у источника
+/// отображения; раньше значение уходило в fromMillisecondsSinceEpoch
+/// без умножения — все даты показывались январским 1970-м (например,
+/// «21.01.1970»). Дату не подменяем: 0 сек → честный 01.01.1970.
+String formatWalletDate(int createdUnixSeconds) {
+  final d = DateTime.fromMillisecondsSinceEpoch(createdUnixSeconds * 1000);
+  final mm = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  return '$dd.$mm.${d.year}';
+}
+
 /// Разбор строки BTC в сатоши. Возвращает `null` для любого некорректного
 /// ввода (не-цифры, больше 8 десятичных знаков, переполнение int64).
 /// Результат ≥ 0; проверки «больше нуля» и «достаточно средств» — на

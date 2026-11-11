@@ -29,6 +29,9 @@ class DisplayPrefs {
   /// БД недоступна (значения только в памяти).
   static bool degraded = false;
 
+  /// Валюты отображения — по мастер-плану (§13): USD, EUR, GBP, RUB.
+  static const List<String> fiatCurrencies = ['USD', 'EUR', 'GBP', 'RUB'];
+
   static bool _loaded = false;
 
   /// Одна ленивая загрузка на процесс.

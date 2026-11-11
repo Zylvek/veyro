@@ -37,6 +37,13 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   bool _prefsLoaded = false;
   String? _error;
 
+  /// Сортировка: true — A→Я по тикеру; false — исходный порядок матрицы.
+  bool _sortAlphabetical = false;
+
+  /// Группировка по состояниям поддержки (аудит §5): заголовки секций
+  /// «Реализованные» и честные вердикты матрицы.
+  bool _grouped = false;
+
   @override
   void initState() {
     super.initState();
@@ -82,7 +89,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
 
   List<VeyroAsset> get _visibleAssets {
     final query = _searchController.text.trim().toLowerCase();
-    return kAssetRegistry.where((asset) {
+    final result = kAssetRegistry.where((asset) {
       switch (_filter) {
         case CatalogFilter.all:
           break;
@@ -99,6 +106,30 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
           asset.name.toLowerCase().contains(query) ||
           asset.network.toLowerCase().contains(query);
     }).toList();
+    if (_sortAlphabetical) {
+      result.sort((a, b) => a.ticker.compareTo(b.ticker));
+    }
+    return result;
+  }
+
+  /// Секции группировки для включённого режима «по статусу»: реализованные
+  /// первыми, дальше честные вердикты матрицы, как они названы в паспортах.
+  List<MapEntry<String, List<VeyroAsset>>> get _groupedAssets {
+    final groups = <String, List<VeyroAsset>>{};
+    for (final asset in _visibleAssets) {
+      final title = asset.implemented ? 'Реализованные' : asset.lifecycle.label;
+      groups.putIfAbsent(title, () => []).add(asset);
+    }
+    final ordered = <MapEntry<String, List<VeyroAsset>>>[];
+    // Реализованные — всегда первой секцией.
+    if (groups.containsKey('Реализованные')) {
+      ordered.add(MapEntry('Реализованные', groups.remove('Реализованные')!));
+    }
+    final keys = groups.keys.toList()..sort();
+    for (final key in keys) {
+      ordered.add(MapEntry(key, groups[key]!));
+    }
+    return ordered;
   }
 
   /// Честный сетевой статус BTC-строки: только реальные факты FFI.
@@ -116,7 +147,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
       appBar: AppBar(title: const Text('Активы')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(maxWidth: 1000),
           child: Column(
             children: [
               Padding(
@@ -146,6 +177,37 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                     _filterChip('Реализованные', CatalogFilter.implemented),
                     _filterChip('Researched', CatalogFilter.researched),
                     _filterChip('Особые статусы', CatalogFilter.special),
+                    _toggleChip(
+                      'Группировать по статусу',
+                      _grouped,
+                      onToggle: (v) => setState(() => _grouped = v),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Card(
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 10),
+                          child: DropdownButton<bool>(
+                            value: _sortAlphabetical,
+                            underline: const SizedBox.shrink(),
+                            isDense: true,
+                            items: const [
+                              DropdownMenuItem(
+                                value: false,
+                                child: Text('Порядок матрицы'),
+                              ),
+                              DropdownMenuItem(
+                                value: true,
+                                child: Text('A→Я по тикеру'),
+                              ),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _sortAlphabetical = v ?? false),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -195,29 +257,71 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                           message: 'По запросу нет активов в реестре. '
                               'Измените фильтр или строку поиска.',
                         )
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _visibleAssets.length,
-                          itemBuilder: (context, index) {
-                            final asset = _visibleAssets[index];
-                            return _AssetTile(
-                              asset: asset,
-                              favorite: DisplayPrefs.favorites
-                                  .contains(asset.ticker),
-                              btcStatusText: asset.ticker == 'BTC'
-                                  ? _btcStatusChip()
-                                  : null,
-                              onFavorite: () => _toggleFavorite(asset.ticker),
-                              onOpen: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      AssetDetailScreen(asset: asset),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                      : _grouped
+                          ? ListView(
+                              physics:
+                                  const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                for (final group in _groupedAssets) ...[
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 6),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        '${group.key} · ${group.value.length}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall,
+                                      ),
+                                    ),
+                                  ),
+                                  for (final asset in group.value)
+                                    _AssetTile(
+                                      asset: asset,
+                                      favorite: DisplayPrefs.favorites
+                                          .contains(asset.ticker),
+                                      btcStatusText: asset.ticker == 'BTC'
+                                          ? _btcStatusChip()
+                                          : null,
+                                      onFavorite: () =>
+                                          _toggleFavorite(asset.ticker),
+                                      onOpen: () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => AssetDetailScreen(
+                                              asset: asset),
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 10),
+                                ],
+                              ],
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _visibleAssets.length,
+                              itemBuilder: (context, index) {
+                                final asset = _visibleAssets[index];
+                                return _AssetTile(
+                                  asset: asset,
+                                  favorite: DisplayPrefs.favorites
+                                      .contains(asset.ticker),
+                                  btcStatusText: asset.ticker == 'BTC'
+                                      ? _btcStatusChip()
+                                      : null,
+                                  onFavorite: () =>
+                                      _toggleFavorite(asset.ticker),
+                                  onOpen: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          AssetDetailScreen(asset: asset),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                 ),
               ),
             ],
@@ -248,6 +352,34 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
       backgroundColor: VColors.card,
       selectedColor: VColors.elevated,
       onSelected: (_) => setState(() => _filter = filter),
+    );
+  }
+
+  /// Переключатель без привязки к фильтру (группировка).
+  Widget _toggleChip(
+    String label,
+    bool selected, {
+    required ValueChanged<bool> onToggle,
+  }) {
+    return FilterChip(
+      selected: selected,
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          color: selected ? VColors.primary : VColors.textSecondary,
+        ),
+      ),
+      showCheckmark: false,
+      side: BorderSide(
+        color: selected
+            ? VColors.primary.withValues(alpha: 0.5)
+            : VColors.elevated,
+      ),
+      backgroundColor: VColors.card,
+      selectedColor: VColors.elevated,
+      onSelected: onToggle,
     );
   }
 }
