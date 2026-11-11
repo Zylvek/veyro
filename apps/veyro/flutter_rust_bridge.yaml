@@ -1,0 +1,8 @@
+# flutter_rust_bridge configuration for the VEYRO app.
+# Docs: https://cjycode.com/flutter_rust_bridge/
+#
+# The Rust API lives in the workspace crate `rust/crates/veyro_bridge`
+# (paths are relative to this file, i.e. to apps/veyro).
+rust_root: ../../rust/crates/veyro_bridge/
+rust_input: crate::api
+dart_output: lib/src/rust

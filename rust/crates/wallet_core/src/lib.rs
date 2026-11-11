@@ -119,6 +119,18 @@ pub struct UnlockedWallet {
     pub seed: Seed,
 }
 
+/// Secrets of a wallet revealed for a sensitive flow (e.g. backup export).
+/// Zeroized on drop. The backup flow lives in Rust precisely so that these
+/// secrets never cross the FFI boundary; only an explicit user action
+/// (reveal phrase, export backup) may call into it.
+pub struct RevealedSecrets {
+    /// BIP39 mnemonic phrase.
+    pub phrase: Zeroizing<String>,
+    /// BIP39 passphrase (may be empty). Backup export needs it: it is not
+    /// recoverable from the seed alone.
+    pub passphrase: Zeroizing<String>,
+}
+
 /// Manages wallets in a single directory.
 pub struct WalletManager {
     dir: PathBuf,
@@ -248,6 +260,25 @@ impl WalletManager {
             .map_err(|e| WalletCoreError::Corrupted(e.to_string()))?;
         Ok(Zeroizing::new(std::mem::take(&mut payload.phrase)))
         // `payload` drops with an empty phrase and zeroizes the remaining fields.
+    }
+
+    /// Reveal the mnemonic phrase AND the BIP39 passphrase (the backup export
+    /// needs both: the passphrase is not recoverable from the seed alone).
+    /// Requires the password; the result is zeroized on drop.
+    pub fn reveal_secrets(
+        &self,
+        id: &str,
+        password: &str,
+    ) -> Result<RevealedSecrets, WalletCoreError> {
+        let file = self.read_file(id)?;
+        let payload_json = crypto_vault::decrypt(password, &file.vault)?;
+        let mut payload: SecretPayload = serde_json::from_slice(&payload_json)
+            .map_err(|e| WalletCoreError::Corrupted(e.to_string()))?;
+        Ok(RevealedSecrets {
+            phrase: Zeroizing::new(std::mem::take(&mut payload.phrase)),
+            passphrase: Zeroizing::new(std::mem::take(&mut payload.passphrase)),
+        })
+        // `payload` drops with emptied fields; the seed still zeroizes.
     }
 
     /// List wallets (public metadata only).

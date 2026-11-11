@@ -1,0 +1,22 @@
+[package]
+name = "veyro_bridge"
+description = "FFI bridge between the Flutter UI and the VEYRO Rust core (the only crate that may contain generated unsafe glue)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+# cdylib: loaded by the Flutter app (Windows: veyro_bridge.dll, Android: libveyro_bridge.so).
+# rlib: lets integration tests link against this crate.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1"
+flutter_rust_bridge = "=2.13.0"
+
+crypto_vault = { path = "../crypto_vault" }
+key_manager = { path = "../key_manager" }
+wallet_core = { path = "../wallet_core" }
+storage = { path = "../storage" }
+backup_manager = { path = "../backup_manager" }

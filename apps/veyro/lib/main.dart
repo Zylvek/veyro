@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
-void main() {
+import 'src/rust/frb_generated.dart';
+
+Future<void> main() async {
+  // Подключение Rust-ядра через FFI. Должно завершиться до запуска UI:
+  // все экраны обращаются к ядру через RustLib.
+  await RustLib.init();
   runApp(const VeyroApp());
 }
 
 /// VEYRO — некастодиальный мультивалютный криптовалютный кошелёк.
 ///
-/// Каркас интерфейса (Phase 6, ранний старт). Ядро кошелька на Rust будет
-/// подключено через flutter_rust_bridge. Никаких фейковых балансов и данных —
-/// экран честно сообщает текущее состояние интеграции.
+/// Каркас интерфейса (Phase 6). Ядро кошелька на Rust подключено через
+/// flutter_rust_bridge (RustLib.init в main). Никаких фейковых балансов
+/// и данных — экран честно сообщает текущее состояние интеграции.
 class VeyroApp extends StatelessWidget {
   const VeyroApp({super.key});
 
@@ -160,12 +165,12 @@ class _IntegrationStatusCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Ядро VEYRO на Rust уже реализуется: шифрование секретов '
-              '(Argon2id + XChaCha20-Poly1305), BIP39-мнемоники, зашифрованные '
-              'бэкапы и хранение данных.\n\n'
-              'Интерфейс подключится к ядру через flutter_rust_bridge. '
-              'Балансы и транзакции появятся только после интеграции с реальными '
-              'блокчейнами — никаких имитаций.',
+              'Ядро кошелька на Rust подключено к интерфейсу через '
+              'flutter_rust_bridge: шифрование секретов (Argon2id + '
+              'XChaCha20-Poly1305), BIP39-мнемоники, зашифрованные бэкапы и '
+              'хранение данных уже работают.\n\n'
+              'Балансы и транзакции появятся только после интеграции с '
+              'реальными блокчейнами — никаких имитаций.',
               style: TextStyle(color: Colors.white60, height: 1.5),
             ),
           ],

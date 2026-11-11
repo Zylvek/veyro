@@ -180,6 +180,34 @@ fn reveal_mnemonic_requires_password_and_matches() {
 }
 
 #[test]
+fn reveal_secrets_returns_phrase_and_passphrase() {
+    // The backup flow needs BOTH secrets: a wallet restored with a
+    // non-empty BIP39 passphrase cannot be rebuilt elsewhere from the
+    // phrase alone.
+    let mgr = open("reveal_secrets");
+    let phrase = key_manager::generate(Strength::Words24).unwrap().phrase();
+    let restored = mgr
+        .restore("B", "correct", &phrase, "spare words 52")
+        .unwrap();
+
+    assert!(matches!(
+        mgr.reveal_secrets(&restored.info.id, "incorrect"),
+        Err(WalletCoreError::Vault(_))
+    ));
+
+    let secrets = mgr.reveal_secrets(&restored.info.id, "correct").unwrap();
+    assert_eq!(&*secrets.phrase, &*phrase);
+    assert_eq!(&*secrets.passphrase, "spare words 52");
+
+    // Revealed secrets must reproduce the same seed as the stored wallet.
+    let reference: Seed = from_phrase(&secrets.phrase)
+        .unwrap()
+        .to_seed(&secrets.passphrase);
+    let unlocked = mgr.unlock(&restored.info.id, "correct").unwrap();
+    assert_eq!(unlocked.seed.as_bytes(), reference.as_bytes());
+}
+
+#[test]
 fn invalid_names_rejected() {
     let mgr = open("invalid_names");
     assert!(matches!(

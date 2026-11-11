@@ -15,6 +15,9 @@ analyzer:
     - android/**
     - windows/**
     - linux/**
+    # Vendored cargokit build tool (flutter_rust_bridge template): it has its
+    # own pubspec and resolves dependencies on its own during the build.
+    - rust_builder/**
 
 linter:
   # The lint rules applied to this project can be customized in the

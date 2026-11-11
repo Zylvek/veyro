@@ -1,0 +1,23 @@
+# The Flutter tooling requires that developers have CMake 3.10 or later
+# installed. You should not increase this version, as doing so will cause
+# the plugin to fail to compile for some customers of the plugin.
+cmake_minimum_required(VERSION 3.10)
+cmake_policy(SET CMP0079 NEW)
+
+# Project-level configuration.
+set(PROJECT_NAME "veyro_bridge")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+include("../cargokit/cmake/cargokit.cmake")
+# Resolved from this file's real directory (apps/veyro/rust_builder/linux);
+# 4 levels up reaches the repo root, where the VEYRO Rust workspace lives.
+apply_cargokit(${PROJECT_NAME} ../../../../rust/crates/veyro_bridge veyro_bridge "")
+target_link_libraries(${BINARY_NAME} PRIVATE "${${PROJECT_NAME}_cargokit_lib}")
+
+# List of absolute paths to libraries that should be bundled with the plugin.
+# This list could contain prebuilt libraries, or libraries created by an
+# external build triggered from this build file.
+set(veyro_bridge_bundled_libraries
+  "${${PROJECT_NAME}_cargokit_lib}"
+  PARENT_SCOPE
+)
