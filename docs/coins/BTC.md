@@ -81,9 +81,17 @@
 | Способ | Статус | Детали |
 |---|---|---|
 | Собственный узел Bitcoin Core + RPC | ✅ | JSON-RPC (`bitcoin-cli`), порты 8332 / 18332 / 48332 / 38332 / 18443; P2P 8333 / 18333 / 48333 / 38333 / 18444; диск ~897 ГБ (assumed) |
-| **Electrum-протокол (лёгкий путь)** | ✅ | Живые публичные серверы (11.11.2026, мониторинг 1209k.com/bitcoin-eye/ele.php — официальная ссылка electrum.org): `electrum.qtornado.com:50002` (ssl, Fulcrum 2.1.4), `vps.hsmiths.com:50002` (ssl, Fulcrum 2.1.4), `blockitall.us:50001/50002`, `zutaten.mooo.com:50001/50002`, `zztop.twilightparadox.com:50001/50002`, `fulcrum.bullbitcoin.com:50002` (ElectrumX 1.16.0 / Fulcrum 2.1.4, протокол 1.4, синхронизированы до высоты 975 448). Клиенты: Electrum 4.8.4 (MIT); **rust electrum-client 0.25.2** |
+| **Electrum-протокол (лёгкий путь)** | ✅ | Живой протокол подтверждён **VEYRO-probe 11.11.2026** (`chains/tests/e2e_probe.rs`: TLS через rustls, `server.version`, genesis-хеш сети, tip — см. блок ниже). Мониторинг-пул кандидатов: 1209k.com/bitcoin-eye/ele.php (официальная ссылка electrum.org). Клиенты: Electrum 4.8.4 (MIT); **rust electrum-client** (в коде VEYRO — 0.24, `use-rustls`; 0.24/0.25 требуют bitcoin ^0.32) |
 | Публичные эксплореры/API | ✅ (оговорки) | mempool.space, blockstream.info (Esplora API) — проверены живыми запросами адресов. ⚠️ Приватность: провайдер связывает IP с адресами |
 | Собственный Electrum-сервер | ✅ (для приватности) | electrs / ElectrumX / Fulcrum поверх узла пользователя |
+
+Live-верификация VEYRO (11.11.2026, genesis-проверка в Rust):
+
+- mainnet `ssl://fulcrum.bullbitcoin.com:50002` — Fulcrum 2.1.4, tip 975 454;
+- testnet3 `ssl://electrum.blockstream.info:60002` — electrs 0.4.1, tip 5 344 711;
+- testnet4 `ssl://blackie.c3-soft.com:57010` — Fulcrum 2.1.4, протокол 1.4–1.6, tip 160 659, genesis-хеш сети совпал (E2E-цикл faucet VEYRO проводится здесь).
+
+Отсеяны тем же probe'ом (11.11.2026): `electrum.qtornado.com:50002` (mainnet-сервер из прежнего дефолта кода) и `testnet.qtornado.com:51012` (testnet4) — сертификат rustls не читает (UnsupportedCertVersion); `testnet.aranguren.org:51002` и `fulcrum.theuplink.net:60002` — self-signed/CA-as-leaf; `blockstream.info:60004` — не отвечает по Electrum-протоколу; `testnet4.bullbitcoin.com:60002` — TLS-отказ. Остальные серверы мониторинг-пула (hsmiths, blockitall, zutaten, zztop) VEYRO в этом прогоне не перепроверял.
 
 ⚠️ Приватность публичных серверов: они видят IP и все запрашиваемые адреса/скрипты. Для VEYRO:Tor-поддержка + возможность указать пользовательский Electrum-сервер.
 
