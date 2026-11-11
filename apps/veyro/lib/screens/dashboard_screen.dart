@@ -16,13 +16,13 @@ import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 
-import 'asset_catalog_screen.dart';
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
 import 'history_screen.dart';
 import 'tx_details_screen.dart';
 
-const List<String> kFiatCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
+// Валюты отображения — по мастер-плану (§13): USD, EUR, GBP, RUB.
+const List<String> kFiatCurrencies = ['USD', 'EUR', 'GBP', 'RUB'];
 
 class DashboardScreen extends StatefulWidget {
   /// Точки замены для виджет-тестов (обычно — реальные вызовы ядра).
@@ -245,11 +245,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 4),
         VAmount(_maskAmount('—'), suffix: 'нет данных', fontSize: 26),
-        Text(
-          'Баланс синхронизируется реальным ядром при открытии BTC-актива. '
-          'Пока нет синхронизации — пусто, без выдуманных значений.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -293,11 +288,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
-        Text(
-          'Источник курсов фиата ещё не подключён — фиатные суммы '
-          'сознательно не отображаются.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -331,31 +321,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final favorites = kAssetRegistry
         .where((a) => DisplayPrefs.favorites.contains(a.ticker))
         .toList();
+    // Пустое избранное — карточки нет вовсе (решение владельца: без
+    // подсказок-лекций на Обзоре).
+    if (favorites.isEmpty) return const SizedBox.shrink();
     return VCard(
       icon: Icons.star_outline,
       title: 'Избранные активы',
       children: [
-        if (favorites.isEmpty)
-          Text(
-            'Пусто. Отметьте активы звёздочкой в каталоге — они появятся '
-            'здесь.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final asset in favorites)
-                ActionChip(
-                  avatar: _AssetAvatar(asset),
-                  label: Text(asset.ticker),
-                  onPressed: () => _push(
-                    AssetDetailScreen(asset: asset, wallet: _selected),
-                  ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final asset in favorites)
+              ActionChip(
+                avatar: _AssetAvatar(asset),
+                label: Text(asset.ticker),
+                onPressed: () => _push(
+                  AssetDetailScreen(asset: asset, wallet: _selected),
                 ),
-            ],
-          ),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -380,60 +366,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _push(AssetDetailScreen(asset: btc, wallet: _selected)),
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          'Справочник: 28 строк из утверждённой матрицы. Остальные 27 — '
-          'статусы Researched/Blocked/исторические: адаптеров нет, '
-          'балансов не показываем.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 10),
-        VButton.secondary(
-          'Каталог активов',
-          icon: Icons.grid_view_outlined,
-          onPressed: () => _push(AssetCatalogScreen()),
-        ),
       ],
     );
   }
 
   Widget _buildNetworkCard(BuildContext context) {
     final session = _session;
+    // Без активной сессии карточки сети нет вовсе — статус сети и так
+    // в чипе «Итого», а настройка живёт в разделе «Сеть» и центре BTC.
+    if (session == null) return const SizedBox.shrink();
     return VCard(
       icon: Icons.lan_outlined,
       title: 'Сеть',
       children: [
-        if (session != null) ...[
-          VMonoCopyRow(label: 'Сервер', value: session.serverUrl),
-          const SizedBox(height: 6),
-          Text(
-            'Публичный Electrum-сервер выбран в настройках сети; сменить — '
-            'раздел «Сеть».',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ] else
-          Text(
-            'BTC-подключение не активно. Статус появится после разблокировки '
-            'актива; конфигурация серверов — в разделе «Сеть».',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+        VMonoCopyRow(label: 'Сервер', value: session.serverUrl),
       ],
     );
   }
 
   Widget _buildRecentCard(BuildContext context) {
     final recent = _recent;
+    // Без активной сессии истории нет и карточки нет (состояние сессии
+    // уже показывает чип «Итого»); без лекций на Обзоре.
+    if (_session == null) return const SizedBox.shrink();
     return VCard(
       icon: Icons.receipt_long_outlined,
       title: 'Последние транзакции',
       children: [
-        if (_session == null)
-          Text(
-            'История доступна после разблокировки BTC-актива (реальные '
-            'данные с выбранного сервера).',
-            style: Theme.of(context).textTheme.bodyMedium,
-          )
-        else if (_historyError != null)
+        if (_historyError != null)
           Text(
             'Ядро вернуло ошибку истории: $_historyError',
             style: Theme.of(context)

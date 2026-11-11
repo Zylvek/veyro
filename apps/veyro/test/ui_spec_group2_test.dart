@@ -209,15 +209,18 @@ void main() {
       expect(find.text('нет данных'), findsOneWidget);
       expect(find.textContaining('\$'), findsNothing);
 
-      // Сеть: сессия не активна → честный чип, никаких выдуманных серверов.
+      // Сеть: сессия не активна → честный чип в «Итого»; отдельных
+      // карточек-лекций «Сеть»/«История» на чистом Обзоре нет.
       expect(find.text('BTC: сессия не активна'), findsOneWidget);
-      // История: без активной сессии только честное объяснение.
-      expect(find.textContaining('История доступна после разблокировки'),
-          findsOneWidget);
+      expect(find.text('Сеть'), findsNothing);
+      expect(find.text('Последние транзакции'), findsNothing);
 
       // Валюта отображения — селектор присутствует (реальная настройка).
       expect(find.textContaining('Валюта отображения'), findsOneWidget);
-      expect(find.textContaining('курсов фиата'), findsOneWidget);
+      // Пояснений-лекций больше нет (обратная связь владельца).
+      expect(find.textContaining('курсов фиата'), findsNothing);
+      expect(find.textContaining('История доступна'), findsNothing);
+      expect(find.textContaining('Справочник'), findsNothing);
     });
 
     testWidgets('активная сессия: честные чипы и реальные транзакции',
