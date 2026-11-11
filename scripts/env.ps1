@@ -1,5 +1,5 @@
-# Окружение разработки MultiWallet. Всё — только на диске D.
-# Использование: . D:\...\multiwallet\scripts\env.ps1
+# Окружение разработки VEYRO. Всё — только на диске D.
+# Использование: . D:\Admin\Documents\Проект по умолчанию\veyro\scripts\env.ps1
 
 # 1. Cargo: кэш реестра и загруженных crate'ов на диске D
 $env:CARGO_HOME = "D:\rust\cargo"
@@ -12,7 +12,7 @@ $env:TMP  = "D:\tmp"
 $env:Path = "D:\flutter\flutter\bin;$env:Path"
 
 # 4. Каталог для временных данных интеграционных тестов
-$env:MULTIWALLET_TEST_TMP = "D:\tmp\multiwallet-tests"
+$env:VEYRO_TEST_TMP = "D:\tmp\veyro-tests"
 
 # 5. Android (всё установлено на диске D)
 $env:ANDROID_HOME      = "D:\Users\Admin\AppData\Local\Android\Sdk"

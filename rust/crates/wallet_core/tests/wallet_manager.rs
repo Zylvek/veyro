@@ -1,7 +1,7 @@
 //! Integration tests for `wallet_core`.
 //!
-//! Test data lives on drive D only (`MULTIWALLET_TEST_TMP`, default
-//! `D:\tmp\multiwallet-tests`), per project environment constraint.
+//! Test data lives on drive D only (`VEYRO_TEST_TMP`, default
+//! `D:\tmp\veyro-tests`), per project environment constraint.
 
 use crypto_vault::KdfParams;
 use key_manager::{from_phrase, Seed, Strength};
@@ -18,7 +18,7 @@ fn test_dir(tag: &str) -> std::path::PathBuf {
     let first = registry.lock().unwrap().insert(tag.to_string());
 
     let base = std::env::var("MULTIWALLET_TEST_TMP")
-        .unwrap_or_else(|_| r"D:\tmp\multiwallet-tests".to_string());
+        .unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
     let dir = std::path::Path::new(&base).join(format!("{}-{}", std::process::id(), tag));
     if first {
         let _ = std::fs::remove_dir_all(&dir);

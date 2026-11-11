@@ -1,4 +1,4 @@
-# MultiWallet
+# VEYRO
 
 Некастодиальный мультивалютный криптовалютный кошелёк для Windows, Linux и Android.
 
@@ -22,7 +22,7 @@
 ## Структура
 
 ```
-multiwallet/
+veyro/
   apps/            # Flutter-приложение (Windows / Linux / Android) — Phase 6
   rust/            # Cargo workspace: ядро кошелька
     crates/

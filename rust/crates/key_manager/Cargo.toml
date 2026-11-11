@@ -1,6 +1,6 @@
 [package]
 name = "key_manager"
-description = "Wallet entropy, BIP39 mnemonics and seed derivation for MultiWallet"
+description = "Wallet entropy, BIP39 mnemonics and seed derivation for VEYRO"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

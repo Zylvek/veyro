@@ -31,7 +31,7 @@ pub enum KeyManagerError {
     InvalidEntropy(usize),
 }
 
-/// Mnemonic strength. MultiWallet UI offers 24 words; 12 remains supported for
+/// Mnemonic strength. VEYRO UI offers 24 words; 12 remains supported for
 /// importing existing wallets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strength {

@@ -1,6 +1,6 @@
 [package]
 name = "crypto_vault"
-description = "Authenticated encryption-at-rest for MultiWallet secrets (Argon2id + XChaCha20-Poly1305)"
+description = "Authenticated encryption-at-rest for VEYRO secrets (Argon2id + XChaCha20-Poly1305)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
