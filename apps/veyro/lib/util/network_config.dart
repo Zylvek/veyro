@@ -9,11 +9,10 @@
 //! переключается только осознанным действием пользователя (плюс баннер на UI
 //! и fund-safety genesis-проверка в Rust при каждом unlock).
 //!
-//! Дефолтные серверы: mainnet — верифицированный публичный сервер из
-//! docs/coins/BTC.md (§84, проверен 11.11.2026). Для testnet3 — публичный
-//! сервер blockstream (не из верифицированного списка BTC.md; genesis-проверка
-//! в Rust всё равно отвергнет сервер чужой сети). Для testnet4 дефолта нет —
-//! верифицированного списка нет, честно просим ввести свой сервер.
+//! Дефолтные серверы всех трёх сетей верифицированы probe-тестом
+//! `chains/tests/e2e_probe.rs` (11.11.2026): live-опрос + genesis-проверка;
+//! полный список и отсевы TLS — в docs/coins/BTC.md (§84). Genesis-проверка
+//! в Rust при каждом unlock всё равно отвергнет сервер чужой сети.
 
 import 'package:veyro/src/rust/api/storage.dart';
 
@@ -47,18 +46,24 @@ class BtcNetworkChoice {
   }
 }
 
-/// Дефолтный сервер сети (может быть `null` — тогда ждём ввода пользователя).
+/// Дефолтный сервер сети (`null` — ждём ввода пользователя).
+///
+/// Верифицировано probe-тестом `chains/tests/e2e_probe.rs` (11.11.2026):
+/// - mainnet: `ssl://fulcrum.bullbitcoin.com:50002` (Fulcrum 2.1.4, tip 975454);
+/// - testnet3: `ssl://electrum.blockstream.info:60002` (electrs 0.4.1, tip 5344711);
+/// - testnet4: `ssl://blackie.c3-soft.com:57010` (Fulcrum 2.1.4, tip 160659).
+/// Отсеяны по TLS/сертификатам: qtornado (UnsupportedCertVersion),
+/// aranguren:51002 и theuplink:60002 (self-signed) — §84 BTC.md.
 String? defaultServerUrl(int code) {
   switch (code) {
     case 0:
-      // docs/coins/BTC.md §84: electrum.qtornado.com (Fulcrum 2.1.4, ssl).
-      return 'ssl://electrum.qtornado.com:50002';
+      return 'ssl://fulcrum.bullbitcoin.com:50002';
     case 1:
-      // Не из верифицированного списка BTC.md; genesis-проверка в Rust
-      // защищает от сервера другой сети.
       return 'ssl://electrum.blockstream.info:60002';
+    case 2:
+      return 'ssl://blackie.c3-soft.com:57010';
     default:
-      return null; // testnet4: без верифицированного дефолта
+      return null;
   }
 }
 
