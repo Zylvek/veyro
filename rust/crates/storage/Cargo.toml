@@ -1,0 +1,11 @@
+[package]
+name = "storage"
+description = "SQLite storage for non-secret VEYRO application data (wallet metadata, addresses, contacts, nodes, labels, price cache)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+rusqlite = { workspace = true }
+thiserror = { workspace = true }

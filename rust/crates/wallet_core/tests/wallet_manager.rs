@@ -17,8 +17,8 @@ fn test_dir(tag: &str) -> std::path::PathBuf {
     let registry = INIT.get_or_init(|| Mutex::new(HashSet::new()));
     let first = registry.lock().unwrap().insert(tag.to_string());
 
-    let base = std::env::var("MULTIWALLET_TEST_TMP")
-        .unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
+    let base =
+        std::env::var("MULTIWALLET_TEST_TMP").unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
     let dir = std::path::Path::new(&base).join(format!("{}-{}", std::process::id(), tag));
     if first {
         let _ = std::fs::remove_dir_all(&dir);
