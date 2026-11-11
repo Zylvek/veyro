@@ -39,7 +39,12 @@ class VCard extends StatelessWidget {
                     Icon(icon, size: 18, color: VColors.primary),
                     const SizedBox(width: 8),
                   ],
-                  Text(title!, style: Theme.of(context).textTheme.titleMedium),
+                  // Expanded: длинные заголовки переносятся, а не ломают
+                  // строку переполнением.
+                  Expanded(
+                    child: Text(title!,
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
                 ],
               ),
             ),
@@ -175,13 +180,19 @@ class VStatusChip extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: _color,
-              letterSpacing: 0.2,
+          // Flexible: длинные подписи (например, состояние сессии с именем
+          // кошелька) переносятся внутри чипа, а не ломают строку
+          // переполнением.
+          Flexible(
+            child: Text(
+              label,
+              softWrap: true,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: _color,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],

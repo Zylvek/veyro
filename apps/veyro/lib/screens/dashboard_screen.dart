@@ -18,7 +18,9 @@ import 'package:veyro/util/format.dart';
 
 import 'asset_catalog_screen.dart';
 import 'asset_detail_screen.dart';
-import 'portfolio_screen.dart';
+import 'asset_picker_screen.dart';
+import 'history_screen.dart';
+import 'tx_details_screen.dart';
 
 const List<String> kFiatCurrencies = ['USD', 'EUR', 'RUB', 'CNY'];
 
@@ -303,7 +305,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: OutlinedButton.icon(
                 onPressed: selected == null
                     ? null
-                    : () => _push(PortfolioScreen(info: selected), reload: true),
+                    : () =>
+                        _push(AssetPickerScreen(isReceive: true), reload: true),
                 icon: const Icon(Icons.south_west, size: 18),
                 label: const Text('Receive'),
               ),
@@ -313,7 +316,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: OutlinedButton.icon(
                 onPressed: selected == null
                     ? null
-                    : () => _push(PortfolioScreen(info: selected), reload: true),
+                    : () => _push(AssetPickerScreen(isReceive: false)),
                 icon: const Icon(Icons.north_east, size: 18),
                 label: const Text('Send'),
               ),
@@ -446,7 +449,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         else if (recent.isEmpty)
           Text('Транзакций пока нет — всё чисто.',
               style: Theme.of(context).textTheme.bodyMedium)
-        else
+        else ...[
           for (final item in recent)
             ListTile(
               dense: true,
@@ -492,7 +495,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     .bodySmall!
                     .copyWith(fontFamily: kMonoFont, fontSize: 11),
               ),
+              onTap: () =>
+                  _push(TxDetailsScreen(
+                item: item,
+                networkCode: _session?.networkCode,
+              )),
             ),
+          const SizedBox(height: 4),
+          VButton.secondary(
+            'Полная история',
+            icon: Icons.history,
+            onPressed: () => _push(const HistoryScreen(), reload: true),
+          ),
+        ],
       ],
     );
   }

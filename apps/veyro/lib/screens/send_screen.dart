@@ -1,17 +1,32 @@
-//! Экран 5: отправка. Адрес получателя + сумма (BTC → сатоши целочисленно) +
-//! комиссия (пресеты сервера из btc_fees или ручная sat/vB) → подтверждение →
-//! btc_send (план, локальная подпись BIP143, идемпотентный broadcast в Rust).
-//! После успеха показываем txid/комиссию/статус и заставляем портфель
-//! пересинхронизироваться (Rust сам очистил набор UTXO от повторной отправки).
+//! Экран 14 спеки (asset-поток Send, BTC): адрес получателя + сумма (BTC →
+//! сатоши целочисленно) + комиссия (пресеты btc_fees или ручная sat/vB) →
+//! полноэкранное подтверждение (TxConfirmScreen, пункт 15) → btcSend
+//! (локальная подпись BIP143, идемпотентный broadcast в Rust). Кнопка Max
+//! подставляет реальный доступный баланс из последней синхронизации
+//! (availableSat от центра управления); если данных нет — кнопки Max нет.
+//! После успеха — TXID/фактическая комиссия/статус и возврат с
+//! пересинхронизацией (Rust очистил набор UTXO от повторной отправки).
 
 import 'package:flutter/material.dart';
 
+import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
+import 'tx_confirm_screen.dart';
+
 class SendScreen extends StatefulWidget {
-  const SendScreen({super.key});
+  /// Реальный доступный баланс на момент последней синхронизации
+  /// (confirmed + mempool-delta при отрицательной дельте). null —
+  /// данных нет: кнопка Max честно скрыта.
+  final int? availableSat;
+
+  /// Точка замены для виджет-тестов (без RustLib): пресеты комиссии.
+  final Future<BtcFeeRatesDto> Function()? feesLoader;
+
+  const SendScreen({super.key, this.availableSat, this.feesLoader});
 
   @override
   State<SendScreen> createState() => _SendScreenState();
@@ -51,7 +66,8 @@ class _SendScreenState extends State<SendScreen> {
       _feesError = null;
     });
     try {
-      final fees = await btcFees();
+      final loader = widget.feesLoader;
+      final fees = loader != null ? await loader() : await btcFees();
       if (!mounted) return;
       setState(() {
         _fees = fees;
@@ -84,6 +100,14 @@ class _SendScreenState extends State<SendScreen> {
     }
   }
 
+  /// Кнопка Max: подставить реальный доступный баланс (снапшот
+  /// последней синхронизации) в поле суммы.
+  void _applyMax() {
+    final available = widget.availableSat;
+    if (available == null || available <= 0) return;
+    _amountController.text = satToBtcString(available);
+  }
+
   Future<void> _submit() async {
     final recipient = _recipientController.text.trim();
     final amountSat = parseBtcToSat(_amountController.text);
@@ -102,19 +126,19 @@ class _SendScreenState extends State<SendScreen> {
     setState(() => _formError = error);
     if (error != null || amountSat == null || rate == null) return;
 
-    final confirmed = await confirmAction(
-      context,
-      title: 'Подтвердите отправку',
-      body: 'Получатель: $recipient\n\n'
-          'Сумма: ${satToBtcString(amountSat)} BTC '
-          '(${groupDigits(amountSat)} сат)\n'
-          'Ставка комиссии: $rate sat/vB (комиссия будет рассчитана в ядре '
-          'по реальным UTXO и показана в результате).\n\n'
-          'Отправка необратима.',
-      confirmLabel: 'Подписать и отправить',
-      destructive: true,
+    // Полноэкранное подтверждение (спека, пункт 15): актив/сеть/адрес/
+    // сумма/комиссия + явное действие. Отправка начинается только после
+    // pop(true).
+    final confirmed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => TxConfirmScreen(
+          recipient: recipient,
+          amountSat: amountSat,
+          rateSatVb: rate,
+        ),
+      ),
     );
-    if (!confirmed || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() {
       _sending = true;
@@ -155,35 +179,51 @@ class _SendScreenState extends State<SendScreen> {
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    color: Colors.orange.withValues(alpha: 0.15),
+                    border: Border.all(
+                        color: VColors.warning.withValues(alpha: 0.5)),
+                    color: VColors.warning.withValues(alpha: 0.12),
                   ),
                   child: const Text(
-                    'Эта транзакция уже была известна сети — повторная отправка '
-                    'не выполнялась (идемпотентный broadcast).',
+                    'Эта транзакция уже была известна сети — повторная '
+                    'отправка не выполнялась (идемпотентный broadcast).',
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
-              const Text('TXID', style: TextStyle(color: Colors.white60, fontSize: 12)),
-              SelectableText(result.txid,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-              const SizedBox(height: 8),
+              VMonoCopyRow(label: 'TXID', value: result.txid),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                switch (result.status) {
+                  'broadcast' =>
+                    const VStatusChip('Отправлено в сеть', kind: VChipKind.success),
+                  _ => VStatusChip('Статус: ${result.status}',
+                      kind: VChipKind.info),
+                },
+              ]),
+              const SizedBox(height: 10),
               Text(
                 '${satToBtcString(result.amountSat.toInt())} BTC получателю',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()]),
               ),
               Text(
                 'Комиссия: ${satToBtcString(result.feeSat.toInt())} BTC '
                 '(${groupDigits(result.feeSat.toInt())} сат, '
                 '${result.vsize.toInt()} vSize, '
                 '${result.feeSatPerVb.toInt()} sat/vB)',
+                style: const TextStyle(
+                    fontFeatures: [FontFeature.tabularFigures()]),
               ),
               if (result.changeAddress != null &&
                   (result.changeSat ?? BigInt.zero) > BigInt.zero)
-                Text(
-                  'Сдача: ${satToBtcString(result.changeSat!.toInt())} BTC → '
-                  '${result.changeAddress}',
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: VMonoCopyRow(
+                    label: 'Сдача',
+                    value: '${satToBtcString(result.changeSat!.toInt())} BTC → '
+                        '${result.changeAddress}',
+                  ),
                 ),
-              const SizedBox(height: 8),
-              Text('Статус: ${result.status}'),
             ],
           ),
         ),
@@ -191,7 +231,7 @@ class _SendScreenState extends State<SendScreen> {
           TextButton.icon(
             onPressed: () =>
                 copyToClipboard(dialogContext, 'TXID', result.txid),
-            icon: const Icon(Icons.copy_outlined),
+            icon: const Icon(Icons.copy_outlined, size: 16),
             label: const Text('Копировать TXID'),
           ),
           FilledButton(
@@ -205,6 +245,7 @@ class _SendScreenState extends State<SendScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final available = widget.availableSat;
     return Scaffold(
       appBar: AppBar(title: const Text('Отправить BTC')),
       body: Center(
@@ -213,7 +254,7 @@ class _SendScreenState extends State<SendScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              SectionCard(
+              VCard(
                 title: 'Получатель',
                 icon: Icons.person_outline,
                 children: [
@@ -229,25 +270,36 @@ class _SendScreenState extends State<SendScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              SectionCard(
+              VCard(
                 title: 'Сумма',
                 icon: Icons.payments_outlined,
                 children: [
                   TextField(
                     controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     autocorrect: false,
                     enableIMEPersonalizedLearning: false,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Сумма, BTC',
                       hintText: '0.00010000',
+                      suffixIcon: available != null && available > 0
+                          ? TextButton(onPressed: _applyMax, child: const Text('Max'))
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  if (available != null)
+                    Text(
+                      'Доступно: ${satToBtcString(available)} BTC '
+                      '(${groupDigits(available)} сат) — снапшот последней '
+                      'синхронизации; ядро потратит реальные UTXO.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  Text(
                     'Разбор суммы целочисленный (сатоши — u64). Точность — 8 '
                     'десятичных знаков.',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -260,28 +312,26 @@ class _SendScreenState extends State<SendScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: Colors.red.shade900.withValues(alpha: 0.3),
+                    border:
+                        Border.all(color: VColors.error.withValues(alpha: 0.4)),
+                    color: VColors.error.withValues(alpha: 0.12),
                   ),
-                  child: Text(_formError!, style: const TextStyle(color: Colors.white)),
+                  child: Text(_formError!,
+                      style: TextStyle(color: VColors.error, fontSize: 13)),
                 ),
               const SizedBox(height: 4),
-              FilledButton.icon(
+              VButton.primary(
+                _sending ? 'Подписание и broadcast…' : 'Отправить',
+                icon: Icons.north_east,
+                busy: _sending,
                 onPressed: _sending ? null : _submit,
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.north_east),
-                label: Text(_sending ? 'Подпись и broadcast…' : 'Отправить'),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Подпись выполняется локально в Rust (BIP143). Seed и приватные '
-                'ключи не покидают ядро и не отправляются на сервер.',
+              Text(
+                'Подпись выполняется локально в Rust (BIP143). Seed и '
+                'приватные ключи не покидают ядро и не отправляются на сервер.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -292,8 +342,8 @@ class _SendScreenState extends State<SendScreen> {
 
   Widget _buildFeeCard(BuildContext context) {
     final fees = _fees;
-    return SectionCard(
-      title: 'Комиссия',
+    return VCard(
+      title: 'Комиссия и скорость',
       icon: Icons.speed_outlined,
       children: [
         if (_loadingFees)
@@ -302,24 +352,25 @@ class _SendScreenState extends State<SendScreen> {
             child: Center(child: CircularProgressIndicator()),
           )
         else if (_feesError != null)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Пресеты сервера недоступны: $_feesError\n'
-                  'Введите ставку вручную (sat/vB).'),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('Пресеты сервера недоступны: $_feesError\n'
+                'Введите ставку вручную (sat/vB).'),
           )
-        else
+        else if (fees != null)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (fees!.fallback)
+              if (fees.fallback)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     'Сервер не дал оценку комиссии — показаны консервативные '
                     'дефолты, а не измерение. Ставку можно ввести вручную.',
-                    style: TextStyle(color: Colors.amber.shade200, fontSize: 12),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall!
+                        .copyWith(color: VColors.warning),
                   ),
                 ),
               RadioGroup<_FeeChoice>(
@@ -342,7 +393,7 @@ class _SendScreenState extends State<SendScreen> {
                     RadioListTile<_FeeChoice>(
                       value: _FeeChoice.manual,
                       title: SizedBox(
-                        width: 200,
+                        width: 220,
                         child: TextField(
                           controller: _manualRateController,
                           keyboardType: TextInputType.number,
@@ -362,8 +413,8 @@ class _SendScreenState extends State<SendScreen> {
                 ),
               ),
             ],
-          ),
-        if (_feesError != null || _fees == null)
+          )
+        else
           TextField(
             controller: _manualRateController,
             keyboardType: TextInputType.number,
@@ -371,6 +422,16 @@ class _SendScreenState extends State<SendScreen> {
               labelText: 'Своя ставка, sat/vB',
             ),
           ),
+        if (_feesError != null) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _manualRateController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Своя ставка, sat/vB',
+            ),
+          ),
+        ],
       ],
     );
   }

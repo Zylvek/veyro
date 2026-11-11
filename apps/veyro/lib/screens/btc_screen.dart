@@ -129,9 +129,20 @@ class _BtcScreenState extends State<BtcScreen> {
     }
   }
 
+  /// Реальный доступный баланс на момент последней синхронизации:
+  /// confirmed + отрицательный mempool-delta (в mempool-расходе сумма
+  /// уже ушла из подтверждённых). Нет синхронизации — нет данных (null).
+  int? _availableSat() {
+    final sync = _sync;
+    if (sync == null) return null;
+    final confirmed = sync.confirmedSat.toInt();
+    final delta = sync.unconfirmedDeltaSat.toInt();
+    return delta < 0 ? confirmed + delta : confirmed;
+  }
+
   Future<void> _openSend() async {
     final sent = await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
-      builder: (_) => const SendScreen(),
+      builder: (_) => SendScreen(availableSat: _availableSat()),
     ));
     if (sent == true && mounted) {
       // После успешной отправки Rust очистил набор UTXO — синхронизируем.
