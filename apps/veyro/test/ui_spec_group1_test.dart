@@ -36,7 +36,8 @@ void main() {
     test('тема использует токены', () {
       final theme = buildVeyroTheme();
       expect(theme.scaffoldBackgroundColor, VColors.background);
-      expect(theme.cardTheme.color, VColors.card);
+      // Карточки — стекло: тема прозрачна, заливку/blur рисует VCard.
+      expect(theme.cardTheme.color, Colors.transparent);
       expect(theme.colorScheme.primary, VColors.primary);
       expect(theme.textTheme.bodyLarge?.fontFamily, kInterFont);
     });
