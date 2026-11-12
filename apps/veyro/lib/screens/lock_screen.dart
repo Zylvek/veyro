@@ -41,7 +41,6 @@ class _LockScreenState extends State<LockScreen> {
   List<WalletInfoDto> _wallets = const [];
   WalletInfoDto? _wallet;
   BtcSessionStateDto? _session;
-  String _phaseLabel = '';
   String? _error;
   final _passwordController = TextEditingController();
 
@@ -135,7 +134,6 @@ class _LockScreenState extends State<LockScreen> {
     }
     setState(() {
       _phase = _LockPhase.unlocking;
-      _phaseLabel = 'Разблокировка…';
       _error = null;
     });
     try {
@@ -155,10 +153,6 @@ class _LockScreenState extends State<LockScreen> {
         );
       }
       if (!mounted) return;
-      setState(() {
-        _phaseLabel = 'Синхронизация адресов… (gap-limit 20, может занять '
-            'до минуты)';
-      });
       try {
         final sync = await btcSync(gapLimit: 20);
         // Результат — в кэш: центр управления покажет баланс мгновенно,
@@ -193,19 +187,24 @@ class _LockScreenState extends State<LockScreen> {
           body: Center(child: CircularProgressIndicator()),
         );
       case _LockPhase.unlocking:
-        return Scaffold(
+        // Полоса загрузки вместо маленького спиннера (решение владельца);
+        // техтекст убран — шкала indeterminate, без вранья о прогрессе.
+        return const Scaffold(
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const VeyroLogo(size: 64),
-                const SizedBox(height: 20),
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  _phaseLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: VColors.textSecondary, fontSize: 13),
+                VeyroLogo(size: 64),
+                SizedBox(height: 28),
+                SizedBox(
+                  width: 260,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                    child: LinearProgressIndicator(
+                      minHeight: 6,
+                      backgroundColor: Color(0x221D2D4A),
+                    ),
+                  ),
                 ),
               ],
             ),
