@@ -323,9 +323,10 @@ void main() {
       // Статус 'Blocked' тоже дважды: чип честного статуса + строка
       // «Статус» в идентификации (kvRow — SelectableText).
       expect(find.text('Blocked'), findsNWidgets(2));
-      expect(find.textContaining('Реализация заблокирована'), findsOneWidget);
-      // Паспорт на месте, копируемый.
-      expect(find.textContaining('docs/coins/IRON.md'), findsOneWidget);
+      // Ойкеровские лекции убраны: примечание остаётся, «смысловых»
+      // абзацев и паспорта больше нет.
+      expect(find.textContaining('Реализация заблокирована'), findsNothing);
+      expect(find.textContaining('docs/coins/'), findsNothing);
       // Никакого реального потока BTC здесь не предлагается.
       expect(find.textContaining('центр управления'), findsNothing);
       // Никаких имитированных балансов/кнопок send/receive.

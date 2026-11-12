@@ -90,8 +90,7 @@ class TxConfirmScreen extends StatelessWidget {
                   _row(context, 'Скорость', '$rateSatVb sat/vB'),
                   const SizedBox(height: 8),
                   Text(
-                    'Финальная комиссия рассчитывается ядром при подписи '
-                    'по реальным UTXO (точное число байт ещё не известно) '
+                    'Финальная комиссия считается ядром при подписи '
                     'и показывается в результате отправки.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),

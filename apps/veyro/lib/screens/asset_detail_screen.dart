@@ -172,7 +172,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
               ],
               _buildStatusCard(context),
               const SizedBox(height: 14),
-              _buildPassportCard(context),
             ],
           ),
         ),
@@ -228,55 +227,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         VStatusChip(lifecycle.label, kind: lifecycle.chipKind),
         const SizedBox(height: 10),
         Text(_asset.note, style: Theme.of(context).textTheme.bodyMedium),
-        const Divider(height: 22),
-        Text(
-          _honestMeaning(),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+
       ],
     );
   }
 
-  String _honestMeaning() {
-    switch (_asset.lifecycle) {
-      case AssetLifecycle.researched:
-        return 'Исследование завершено: реализация для сети возможна без '
-            'центрального сервера, она стоит в очереди внедрения. Балансов, '
-            'адресов и транзакций этого актива сейчас НЕ существует — '
-            'отображать их выдуманными запрещено.';
-      case AssetLifecycle.sendSupported:
-        return 'Единственный реализованный адаптер. Полный живой цикл '
-            'проверен на testnet4 (faucet → self-transfer → broadcast → '
-            'mempool → история). Заявление «Full support» появится только '
-            'после app-уровневого цикла проверок.';
-      case AssetLifecycle.researchRequired:
-        return 'Исследование не завершено. До его завершения функциональность '
-            'не обещается и не имитируется.';
-      case AssetLifecycle.blocked:
-        return 'Реализация заблокирована: безопасного пути нет. Блокер '
-            'указан в примечании и паспорте.';
-      case AssetLifecycle.historical:
-        return 'Историческая нотация, не актив: сети с этим тикером нет. '
-            'Строка оставлена в реестре для трассировки тикеров.';
-    }
-  }
 
-  Widget _buildPassportCard(BuildContext context) {
-    return VCard(
-      icon: Icons.description_outlined,
-      title: 'Паспорт исследования',
-      children: [
-        VMonoCopyRow(label: 'Документ', value: _asset.passport),
-        const SizedBox(height: 8),
-        Text(
-          'Полное исследование (адреса, деривация, инфраструктура, риски) '
-          'лежит в этом документе репозитория. UI не перефразирует его '
-          'сверх сжатого примечания.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
 
   Widget _buildBtcCard(BuildContext context) {
     final session = _session;

@@ -291,16 +291,10 @@ class _SendScreenState extends State<SendScreen> {
                   const SizedBox(height: 6),
                   if (available != null)
                     Text(
-                      'Доступно: ${satToBtcString(available)} BTC '
-                      '(${groupDigits(available)} сат) — снапшот последней '
-                      'синхронизации; ядро потратит реальные UTXO.',
+                      'Доступно: ${satToBtcString(available)} BTC',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  Text(
-                    'Разбор суммы целочисленный (сатоши — u64). Точность — 8 '
-                    'десятичных знаков.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+
                 ],
               ),
               const SizedBox(height: 12),

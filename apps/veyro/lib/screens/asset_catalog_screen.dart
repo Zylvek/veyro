@@ -12,9 +12,12 @@ import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/src/rust/api/wallet.dart';
+import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
 
 import 'asset_detail_screen.dart';
+import 'btc_screen.dart';
 
 /// Селектор-фильтр каталога (по вердиктам матрицы, без выдуманных).
 enum CatalogFilter { all, implemented, researched, special }
@@ -23,7 +26,10 @@ class AssetCatalogScreen extends StatefulWidget {
   /// Точка замены для виджет-тестов (без RustLib): чтение сессии BTC.
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
 
-  const AssetCatalogScreen({super.key, this.sessionLoader});
+  /// Точка замены: реестр кошелей (для прямого входа в центр BTC).
+  final Future<List<WalletInfoDto>> Function()? walletsLoader;
+
+  const AssetCatalogScreen({super.key, this.sessionLoader, this.walletsLoader});
 
   @override
   State<AssetCatalogScreen> createState() => _AssetCatalogScreenState();
@@ -36,6 +42,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   bool _sessionChecked = false;
   bool _prefsLoaded = false;
   String? _error;
+  List<WalletInfoDto>? _wallets;
 
   /// Сортировка: true — A→Я по тикеру; false — исходный порядок матрицы.
   bool _sortAlphabetical = false;
@@ -80,6 +87,41 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
         _error = e.toString();
       });
     }
+    // Реестр кошелей нужен для прямого входа в центр BTC по тапу на BTC.
+    try {
+      final wallets = widget.walletsLoader != null
+          ? await widget.walletsLoader!()
+          : await listWallets(walletsDir: walletsDir());
+      if (!mounted) return;
+      setState(() => _wallets = wallets);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _wallets = const []);
+    }
+  }
+
+  /// Тап по BTC (решение владельца: сразу центр управления, без страницы
+  /// деталей). Нужен кошелёк: сохранённый → первый; без кошельков —
+  /// откат на честную страницу статуса BTC.
+  Future<void> _openBtc() async {
+    final wallets = _wallets ?? const <WalletInfoDto>[];
+    if (wallets.isEmpty) {
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => AssetDetailScreen(
+          asset: kAssetRegistry.firstWhere((a) => a.ticker == 'BTC'),
+        ),
+      ));
+      return;
+    }
+    final preferredId = DisplayPrefs.walletId;
+    WalletInfoDto? chosen;
+    for (final w in wallets) {
+      if (w.id == preferredId) chosen = w;
+    }
+    chosen ??= wallets.first;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => BtcScreen(info: chosen!),
+    ));
   }
 
   Future<void> _toggleFavorite(String ticker) async {
@@ -287,7 +329,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                           : null,
                                       onFavorite: () =>
                                           _toggleFavorite(asset.ticker),
-                                      onOpen: () => Navigator.of(context).push(
+                                      onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
                                         MaterialPageRoute<void>(
                                           builder: (_) => AssetDetailScreen(
                                               asset: asset),
@@ -313,7 +355,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                       : null,
                                   onFavorite: () =>
                                       _toggleFavorite(asset.ticker),
-                                  onOpen: () => Navigator.of(context).push(
+                                  onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
                                     MaterialPageRoute<void>(
                                       builder: (_) =>
                                           AssetDetailScreen(asset: asset),

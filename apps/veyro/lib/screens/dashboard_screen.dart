@@ -19,6 +19,7 @@ import 'package:veyro/util/format.dart';
 import 'asset_catalog_screen.dart' show CoinIcon;
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
+import 'btc_screen.dart';
 import 'history_screen.dart';
 import 'tx_details_screen.dart';
 
@@ -183,8 +184,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             right: Column(
                               children: [
-                                _buildNetworkCard(context),
-                                const SizedBox(height: 16),
                                 _buildRecentCard(context),
                               ],
                             ),
@@ -295,12 +294,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Сумма собирается синхронизацией BTC-актива после '
-              'разблокировки; цены в фиате появятся с источником курсов',
-              style: TextStyle(color: VColors.textSecondary, fontSize: 12.5),
-            ),
           ],
         ),
       ],
@@ -366,6 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildAssetsCard(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
+    final wallet = _selected;
     return VCard(
       icon: Icons.grid_view_outlined,
       title: 'Активы',
@@ -380,24 +374,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               'Send supported',
               kind: VChipKind.success,
             ),
-            onTap: () =>
-                _push(AssetDetailScreen(asset: btc, wallet: _selected)),
+            // Тап по BTC → сразу центр управления (решение владельца:
+            // никакой промежуточной страницы деталей).
+            onTap: wallet == null
+                ? null
+                : () => _push(BtcScreen(info: wallet)),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildNetworkCard(BuildContext context) {
-    final session = _session;
-    // Без активной сессии карточки сети нет вовсе — статус сети и так
-    // в чипе «Итого», а настройка живёт в разделе «Сеть» и центре BTC.
-    if (session == null) return const SizedBox.shrink();
-    return VCard(
-      icon: Icons.lan_outlined,
-      title: 'Сеть',
-      children: [
-        VMonoCopyRow(label: 'Сервер', value: session.serverUrl),
       ],
     );
   }

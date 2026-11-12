@@ -174,7 +174,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
                 const SizedBox(height: 12),
                 _buildExplorerCard(context),
                 const SizedBox(height: 12),
-                _buildHonestAbsenceCard(context),
+
               ],
             ),
           ),
@@ -296,11 +296,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           _row(context, 'Подтверждения', status.confirmations?.toString() ?? '—'),
           _row(context, 'Высота (сервер)', status.height?.toString() ?? '—'),
           const SizedBox(height: 6),
-          Text(
-            'Статус запрошен у выбранного сервера в момент открытия экрана. '
-            'Потяните список вниз — запрос повторится.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+
         ],
         if (status == null && !_statusLoading && _statusError == null)
           const SizedBox.shrink(),
@@ -322,11 +318,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         if (url != null) ...[
           VMonoCopyRow(label: 'Explorer', value: url),
           const SizedBox(height: 6),
-          Text(
-            'Ссылка копируется в буфер обмена кнопкой: открытие внешних '
-            'ссылок средствами системы в этой сборке не подключено.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+
         ] else
           Text(
             'Explorer для этой сети не настроен ($kBtcExplorerName '
@@ -337,22 +329,4 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
     );
   }
 
-  Widget _buildHonestAbsenceCard(BuildContext context) {
-    return VCard(
-      title: 'Чего нет в данных',
-      icon: Icons.info_outline,
-      children: [
-        _row(context, 'Время', '—'),
-        _row(context, 'Адреса', '—'),
-        const SizedBox(height: 6),
-        Text(
-          'Ядро в истории отдаёт TXID, высоту блока, направление и суммы — '
-          'без метки времени и адресов. Время оценивается по высоте блока '
-          'в explorer; адреса участников по TXID там же. Придумывать их '
-          'здесь нельзя.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
 }

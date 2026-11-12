@@ -87,8 +87,8 @@ void main() {
       expect(find.text('0.00015'), findsOneWidget);
       expect(find.text('15\u00A0000 сат'), findsOneWidget);
       expect(find.text('3 sat/vB'), findsOneWidget);
-      // Честная пометка: финальная комиссия считается ядром по UTXO.
-      expect(find.textContaining('Финальная комиссия рассчитывается ядром'),
+      // Честная пометка о финальной комиссии.
+      expect(find.textContaining('Финальная комиссия считается ядром'),
           findsOneWidget);
       expect(find.textContaining('Отправка необратима'), findsOneWidget);
 
@@ -175,8 +175,6 @@ void main() {
       expect(
           find.textContaining('https://mempool.space/testnet4/tx/aa'),
           findsOneWidget);
-      // Честные «—»: время и адреса в данных ядра отсутствуют.
-      expect(find.textContaining('Ядро в истории отдаёт TXID'), findsOneWidget);
     });
 
     testWidgets('входящая в мемпуле: статус mempool + честная ошибка статуса',
@@ -333,9 +331,6 @@ void main() {
 
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
-      expect(find.textContaining('Поиск работает по TXID'), findsOneWidget);
-      expect(find.textContaining('адресов в данных истории ядра нет'),
-          findsOneWidget);
     });
 
     testWidgets('фильтр «Неудачные» отключён и не имитирует работу',
@@ -369,8 +364,6 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Ядро реализует адаптер только Bitcoin'),
-          findsOneWidget);
       // Честный статус BTC: сессия закрыта, путь разблокировки назван.
       expect(find.textContaining('Сессия закрыта — разблокировать'),
           findsOneWidget);
@@ -449,10 +442,8 @@ void main() {
         isNull,
       );
 
-      // Memo-правда: BTC не использует memo/tag.
-      expect(find.textContaining('BTC не использует memo/tag'),
-          findsOneWidget);
-    });
+      // Memo-поле удалено по решению владельца: BTC не использует memo.
+      expect(find.textContaining('memo/tag'), findsNothing);    });
   });
 
   group('SendScreen (пункт 14)', () {

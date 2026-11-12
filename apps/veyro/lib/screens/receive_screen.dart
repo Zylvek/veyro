@@ -88,20 +88,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 icon: Icons.qr_code_2_outlined,
                 children: _buildContent(context),
               ),
-              const SizedBox(height: 12),
-              VCard(
-                title: 'Memo / tag',
-                icon: Icons.label_outline,
-                children: [
-                  Text(
-                    'BTC не использует memo/tag: получателю достаточно '
-                    'адреса. Полей для заметок адреса ядро не хранит.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const _PrivacyNote(),
+
             ],
           ),
         ),
@@ -204,20 +191,4 @@ Widget _kvRow(BuildContext context, String key, String value,
       ],
     ),
   );
-}
-
-class _PrivacyNote extends StatelessWidget {
-  const _PrivacyNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'Адрес выдаётся ядром по последней синхронизации: после получения '
-      'средств или отправки выполните синхронизацию в центре управления '
-      'BTC — адрес сменится на следующий свободный. Повторное '
-      'использование адреса снижает приватность.',
-      style: Theme.of(context).textTheme.bodySmall,
-      textAlign: TextAlign.center,
-    );
-  }
 }

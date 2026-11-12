@@ -141,13 +141,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                'Ядро реализует адаптер только Bitcoin: полный цикл на '
-                'testnet4 проверен, остальное — статусы матрицы. Форма '
-                'Receive/Send для нереализованных активов не имитируется.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 12),
               _BtcTile(
                 asset: btc,
                 session: _session,
@@ -160,13 +153,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
               const SizedBox(height: 10),
               for (final asset in others)
                 _DisabledAssetTile(asset: asset),
-              const SizedBox(height: 10),
-              Text(
-                'Нужен другой актив? Его адаптер появится в ядре после '
-                'реализации сети (см. матрицу и паспорта в каталоге) — '
-                'не раньше.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
             ],
           ),
         ),

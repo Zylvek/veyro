@@ -236,17 +236,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Поиск работает по TXID. Поиск по адресу недоступен: адресов в '
-              'данных истории ядра нет — только TXID, направление и суммы.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ),
+
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Wrap(
