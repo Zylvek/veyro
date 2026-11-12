@@ -276,10 +276,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Крупный блок общего баланса (аудит §4): финансовые значения с
-  /// правильной иерархией. Честное отсутствие данных: ядро ещё не
-  /// синхронизировано — «—», без выдуманных значений. Источника цен
-  /// пока нет — фиатная строка не показывается вовсе.
+  /// Крупный блок общей суммы портфеля (аудит §4). Общая цена валют —
+  /// одно число в валюте отображения (курс — прямой клиент провайдера
+  /// цен); курс недоступен — сумма в BTC. Ноль вместо прочерка в обоих
+  /// случаях; выдуманных значений нет.
   Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
     return VCard(
@@ -289,26 +289,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Честный ноль (решение владельца): средств нет/ещё не
-            // синхронизировано — 0 BTC, а не прочерк. Под числом —
-            // фиатная оценка от прямого источника цен (если доступен).
-            VAmount(
-              _maskAmount(satToBtcString(_btcBalanceSat())),
-              suffix: 'BTC',
-              fontSize: 34,
-            ),
+            // Общая цена валют (решение владельца: «только общую цену
+            // валют и всё»): одно число — сумма портфеля в валюте
+            // отображения, без приписок под ней. Курс недоступен (нет
+            // сети) → сумма в BTC: единственный синхронизированный
+            // актив. Ноль вместо прочерка — в обоих случаях.
             if (_fiatRate != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '≈ ${_maskAmount(formatFiat(_btcBalanceSat() / 1e8 * _fiatRate!))}'
-                  ' ${DisplayPrefs.fiatCurrency.toUpperCase()}',
-                  style: TextStyle(
-                    color: VColors.textSecondary,
-                    fontSize: 13,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
+              VAmount(
+                _maskAmount(formatFiat(_btcBalanceSat() / 1e8 * _fiatRate!)),
+                suffix: DisplayPrefs.fiatCurrency.toUpperCase(),
+                fontSize: 34,
+              )
+            else
+              VAmount(
+                _maskAmount(satToBtcString(_btcBalanceSat())),
+                suffix: 'BTC',
+                fontSize: 34,
               ),
             const SizedBox(height: 4),
             Wrap(

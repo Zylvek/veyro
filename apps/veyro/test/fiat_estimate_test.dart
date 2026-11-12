@@ -90,8 +90,8 @@ void main() {
     });
   });
 
-  group('Обзор: фиатная строка под суммой портфеля', () {
-    testWidgets('курс доступен → «≈ 0.00 USD» показана', (tester) async {
+  group('Обзор: общая цена валют — одно число', () {
+    testWidgets('курс доступен → сумма в валюте отображения', (tester) async {
       tester.view.physicalSize = const Size(800, 2300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -101,11 +101,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Валюта отображения по умолчанию USD (без настроек); баланс
-      // 0 BTC → фиатная оценка 0.00.
-      expect(find.text('≈ 0.00 USD'), findsOneWidget);
+      // 0 BTC → общая цена 0.00 USD. Одно число, без второй строки.
+      expect(find.text('0.00'), findsOneWidget);
+      expect(find.text('USD'), findsOneWidget);
+      expect(find.textContaining('≈'), findsNothing);
     });
 
-    testWidgets('курса нет (нет сети) → строка скрыта', (tester) async {
+    testWidgets('курса нет (нет сети) → честный BTC, без фиата', (tester) async {
       _stubPrice(PriceSource.instance);
 
       tester.view.physicalSize = const Size(800, 2300);
@@ -115,9 +117,11 @@ void main() {
       await tester.pumpWidget(_dashboard());
       await tester.pumpAndSettle();
 
-      // Никаких выдуманных оценок: нет курса — нет фиатной строки.
+      // Никаких выдуманных оценок: курса нет → сумма в BTC (нуль).
       expect(find.textContaining('≈'), findsNothing);
-      expect(find.textContaining('USD'), findsNothing);
+      expect(find.text('USD'), findsNothing);
+      expect(find.text('0'), findsNWidgets(2)); // сумма + плитка монеты
+      expect(find.text('BTC'), findsNWidgets(2)); // суффикс + плитка
     });
   });
 }
