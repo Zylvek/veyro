@@ -3,7 +3,7 @@
 //!(DisplayPrefs честно деградирует в память при недоступной БД).
 //!
 //! Ключевые гарантии:
-//! 1) реестр = утверждённая матрица (28 строк, честный ценз статусов);
+//! 1) реестр = утверждённая матрица (26 строк, честный ценз статусов);
 //! 2) каталог рендерит реестр целиком/фильтрами без вызовов FFI;
 //! 3) dashboard показывает только реальные данные (нет балансов, нет
 //!    транзакций без активной сессии, честные чипы сети);
@@ -43,9 +43,9 @@ void main() {
     CoinIconService.instance.resetForTest();
   });
 
-  group('Реестр активов (28 строк утверждённой матрицы)', () {
+  group('Реестр активов (26 строк утверждённой матрицы)', () {
     test('состав вердиктов совпадает с матрицей', () {
-      expect(kAssetRegistry.length, 28);
+      expect(kAssetRegistry.length, 26);
 
       final researched = kAssetRegistry
           .where((a) => a.lifecycle == AssetLifecycle.researched)
@@ -65,11 +65,12 @@ void main() {
 
       expect(researched.length, 24);
       expect(sendSupported.length, 1);
-      expect(researchRequired.length, 1);
+      expect(researchRequired.length, 0);
       expect(blocked.length, 1);
-      expect(historical.length, 1);
+      // Фиктивный XTR (historical) удалён — исторических строк нет.
+      expect(historical.length, 0);
 
-      // 24 + 1 + 1 + 1 + 1 = 28: никакие статусы не потеряны.
+      // 24 + 1 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
       expect(
         researched.length +
             sendSupported.length +
@@ -93,12 +94,11 @@ void main() {
     test('особые строки реестра на своих местах', () {
       final byTicker = {for (final a in kAssetRegistry) a.ticker: a};
       expect(byTicker['IRON']!.lifecycle, AssetLifecycle.blocked);
-      expect(byTicker['TARI']!.lifecycle, AssetLifecycle.researchRequired);
-      expect(byTicker['XTR']!.lifecycle, AssetLifecycle.historical);
-      expect(byTicker['XTR']!.network, contains('не существует'));
-      // TARI (L2 Ootle) и XTM (L1) — разные активы, не объединять.
-      expect(byTicker['XTM']!.row, 4);
-      expect(byTicker['TARI']!.row, 28);
+      // Удалены по решению владельца (12.11.2026): XTR — фиктивный
+      // биржевой тикер; TARI — Tari L2/Ootle не запущен, кошелька нет.
+      expect(byTicker.containsKey('XTR'), isFalse);
+      expect(byTicker.containsKey('TARI'), isFalse);
+      expect(byTicker.containsKey('XTM'), isTrue);
     });
 
     test('каждая строка заполнена и трассируема', () {
@@ -116,7 +116,7 @@ void main() {
         expect(asset.note, isNotEmpty);
       }
       // Ряды 1..28 без пропусков.
-      expect(tickers.length, 28);
+      expect(tickers.length, 26);
     });
   });
 
@@ -186,7 +186,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // BTC — строка 19 из 28: строим плитку поиском (ListView ленивый).
+      // BTC — строка 19 из 26: строим плитку поиском (ListView ленивый).
       await tester.enterText(find.byType(TextField), 'BTC');
       await tester.pumpAndSettle();
       // Честный статус BTC при неактивной сессии (loader вернул null).

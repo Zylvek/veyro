@@ -517,7 +517,7 @@ class AssetMonogram extends StatelessWidget {
   final VeyroAsset asset;
   final double radius;
 
-  const AssetMonogram({super.key, required this.asset, this.radius = 18});
+  const AssetMonogram({super.key, required this.asset, this.radius = 22});
 
   @override
   Widget build(BuildContext context) {
@@ -556,14 +556,15 @@ const Set<String> kBundledCoinVectorIcons = {
   'XEL', 'XNA', 'XMR', 'XTM', 'ZEC', 'ZEPH',
 };
 
-/// Значок монеты: бандл-SVG (Kryptex, оффлайн) → бандл-PNG →
-/// Iconify API (решает владелец, для монет без иконки в билде) →
-/// монограмма.
+/// Значок монеты: единый круглый контейнер фиксированного размера с
+/// тонкой рамкой (как в прототипе владельца), внутри — настоящий вектор
+/// (Kryptex → Iconify → PNG → монограмма). contain — узкие лого
+/// (Ravencoin, Alephium) рисуются целиком, без обрезки вширь.
 class CoinIcon extends StatefulWidget {
   final VeyroAsset asset;
   final double radius;
 
-  const CoinIcon({super.key, required this.asset, this.radius = 18});
+  const CoinIcon({super.key, required this.asset, this.radius = 22});
 
   @override
   State<CoinIcon> createState() => _CoinIconState();
@@ -611,21 +612,33 @@ class _CoinIconState extends State<CoinIcon> {
   @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
-    // 1) Настоящий вектор (Kryptex / Iconify).
+    // Настоящий вектор (Kryptex / Iconify) в единой оправе.
     final svg = _svg;
     if (svg != null) {
-      return ClipOval(
-        child: SvgPicture.string(
-          svg,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _pngOrMonogram(size),
-        ),
-      );
+      return _framed(SvgPicture.string(
+        svg,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => _pngOrMonogram(size),
+      ));
     }
-    // 2) Пока SVG читается / не получился — bundle-PNG, затем монограмма.
-    return _pngOrMonogram(size);
+    // Пока SVG читается / не получился — bundle-PNG, затем монограмма.
+    return _framed(_pngOrMonogram(size));
+  }
+
+  /// Единая круглая оправа: ровный ряд в списках, текст не прыгает.
+  Widget _framed(Widget child) {
+    final size = widget.radius * 2;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: VColors.elevated.withValues(alpha: 0.35),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      padding: EdgeInsets.all(size * 0.09),
+      child: child,
+    );
   }
 
   Widget _pngOrMonogram(double size) {

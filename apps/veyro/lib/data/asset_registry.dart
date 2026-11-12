@@ -1,8 +1,10 @@
-//! Реестр активов VEYRO — данные перенесены из утверждённой матрицы
-//! совместимости (docs/COIN_COMPATIBILITY.md, 28 строк, статусы по
-//! состоянию на 11.11.2026). ЗАПРЕЩЕНО выдавать researched-актив за
-//! реализованный: баланс и транзакции показываются только для активов
-//! с реальным адаптером (сейчас — BTC).
+//! Реестр активов VEYRO — данные переносены из утверждённой матрицы
+//! совместимости (docs/COIN_COMPATIBILITY.md, 26 строк после решения
+//! владельца от 12.11.2026: удалены фиктивный тикер XTR и незапущенный
+//! Tari L2/Ootle «TARI» — сети и кошелька нет, показывать нельзя).
+//! ЗАПРЕЩЕНО выдавать researched-актив за реализованный: баланс и
+//! транзакции показываются только для активов с реальным адаптером
+//! (сейчас — BTC).
 //!
 //! Синхронизация: при изменении матрицы — обновить таблицу и тест-счётчики
 //! (ui_spec_group2_test.dart).
@@ -109,18 +111,9 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · Mimblewimble · гибридный PoW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XTM.md',
-    note: 'Seed 24 слова — НЕ BIP39 (cipher seed); TARI/Ootle — отдельный '
-        'L2-токен (строка 28), не объединять.',
-  ),
-  VeyroAsset(
-    row: 5,
-    ticker: 'XTR',
-    name: 'Историческая нотация Tari L2',
-    network: '— (сети не существует)',
-    lifecycle: AssetLifecycle.historical,
-    passport: 'docs/coins/XTR.md',
-    note: 'Не актив: тикер обозначал токен Tari L2 на бирже. Актуальный '
-        'тикер — TARI (строка 28). Фиктивная сеть не создаётся.',
+    note: 'Seed 24 слова — НЕ BIP39 (cipher seed); Tari L2/Ootle — '
+        'протокол без запущенной сети, кошелька нет: активом не '
+        'считается (решение владельца).',
   ),
   VeyroAsset(
     row: 6,
@@ -346,17 +339,6 @@ const List<VeyroAsset> kAssetRegistry = [
     passport: 'docs/coins/ZEC.md',
     note: 'Transparent и watch-only (UFVK) — Researched; полный '
         'shielded-цикл — Research required, не заявлять.',
-  ),
-  VeyroAsset(
-    row: 28,
-    ticker: 'TARI',
-    name: 'Tari (Ootle L2)',
-    network: 'L2 · Ootle (не EVM, не BIP)',
-    lifecycle: AssetLifecycle.researchRequired,
-    passport: 'docs/coins/TARI.md',
-    note: 'Отдельный актив от XTM; нативный CipherSeed (не BIP39); '
-        'мягкий запуск — официально «has not launched yet» — не '
-        'Receive до launch-анонса.',
   ),
 ];
 
