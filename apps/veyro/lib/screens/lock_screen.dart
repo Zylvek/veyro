@@ -13,6 +13,7 @@ import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
@@ -158,7 +159,10 @@ class _LockScreenState extends State<LockScreen> {
             'до минуты)';
       });
       try {
-        await btcSync(gapLimit: 20);
+        final sync = await btcSync(gapLimit: 20);
+        // Результат — в кэш: центр управления покажет баланс мгновенно,
+        // без второго gap-скана (жалоба владельца на двойную синхронизацию).
+        BtcStateCache.instance.store(sync);
       } catch (e) {
         // Сессия уже открыта: синхронизация дочитает позже из центра
         // BTC (там кнопка Повторить). Не блокируем вход.

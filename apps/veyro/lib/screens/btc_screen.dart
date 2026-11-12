@@ -8,6 +8,7 @@ import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -65,10 +66,15 @@ class _BtcScreenState extends State<BtcScreen> {
 
   /// Перечитать состояние сессии; если разблокирована и данных ещё нет —
   /// синхронизировать без кнопки (решение владельца: автосинхронизация
-  /// сразу после подключения).
-  Future<void> _refresh({bool autosyncIfUnlocked = false}) async {
+  /// сразу после подключения). Свежий результат синхронизации с экрана
+  /// входа берётся из кэша — двойной gap-скан не запускается.
+  Future<void> _refresh({
+    bool autosyncIfUnlocked = false,
+    bool useCache = true,
+  }) async {
     setState(() {
       _busy = true;
+      _busyLabel = 'Синхронизация адресов…';
       _error = null;
     });
     try {
@@ -76,6 +82,14 @@ class _BtcScreenState extends State<BtcScreen> {
       if (!mounted) return;
       setState(() => _state = state);
       if (state != null && (autosyncIfUnlocked || _sync == null)) {
+        final cached = useCache ? BtcStateCache.instance.take() : null;
+        if (cached != null) {
+          setState(() {
+            _sync = cached;
+            _busy = false;
+          });
+          return;
+        }
         await _doSync();
         return; // _doSync уже снял busy
       }
@@ -137,13 +151,14 @@ class _BtcScreenState extends State<BtcScreen> {
 
   Future<void> _doSync() async {
     setState(() {
-      _busyLabel = 'Синхронизация адресов… (gap-limit 20, это может занять '
-          'до минуты)';
+      _busyLabel =
+          'Синхронизация адресов… (gap-limit 20, это может занять до минуты)';
       _error = null;
     });
     try {
       final sync = await btcSync(gapLimit: 20);
       if (!mounted) return;
+      BtcStateCache.instance.store(sync);
       setState(() {
         _sync = sync;
         _busy = false;
@@ -161,6 +176,7 @@ class _BtcScreenState extends State<BtcScreen> {
     try {
       await btcLock();
       if (!mounted) return;
+      BtcStateCache.instance.clear();
       setState(() {
         _state = null;
         _sync = null;
@@ -214,7 +230,7 @@ class _BtcScreenState extends State<BtcScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: RefreshIndicator(
-            onRefresh: () => _refresh(autosyncIfUnlocked: true),
+            onRefresh: () => _refresh(autosyncIfUnlocked: true, useCache: false),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -229,8 +245,12 @@ class _BtcScreenState extends State<BtcScreen> {
                       Text('$_error'),
                       const SizedBox(height: 8),
                       FilledButton.tonal(
-                        onPressed:
-                            _busy ? null : () => _refresh(autosyncIfUnlocked: true),
+                        onPressed: _busy
+                            ? null
+                            : () => _refresh(
+                                autosyncIfUnlocked: true,
+                                useCache: false,
+                              ),
                         child: const Text('Повторить'),
                       ),
                     ],
