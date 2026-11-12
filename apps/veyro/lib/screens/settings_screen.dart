@@ -16,6 +16,7 @@ import 'package:veyro/src/rust/api/btc.dart' show btcLock;
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'about_screen.dart';
@@ -218,7 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       icon: Icons.lan_outlined,
       children: [
         if (session != null) ...[
-          kvRow('BTC-сеть', session.networkDisplay),
+          kvRow('BTC-сеть', ruNetworkText(session.networkDisplay) ?? '—'),
           kvRow('Сервер', session.serverUrl),
         ] else if (!_sessionChecked)
           const CircularProgressIndicator(strokeWidth: 2)
@@ -310,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             VStatusChip(
               sessionActive
-                  ? 'Ключи сессии в памяти ядра (${session.networkDisplay})'
+                  ? 'Ключи сессии в памяти ядра (${ruNetworkText(session.networkDisplay)})'
                   : 'BTC заблокирован: ключи сессии не загружены',
               kind: sessionActive ? VChipKind.warning : VChipKind.success,
             ),

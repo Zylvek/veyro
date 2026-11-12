@@ -17,6 +17,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -246,7 +247,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           )
         else if (session != null) ...[
-          kvRow('Сеть', session.networkDisplay),
+          kvRow('Сеть', ruNetworkText(session.networkDisplay) ?? '—'),
           VMonoCopyRow(label: 'Сервер', value: session.serverUrl),
           kvRow('Аккаунт', "m/84'/0'/${session.account}'"),
           const SizedBox(height: 6),

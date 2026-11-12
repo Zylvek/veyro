@@ -8,6 +8,7 @@ import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
@@ -300,7 +301,7 @@ class _BtcScreenState extends State<BtcScreen> {
       icon: Icons.dns_outlined,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       children: [
-        kvRow('Сеть', state.networkDisplay),
+        kvRow('Сеть', ruNetworkText(state.networkDisplay) ?? '—'),
         kvRow('Сервер', state.serverUrl),
         SelectableText(
           'xpub (только публичный): ${state.accountXpub}',

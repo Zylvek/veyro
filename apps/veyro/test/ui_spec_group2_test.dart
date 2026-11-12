@@ -143,7 +143,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Iron Fish');
       await tester.pumpAndSettle();
       expect(tileTitle('Iron Fish'), findsOneWidget);
-      expect(find.text('Blocked'), findsOneWidget);
+      expect(find.text('Заблокировано'), findsOneWidget);
 
       // Сетка фильтров: «Реализованные» оставляет только BTC.
       await tester.enterText(find.byType(TextField), '');
@@ -151,7 +151,7 @@ void main() {
       await tester.tap(find.text('Реализованные'));
       await tester.pumpAndSettle();
       expect(tileTitle('Bitcoin'), findsOneWidget);
-      expect(find.text('Send supported'), findsOneWidget);
+      expect(find.text('Отправка проверена (testnet)'), findsOneWidget);
       // Остальные скрыты: Monero (Researched) не рендерится.
       expect(tileTitle('Monero'), findsNothing);
     });
@@ -189,8 +189,9 @@ void main() {
       // BTC — строка 19 из 26: строим плитку поиском (ListView ленивый).
       await tester.enterText(find.byType(TextField), 'BTC');
       await tester.pumpAndSettle();
-      // Честный статус BTC при неактивной сессии (loader вернул null).
-      expect(find.textContaining('Сессия закрыта'), findsOneWidget);
+      // Чип статуса сессии убран с плиток каталога (решение владельца):
+      // статуса сессии на строке нет вовсе.
+      expect(find.textContaining('Сессия'), findsNothing);
       // Никаких фиатных сумм и выдуманных нативных балансов.
       expect(find.textContaining('\$'), findsNothing);
     });
@@ -353,9 +354,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Iron Fish'), findsNWidgets(2)); // заголовок + kvRow
-      // Статус 'Blocked' тоже дважды: чип честного статуса + строка
+      // Статус 'Заблокировано' тоже дважды: чип честного статуса + строка
       // «Статус» в идентификации (kvRow — SelectableText).
-      expect(find.text('Blocked'), findsNWidgets(2));
+      expect(find.text('Заблокировано'), findsNWidgets(2));
       // Ойкеровские лекции убраны: примечание остаётся, «смысловых»
       // абзацев и паспорта больше нет.
       expect(find.textContaining('Реализация заблокирована'), findsNothing);

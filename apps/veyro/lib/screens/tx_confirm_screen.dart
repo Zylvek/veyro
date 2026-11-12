@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/network_names.dart';
 
 /// Полноэкранное подтверждение отправки. Возвращает `true` через
 /// Navigator.pop, если пользователь явно подтвердил отправку.
@@ -52,7 +53,9 @@ class TxConfirmScreen extends StatelessWidget {
                   _row(
                     context,
                     'Сеть',
-                    networkDisplay ?? '— (сессия ядра не активна)',
+                    networkDisplay == null
+                        ? '— (сессия ядра не активна)'
+                        : (ruNetworkText(networkDisplay) ?? networkDisplay!),
                     mono: networkDisplay != null ? false : true,
                   ),
                   const SizedBox(height: 6),

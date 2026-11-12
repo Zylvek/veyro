@@ -40,15 +40,15 @@ IconData directionIcon(String direction) {
   }
 }
 
-/// Название сети по коду ядра (util/network_config.dart); для прочих — null.
+/// Название сети по коду ядра, по-русски (для прочих — null).
 String? networkName(int? networkCode) {
   switch (networkCode) {
     case 0:
-      return 'Bitcoin mainnet';
+      return 'Bitcoin · основная сеть (mainnet)';
     case 1:
-      return 'Bitcoin Testnet 3';
+      return 'Bitcoin · тестовая сеть (testnet)';
     case 2:
-      return 'Bitcoin Testnet 4';
+      return 'Bitcoin · тестовая сеть (testnet4)';
     default:
       return null;
   }

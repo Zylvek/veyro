@@ -94,7 +94,7 @@ void main() {
 
       expect(find.text('Подтверждение отправки'), findsOneWidget);
       expect(find.text('Bitcoin (BTC)'), findsOneWidget);
-      expect(find.text('testnet4'), findsOneWidget);
+      expect(find.text('Bitcoin · тестовая сеть (testnet4)'), findsOneWidget);
       expect(find.text('tb1qExampleRecipient0000000000'), findsOneWidget);
       expect(find.text('0.00015'), findsOneWidget);
       expect(find.text('15\u00A0000 сат'), findsOneWidget);
@@ -385,7 +385,7 @@ void main() {
             (w) => w is RichText && w.text.toPlainText().contains(plain),
           );
       expect(tileTitle('Monero'), findsOneWidget);
-      expect(find.text('Researched'), findsWidgets);
+      expect(find.text('Исследовано'), findsWidgets);
       expect(find.textContaining('Разблокировать: Основной'), findsNothing);
     });
 
@@ -400,7 +400,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Сессия: testnet4 — форма открыта'),
+      expect(find.textContaining('Сессия: Bitcoin · тестовая сеть'),
           findsOneWidget);
       // Плитка BTC активна (InkWell onTap не null) — тап откроет ReceiveScreen,
       // который в тестах без ядра требует injectables; здесь не тапаем,

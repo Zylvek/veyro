@@ -43,8 +43,6 @@ class AssetCatalogScreen extends StatefulWidget {
 class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   final _searchController = TextEditingController();
   CatalogFilter _filter = CatalogFilter.all;
-  BtcSessionStateDto? _btcSession;
-  bool _sessionChecked = false;
   bool _prefsLoaded = false;
   String? _error;
   List<WalletInfoDto>? _wallets;
@@ -73,25 +71,6 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
     await DisplayPrefs.ensureLoaded();
     if (!mounted) return;
     setState(() => _prefsLoaded = true);
-    // Состояние сессии — дешёвое FFI-чтение (без сети), как на портфеле.
-    // null = сессия закрыта: это честное отсутствие данных, не ошибка.
-    try {
-      final session = widget.sessionLoader != null
-          ? await widget.sessionLoader!()
-          : await btcSessionState();
-      if (!mounted) return;
-      setState(() {
-        _btcSession = session;
-        _sessionChecked = true;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _sessionChecked = true;
-        _error = e.toString();
-      });
-    }
     // Реестр кошелей нужен для прямого входа в центр BTC по тапу на BTC.
     try {
       final wallets = widget.walletsLoader != null
@@ -180,13 +159,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   }
 
   /// Честный сетевой статус BTC-строки: только реальные факты FFI.
-  String _btcStatusChip() {
-    if (!_sessionChecked) return 'Статус: …';
-    if (_error != null) return 'Ядро недоступно';
-    final session = _btcSession;
-    if (session == null) return 'Сессия закрыта (нужен пароль)';
-    return 'Сессия: ${session.networkDisplay}';
-  }
+  /// (Чип статуса сессии убран с плиток каталога по решению владельца.)
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +195,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                   children: [
                     _filterChip('Все', CatalogFilter.all),
                     _filterChip('Реализованные', CatalogFilter.implemented),
-                    _filterChip('Researched', CatalogFilter.researched),
+                    _filterChip('Исследованные', CatalogFilter.researched),
                     _filterChip('Особые статусы', CatalogFilter.special),
                     _toggleChip(
                       'Группировать по статусу',
@@ -329,9 +302,6 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                       asset: asset,
                                       favorite: DisplayPrefs.favorites
                                           .contains(asset.ticker),
-                                      btcStatusText: asset.ticker == 'BTC'
-                                          ? _btcStatusChip()
-                                          : null,
                                       onFavorite: () =>
                                           _toggleFavorite(asset.ticker),
                                       onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
@@ -355,9 +325,6 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                   asset: asset,
                                   favorite: DisplayPrefs.favorites
                                       .contains(asset.ticker),
-                                  btcStatusText: asset.ticker == 'BTC'
-                                      ? _btcStatusChip()
-                                      : null,
                                   onFavorite: () =>
                                       _toggleFavorite(asset.ticker),
                                   onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
@@ -434,7 +401,6 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
 class _AssetTile extends StatelessWidget {
   final VeyroAsset asset;
   final bool favorite;
-  final String? btcStatusText;
   final VoidCallback onFavorite;
   final VoidCallback onOpen;
 
@@ -443,7 +409,6 @@ class _AssetTile extends StatelessWidget {
     required this.favorite,
     required this.onFavorite,
     required this.onOpen,
-    this.btcStatusText,
   });
 
   @override
@@ -488,8 +453,6 @@ class _AssetTile extends StatelessWidget {
                 children: [
                   VStatusChip(asset.lifecycle.label,
                       kind: asset.lifecycle.chipKind),
-                  if (btcStatusText != null)
-                    VStatusChip(btcStatusText!, kind: VChipKind.info),
                 ],
               ),
             ],

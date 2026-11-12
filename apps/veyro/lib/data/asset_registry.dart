@@ -14,16 +14,16 @@ import 'package:veyro/design/components.dart';
 /// Жизненный цикл актив: только по вердиктам матрицы.
 enum AssetLifecycle {
   /// Исследование завершено; реализации и тестов не было.
-  researched('Researched', VChipKind.neutral),
+  researched('Исследовано', VChipKind.neutral),
 
   /// Отправка проверена на тестнете; полный цикл не заявлен (BTC).
-  sendSupported('Send supported', VChipKind.success),
+  sendSupported('Отправка проверена (testnet)', VChipKind.success),
 
   /// Исследование не завершено.
-  researchRequired('Research required', VChipKind.warning),
+  researchRequired('Требует изучения', VChipKind.warning),
 
   /// Нет безопасной реализации; блокер указан.
-  blocked('Blocked', VChipKind.error),
+  blocked('Заблокировано', VChipKind.error),
 
   /// Исторический тикер, не актив.
   historical('Исторический тикер', VChipKind.neutral);

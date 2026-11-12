@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'btc_screen.dart';
@@ -172,7 +173,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         Text(
                           unlocked
-                              ? '${state.networkDisplay} · ${state.serverUrl}'
+                              ? '${ruNetworkText(state.networkDisplay)} · ${state.serverUrl}'
                               : 'Сессия не открыта',
                           style: const TextStyle(color: Colors.white60, fontSize: 13),
                           overflow: TextOverflow.ellipsis,

@@ -11,6 +11,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 
 import 'asset_catalog_screen.dart' show CoinIcon;
@@ -218,14 +219,14 @@ class _BtcTile extends StatelessWidget {
             spacing: 6,
             runSpacing: 4,
             children: [
-              VStatusChip('Send supported', kind: asset.lifecycle.chipKind),
+              VStatusChip(asset.lifecycle.label, kind: asset.lifecycle.chipKind),
               if (!sessionChecked)
                 const VStatusChip('Статус сессии: …', kind: VChipKind.neutral)
               else if (sessionError != null)
                 VStatusChip('Ядро недоступно', kind: VChipKind.warning)
               else if (unlocked)
                 VStatusChip(
-                    'Сессия: ${session!.networkDisplay} — форма открыта',
+                    'Сессия: ${ruNetworkText(session!.networkDisplay)} — форма открыта',
                     kind: VChipKind.success)
               else if (!hasWallets)
                 const VStatusChip('Нет кошельков — создать в «Кошельки»',

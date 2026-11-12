@@ -15,6 +15,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -386,7 +387,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                 const VStatusChip('Сессия не прочитана', kind: VChipKind.warning)
               else if (session != null)
                 VStatusChip(
-                  'Ключи в памяти ядра · ${session.networkDisplay}',
+                  'Ключи в памяти ядра · ${ruNetworkText(session.networkDisplay)}',
                   kind: VChipKind.warning,
                 )
               else
