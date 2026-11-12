@@ -144,12 +144,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Пять разделов навигации (решение владельца): бэкап, «О VEYRO» и
-    // адресная книга открываются из «Настроек».
-    expect(find.byType(NavigationDestination), findsNWidgets(5));
+    // Четыре раздела навигации (решение владельца): вкладка «Транзакции»
+    // удалена, бэкап и «О VEYRO» открываются из «Настроек».
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
-    expect(find.text('Транзакции'), findsOneWidget);
+    // Вкладка «Транзакции» удалена (решение владельца: это история монет).
+    expect(find.text('Транзакции'), findsNothing);
     // «Кошельки» и в навигации, и в AppBar открытого раздела.
     expect(find.text('Кошельки'), findsWidgets);
     expect(find.text('Настройки'), findsWidgets);

@@ -16,7 +16,6 @@ import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
 import '../screens/settings_screen.dart';
-import '../screens/transactions_screen.dart';
 import '../screens/wallets_screen.dart';
 
 /// Раздел каркаса. Все разделы реализованы (builder обязателен).
@@ -35,10 +34,10 @@ class ShellDestination {
   });
 }
 
-/// Реестр разделов каркаса (решение владельца): Обзор, Активы, Транзакции,
-/// Кошельки, Настройки — пять пунктов навигации. Бэкап, «О VEYRO» и
-/// адресная книга открываются из «Настроек» (карточка «Разделы»);
-/// раздел «Транзакции» при закрытой сессии показывает честное состояние.
+/// Реестр разделов каркаса (решение владельца): Обзор, Активы,
+/// Кошельки, Настройки — четыре пункта навигации (вкладка «Транзакции»
+/// удалена: это только история монет, доступная из их экранов).
+/// Бэкап и «О VEYRO» открываются из «Настроек» (карточка «Разделы»).
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -51,12 +50,6 @@ const List<ShellDestination> kShellDestinations = [
     icon: Icons.grid_view_outlined,
     label: 'Активы',
     builder: _buildAssets,
-  ),
-  ShellDestination(
-    id: 'transactions',
-    icon: Icons.receipt_long_outlined,
-    label: 'Транзакции',
-    builder: _buildTransactions,
   ),
   ShellDestination(
     id: 'wallets',
@@ -74,7 +67,6 @@ const List<ShellDestination> kShellDestinations = [
 
 Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
-Widget _buildTransactions(BuildContext context) => const TransactionsScreen();
 Widget _buildWallets(BuildContext context) => const WalletsScreen();
 Widget _buildSettings(BuildContext context) => const SettingsScreen();
 /// Порог, ниже которого каркас переключается на нижнюю навигацию
