@@ -21,6 +21,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/asset_detail_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
+import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/price_source.dart';
 
@@ -31,6 +32,17 @@ WalletInfoDto _wallet(String id, String name) => WalletInfoDto(
     );
 
 void main() {
+  // Значки валют: тесты без сети и без дискового кэша — монограммы.
+  setUp(() {
+    CoinIconService.instance.resetForTest();
+    CoinIconService.useDiskCache = false;
+    CoinIconService.fetcher = (ticker) async => null;
+  });
+  tearDown(() {
+    CoinIconService.fetcher = null;
+    CoinIconService.instance.resetForTest();
+  });
+
   group('Реестр активов (28 строк утверждённой матрицы)', () {
     test('состав вердиктов совпадает с матрицей', () {
       expect(kAssetRegistry.length, 28);
@@ -186,16 +198,20 @@ void main() {
 
   group('Dashboard (injectable loaders)', () {
     // Источник цен скрыт (без сети в тестах): фиатная строка и график
-    // курса отсутствуют.
+    // курса отсутствуют. Значки валют — без Iconify (монограммы).
     setUp(() {
       PriceSource.instance.resetRates();
       PriceSource.loader = () async => null;
       PriceSource.marketLoader = (coinId, fiat, days) async => null;
+      CoinIconService.instance.resetForTest();
+      CoinIconService.useDiskCache = false;
+      CoinIconService.fetcher = (ticker) async => null;
     });
     tearDown(() {
       PriceSource.loader = null;
       PriceSource.marketLoader = null;
-      PriceSource.instance.resetRates();
+      CoinIconService.fetcher = null;
+      CoinIconService.instance.resetForTest();
     });
 
     testWidgets('два кошелька: селектор, честный пустой портфель',

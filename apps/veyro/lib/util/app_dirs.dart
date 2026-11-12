@@ -27,6 +27,10 @@ String appDbPath() => _join(_join(_appDataDir(), 'veyro'), 'veyro.db');
 /// Каталог файлов резервных копий (зашифрованные .veybackup).
 String backupsDir() => _join(_join(_appDataDir(), 'veyro'), 'backups');
 
+/// Кэш значков валют с Iconify API (SVG): один раз скачано — всегда
+/// рисуется без сети при следующих запусках.
+String iconCacheDir() => _join(_join(_appDataDir(), 'veyro'), 'icon-cache');
+
 /// Дефолтный путь нового файла резервной копии — каталог приложения с
 /// меткой времени: `%APPDATA%\veyro\backups\veyro-backup-ГГГГММДД-ЧЧММСС`
 /// `.veybackup`. Пользователь может заменить путь в диалоге экспорта.

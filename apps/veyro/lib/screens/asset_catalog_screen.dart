@@ -7,6 +7,8 @@
 //! (DisplayPrefs → SQLite-настройки).
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:typed_data';
 
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
@@ -14,6 +16,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/display_prefs.dart';
 
 import 'asset_detail_screen.dart';
@@ -541,26 +544,61 @@ const Set<String> kBundledCoinIcons = {
   'XMR', 'XNA', 'ZEC', 'ZEPH',
 };
 
-class CoinIcon extends StatelessWidget {
+/// Значок монеты: bundle-иконка (официальный логотип, оффлайн) →
+/// Iconify API (цветная крипто-иконка, решает владелец) → монограмма.
+class CoinIcon extends StatefulWidget {
   final VeyroAsset asset;
   final double radius;
 
   const CoinIcon({super.key, required this.asset, this.radius = 18});
 
   @override
-  Widget build(BuildContext context) {
-    if (!kBundledCoinIcons.contains(asset.ticker)) {
-      return AssetMonogram(asset: asset, radius: radius);
+  State<CoinIcon> createState() => _CoinIconState();
+}
+
+class _CoinIconState extends State<CoinIcon> {
+  Uint8List? _svg;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kBundledCoinIcons.contains(widget.asset.ticker)) {
+      CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
+        if (!mounted || bytes == null) return;
+        setState(() => _svg = bytes);
+      });
     }
-    final size = radius * 2;
-    return ClipOval(
-      child: Image.asset(
-        'assets/coins/${asset.ticker.toLowerCase()}.png',
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => AssetMonogram(asset: asset, radius: radius),
-      ),
-    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.radius * 2;
+    // 1) Бандл: официальный логотип из CoinGecko, оффлайн.
+    if (kBundledCoinIcons.contains(widget.asset.ticker)) {
+      return ClipOval(
+        child: Image.asset(
+          'assets/coins/${widget.asset.ticker.toLowerCase()}.png',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              AssetMonogram(asset: widget.asset, radius: widget.radius),
+        ),
+      );
+    }
+    // 2) Iconify (настоящая иконка с api.iconify.design). Пока грузится
+    // или иконки нет — 3) монограмма (спека «approved fallback»).
+    final svg = _svg;
+    if (svg != null) {
+      return ClipOval(
+        child: SvgPicture.memory(
+          svg,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return AssetMonogram(asset: widget.asset, radius: widget.radius);
   }
 }

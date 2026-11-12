@@ -18,6 +18,7 @@ import 'package:veyro/screens/send_screen.dart';
 import 'package:veyro/screens/tx_confirm_screen.dart';
 import 'package:veyro/screens/tx_details_screen.dart';
 import 'package:veyro/screens/history_screen.dart';
+import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/links.dart';
 
 WalletInfoDto _wallet(String id, String name) => WalletInfoDto(
@@ -36,6 +37,17 @@ const _session = BtcSessionStateDto(
 );
 
 void main() {
+  // Значки валют: тесты без сети и без дискового кэша — монограммы.
+  setUp(() {
+    CoinIconService.instance.resetForTest();
+    CoinIconService.useDiskCache = false;
+    CoinIconService.fetcher = (ticker) async => null;
+  });
+  tearDown(() {
+    CoinIconService.fetcher = null;
+    CoinIconService.instance.resetForTest();
+  });
+
   group('Explorer-ссылки (unit)', () {
     test('код сети 0/1/2 → mempool.space; прочие — null', () {
       const txid = '8221ef55deadbeefd675';
