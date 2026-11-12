@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
+import 'package:veyro/screens/lock_screen.dart';
 import 'package:veyro/screens/network_settings_screen.dart';
 import 'package:veyro/screens/portfolio_screen.dart';
 import 'package:veyro/screens/settings_screen.dart';
@@ -178,8 +179,8 @@ void main() {
       expect(find.textContaining('Не загружены'), findsOneWidget);
     });
 
-    testWidgets('закрытая сессия: Обзор сам открывает кошелёк → портфель '
-        '(один кошелёк)', (tester) async {
+    testWidgets('закрытая сессия: Обзор открывается спокойно, без '
+        'стартовых модалок (решение владельца)', (tester) async {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
@@ -190,33 +191,98 @@ void main() {
         ),
       ));
       await tester.pumpAndSettle();
-      // Авто-цепочка: портфель открыт (сверху) — его честная ошибка
-      // состояния без ядра; Обзор остаётся под ним.
-      expect(find.byType(PortfolioScreen), findsOneWidget);
-      expect(
-        find.text('Обзор', skipOffstage: false),
-        findsWidgets,
-      );
+      // Никаких автоматических заталкиваний: Обзор на экране, оверлеев нет.
+      expect(find.byType(PortfolioScreen), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Сумма портфеля'), findsOneWidget);
     });
+  });
 
-    testWidgets('закрытая сессия, два кошелька без выбора: открывается '
-        'первый (регрессия молчаливого ожидания выбранного)', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
+  group('LockScreen (полноэкранный вход — решение владельца)', () {
+    Future<void> pumpLock(
+      WidgetTester tester, {
+      required Future<List<WalletInfoDto>> Function()? walletsLoader,
+      required Future<BtcSessionStateDto?> Function()? sessionLoader,
+      Future<void> Function(String walletId, String password)? unlockAction,
+    }) async {
+      tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(MaterialApp(
-        home: DashboardScreen(
-          walletLoader: () async => [
-            _wallet('w1', 'Основной', 1699000000),
-            _wallet('w2', 'Запасной', 1700000000),
-          ],
-          sessionLoader: () async => null,
+        home: LockScreen(
+          walletsLoader: walletsLoader,
+          sessionLoader: sessionLoader,
+          unlockAction: unlockAction,
         ),
       ));
       await tester.pumpAndSettle();
-      expect(find.byType(PortfolioScreen), findsOneWidget);
-      // Обзор остаётся под непрозрачным роутом (offstage).
-      expect(find.text('Обзор', skipOffstage: false), findsWidgets);
+    }
+
+    testWidgets('сессия уже активна: сразу каркас без формы входа',
+        (tester) async {
+      const session = BtcSessionStateDto(
+        networkCode: 2,
+        networkDisplay: 'testnet4',
+        serverUrl: 'http://s',
+        account: 0,
+        accountXpub: 'tpubDX',
+        hasSpendables: false,
+      );
+      await pumpLock(
+        tester,
+        walletsLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
+        sessionLoader: () async => session,
+      );
+      expect(find.byType(VeyroShell), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('ввод пароля: реальный unlockAction → каркас на Обзоре',
+        (tester) async {
+      var unlockedFor = '';
+      await pumpLock(
+        tester,
+        walletsLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
+        sessionLoader: () async => null,
+        unlockAction: (id, _) async => unlockedFor = id,
+      );
+      // Форма входа на весь экран + имя кошелька.
+      expect(find.text('ВХОД'), findsOneWidget);
+      expect(find.textContaining('Кошелёк «Основной»'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '1234');
+      await tester.tap(find.text('Войти'));
+      await tester.pumpAndSettle();
+      expect(unlockedFor, 'w1');
+      // Сразу на каркас (Обзор).
+      expect(find.byType(VeyroShell), findsOneWidget);
+    });
+
+    testWidgets('неверный пароль: честная ошибка, вход не выполнен',
+        (tester) async {
+      await pumpLock(
+        tester,
+        walletsLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
+        sessionLoader: () async => null,
+        unlockAction: (_, _) async =>
+            throw Exception('vault error: decryption failed'),
+      );
+      await tester.enterText(find.byType(TextField), '9999');
+      await tester.tap(find.text('Войти'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Неверный пароль'), findsOneWidget);
+      expect(find.byType(VeyroShell), findsNothing);
+      // Снова можно ввести.
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('кошельков нет: Welcome (создать/импорт)', (tester) async {
+      await pumpLock(
+        tester,
+        walletsLoader: () async => [],
+        sessionLoader: () async => null,
+      );
+      expect(find.text('Создать кошелёк'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
     });
   });
 
@@ -257,4 +323,3 @@ void main() {
   });
 }
 
-// Транзакции-раздел — новый; импорт уже наверху файла.

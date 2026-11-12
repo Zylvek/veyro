@@ -19,7 +19,6 @@ import 'package:veyro/util/format.dart';
 import 'asset_catalog_screen.dart' show CoinIcon;
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
-import 'portfolio_screen.dart';
 import 'history_screen.dart';
 import 'tx_details_screen.dart';
 
@@ -29,18 +28,17 @@ class DashboardScreen extends StatefulWidget {
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
   final Future<List<BtcHistoryItemDto>> Function()? historyLoader;
 
-  /// Авто-переход к кошелёку/паролю при закрытой сессии включён по
-  /// умолчанию (поток владельца); тесты верстки передают false.
-  final bool autoOpenWallet;
-
   const DashboardScreen({
     super.key,
     this.walletLoader,
     this.sessionLoader,
     this.historyLoader,
-    this.autoOpenWallet = true,
   });
 
+  /// Стартовая политика (решение владельца): приложение открывается
+  /// СПОКОЙНО на Обзоре — без стартовых модалок и авто-переходов в
+  /// разблокировку. Подключение BTC — когда пользователь заходит в
+  /// BTC-поток (там пароль спрашивается сам).
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -53,11 +51,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _historyError;
   bool _loading = true;
   String? _error;
-
-  /// Авто-переход к паролю: при закрытой BTC-сессии один раз за вход
-  /// Обзор сам открывает кошелёк (выбранный/первый) → портфель → BTC,
-  /// где сразу спрашивается пароль. Отключается в тестах верстки.
-  var _btcAutoOpened = false;
 
   @override
   void initState() {
@@ -108,18 +101,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loading = false;
     });
     await _loadRecent();
-    // Сразу к паролю (решение владельца): закрытая сессия и есть кошельки
-    // → один раз за вход открываем портфель (тот перебрасывает в BTC,
-    // а BTC сразу показывает диалог пароля).
-    if (widget.autoOpenWallet &&
-        !_btcAutoOpened &&
-        mounted &&
-        _error == null &&
-        _session == null &&
-        _wallets?.isNotEmpty == true) {
-      _btcAutoOpened = true;
-      await _push(PortfolioScreen(info: _selected!));
-    }
   }
 
   /// Последние транзакции — только при активной BTC-сессии; ошибки ядро
@@ -510,7 +491,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _push(Widget screen, {bool reload = false}) async {
+    debugPrint('veyro-flow: overview pushing ${screen.runtimeType}');
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    debugPrint('veyro-flow: overview push returned');
     if (mounted && reload) await _refresh();
   }
 }

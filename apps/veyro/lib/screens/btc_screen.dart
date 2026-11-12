@@ -49,13 +49,17 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _entry() async {
+    debugPrint('veyro-flow: btc screen entry (wallet ${widget.info.name})');
     await _refresh(autosyncIfUnlocked: true);
+    debugPrint('veyro-flow: btc refresh done, state=${_state != null}, '
+        'busy=$_busy');
     await _maybeAutoPrompt();
   }
 
   Future<void> _maybeAutoPrompt() async {
     if (_state != null || _autoPrompted || _busy || !mounted) return;
     _autoPrompted = true;
+    debugPrint('veyro-flow: btc auto-prompt password dialog');
     await _unlock();
   }
 
@@ -94,8 +98,11 @@ class _BtcScreenState extends State<BtcScreen> {
       title: 'Разблокировать BTC — «${widget.info.name}»',
       confirmLabel: 'Подключиться',
     );
-    if (password == null || !mounted) return;
-
+    if (password == null || !mounted) {
+      debugPrint('veyro-flow: password dialog cancelled');
+      return;
+    }
+    debugPrint('veyro-flow: password entered, unlocking…');
     setState(() {
       _busy = true;
       _busyLabel = 'Разблокировка…';

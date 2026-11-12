@@ -8,7 +8,7 @@ import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/frb_generated.dart';
 import 'package:veyro/util/app_dirs.dart';
 
-import 'screens/welcome_screen.dart';
+import 'screens/lock_screen.dart';
 
 Future<void> main() async {
   // Подключение Rust-ядра через FFI. Должно завершиться до запуска UI:
@@ -41,7 +41,7 @@ class VeyroApp extends StatelessWidget {
       title: 'VEYRO',
       debugShowCheckedModeBanner: false,
       theme: buildVeyroTheme(),
-      home: const WelcomeScreen(),
+      home: const LockScreen(),
     );
   }
 }

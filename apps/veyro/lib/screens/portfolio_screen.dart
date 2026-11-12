@@ -25,10 +25,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   String? _error;
   bool _loading = true;
 
-  /// Открытие BTC автоматом один раз за вход (решение владельца:
-  /// «сразу к подключению»); после отмены пароля остаются ручные кнопки.
-  var _btcAutoOpened = false;
-
   @override
   void initState() {
     super.initState();
@@ -55,19 +51,21 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       });
       return;
     }
-    if (_btcState == null && !_btcAutoOpened && mounted) {
-      _btcAutoOpened = true;
-      await _openBtc();
-    }
+    if (!mounted) return;
   }
 
+  /// Явный вход в BTC-центр: там пароль спрашивается сам, если сессия
+  /// была закрыта.
   Future<void> _openBtc() async {
+    debugPrint('veyro-flow: portfolio manual BTC entry for '
+        '"${widget.info.name}"');
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => BtcScreen(info: widget.info),
     ));
     if (mounted) await _refresh();
   }
 
+  /// Показ seed-фразы: реальный ввод пароля (расшифровка в Rust).
   Future<void> _showSeedPhrase() async {
     final password = await promptPassword(
       context,
