@@ -187,22 +187,58 @@ class _LockScreenState extends State<LockScreen> {
           body: Center(child: CircularProgressIndicator()),
         );
       case _LockPhase.unlocking:
-        // Полоса загрузки вместо маленького спиннера (решение владельца);
-        // техтекст убран — шкала indeterminate, без вранья о прогрессе.
-        return const Scaffold(
+        // Загрузка «как в играх»: полоса плавно набирает ход и
+        // замедляется к концу (без цифр — проценты не показываем).
+        // Реальный прогресс от ядра не отдаётся, поэтому шкала
+        // движется по таймеру и не доходит до конца.
+        return Scaffold(
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VeyroLogo(size: 64),
-                SizedBox(height: 28),
+                const VeyroLogo(size: 64),
+                const SizedBox(height: 34),
                 SizedBox(
-                  width: 260,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.all(Radius.circular(6)),
-                    child: LinearProgressIndicator(
-                      minHeight: 6,
-                      backgroundColor: Color(0x221D2D4A),
+                  width: 340,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 0.94),
+                    duration: Duration(seconds: 14),
+                    curve: Curves.easeInToLinear,
+                    builder: (context, value, _) => Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.all(Radius.circular(7)),
+                          child: Stack(
+                            children: [
+                              Container(height: 12, color: VColors.elevated),
+                              FractionallySizedBox(
+                                widthFactor: value.clamp(0.0, 0.94),
+                                child: Container(
+                                  height: 12,
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        VColors.primaryGlow,
+                                        VColors.primary,
+                                        VColors.secondary,
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            Color(0x99638CFF),
+                                        blurRadius: 12,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
