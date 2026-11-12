@@ -202,7 +202,7 @@ void main() {
       // Никаких автоматических заталкиваний: Обзор на экране, оверлеев нет.
       expect(find.byType(PortfolioScreen), findsNothing);
       expect(find.byType(Dialog), findsNothing);
-      expect(find.text('Сумма портфеля'), findsOneWidget);
+      expect(find.text('Общий баланс'), findsOneWidget);
     });
   });
 

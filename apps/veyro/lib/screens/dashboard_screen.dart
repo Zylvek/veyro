@@ -59,6 +59,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
 
+  /// Полная история транзакций — источник линии баланса (только
+  /// реальные записи ядра; нет сессии — нет графика данных, линия
+  /// плоская на уровне текущего баланса).
+  List<BtcHistoryItemDto>? _historyAll;
+
+  /// Активное окно линии баланса (референс: 1D/1W/1M/1Y).
+  String _period = '1М';
+
+  /// Окна period-табов в секундах назад.
+  static const Map<String, Duration> _periodWindows = {
+    '1Д': Duration(days: 1),
+    '1Н': Duration(days: 7),
+    '1М': Duration(days: 30),
+    '1Г': Duration(days: 365),
+  };
+
   @override
   void initState() {
     super.initState();
@@ -132,7 +148,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? await widget.historyLoader!()
           : await btcHistory();
       if (!mounted) return;
-      setState(() => _recent = items.take(3).toList());
+      setState(() {
+        _historyAll = items;
+        _recent = items.take(3).toList();
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _historyError = e.toString());
@@ -162,7 +181,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Обзор')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
@@ -216,23 +234,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Компактная верхняя панель (аудит §4): выбор кошелька, чип состояния
-  /// BTC-сессии и переключатель скрытия сумм — в одну строку.
+  /// Верхняя панель как в референсе владельца: заголовок страницы слева,
+  /// справа — компактный выбор кошелька и переключатель скрытия сумм.
   Widget _buildTopPanel(BuildContext context) {
     final wallets = _wallets ?? const <WalletInfoDto>[];
     return Row(
       children: [
-        Expanded(
-          flex: 3,
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Обзор',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Активы и активность',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: VColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Flexible(
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedId,
                 isExpanded: true,
+                isDense: true,
                 decoration: const InputDecoration(
-                  labelText: 'Активный кошелёк',
                   border: InputBorder.none,
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(vertical: 10, horizontal: 6),
                 ),
                 items: [
                   for (final w in wallets)
@@ -276,52 +319,163 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Крупный блок общей суммы портфеля (аудит §4). Общая цена валют —
-  /// одно число в валюте отображения (курс — прямой клиент провайдера
-  /// цен); курс недоступен — сумма в BTC. Ноль вместо прочерка в обоих
-  /// случаях; выдуманных значений нет.
+  /// Hero-карта баланса (референс владельца «Nexus»: большая тёмная
+  /// карта с подсветками) : label, крупная сумма (общая цена в валюте
+  /// отображения; курс недоступен — сумма в BTC), подпись «≈ N BTC»,
+  /// линия баланса из РЕАЛЬНОЙ истории транзакций и окна периода.
+  /// Динамику в процентах не рисуем — данных о ней ядро не отдаёт.
   Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
-    return VCard(
-      icon: Icons.pie_chart_outline,
-      title: 'Сумма портфеля',
-      children: [
-        Column(
+    final balanceSat = _btcBalanceSat();
+    final rate = _fiatRate;
+    return VHeroPanel(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 24, 28, 10),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'Общий баланс',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: VColors.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    if (session != null && session.hasSpendables)
+                      const VStatusChip(
+                        'Есть синхронизированные средства',
+                        kind: VChipKind.success,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             // Общая цена валют (решение владельца: «только общую цену
-            // валют и всё»): одно число — сумма портфеля в валюте
-            // отображения, без приписок под ней. Курс недоступен (нет
-            // сети) → сумма в BTC: единственный синхронизированный
-            // актив. Ноль вместо прочерка — в обоих случаях.
-            if (_fiatRate != null)
+            // валют и всё»): одно число. Курса нет — сумма в BTC.
+            if (rate != null)
               VAmount(
-                _maskAmount(formatFiat(_btcBalanceSat() / 1e8 * _fiatRate!)),
+                _maskAmount(formatFiat(balanceSat / 1e8 * rate)),
                 suffix: DisplayPrefs.fiatCurrency.toUpperCase(),
-                fontSize: 34,
+                fontSize: 42,
               )
             else
               VAmount(
-                _maskAmount(satToBtcString(_btcBalanceSat())),
+                _maskAmount(satToBtcString(balanceSat)),
                 suffix: 'BTC',
-                fontSize: 34,
+                fontSize: 42,
               ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (session != null && session.hasSpendables)
-                  const VStatusChip(
-                    'Есть синхронизированные средства',
-                    kind: VChipKind.success,
-                  ),
-              ],
+            const SizedBox(height: 6),
+            // Подпись-эквивалент, как в референсе (у него $ → ETH).
+            Text(
+              '≈ ${_maskAmount(satToBtcString(balanceSat))} BTC',
+              style: TextStyle(
+                fontFamily: kMonoFont,
+                fontSize: 13,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                color: VColors.textSecondary,
+              ),
             ),
+            const SizedBox(height: 12),
+            VSparkline(values: _chartSeries(balanceSat.toDouble())),
+            const SizedBox(height: 6),
+            _buildPeriodTabs(),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Вкладки окна линии баланса: 1Д/1Н/1М/1Г (как в референсе).
+  Widget _buildPeriodTabs() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final entry in _periodWindows.entries)
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => setState(() => _period = entry.key),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: _period == entry.key
+                      ? Colors.white.withValues(alpha: 0.09)
+                      : Colors.transparent,
+                ),
+                child: Text(
+                  entry.key,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _period == entry.key
+                        ? VColors.textPrimary
+                        : VColors.textSecondary.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
+  }
+
+  /// Значения линии баланса за окно периода. Время транзакции
+  /// оценивается по высоте блока (~10 минут, якорь — самый свежий блок
+  /// = сейчас); mempool — самые новые. В окне записей нет → плоская
+  /// линия на уровне текущего баланса (честно: вне наблюдений).
+  List<double> _chartSeries(double currentSat) {
+    const samples = 140;
+    final now = DateTime.now();
+    final window = _periodWindows[_period]!;
+    final cutoff = now.subtract(window);
+    final cur = currentSat;
+    final items = _historyAll ?? const <BtcHistoryItemDto>[];
+
+    // (время, дельта сатов): приход − уход (internal = 0).
+    final events = <MapEntry<DateTime, double>>[];
+    final heighted = items.where((it) => it.height >= 1).toList()
+      ..sort((a, b) => b.height.compareTo(a.height));
+    final newest = heighted.isEmpty ? null : heighted.first.height;
+    for (final it in heighted) {
+      final est =
+          now.subtract(Duration(seconds: (newest! - it.height) * 600));
+      if (est.isBefore(cutoff)) continue;
+      events.add(MapEntry(
+        est,
+        (it.receivedSat - it.sentNetSat).toDouble(),
+      ));
+    }
+    for (final it in items.where((it) => it.height < 1)) {
+      events.add(MapEntry(
+        now,
+        (it.receivedSat - it.sentNetSat).toDouble(),
+      ));
+    }
+
+    // Равномерные по времени выборки ступенчатой функции баланса:
+    // баланс в момент s = текущий − Σ дельт событий позже s.
+    return List<double>.generate(samples, (i) {
+      final s = cutoff.add(window * i ~/ (samples - 1));
+      var bal = cur;
+      for (final e in events) {
+        if (e.key.isAfter(s)) bal -= e.value;
+      }
+      return bal;
+    });
   }
 
   /// Реальный подтверждённый баланс BTC из последней синхронизации
@@ -334,21 +488,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return delta < 0 ? confirmed + delta : confirmed;
   }
 
-  /// Receive / Send — реальный вход в поток через выбор актива.
+  /// Receive / Send — как в референсе: Send — основная (заполненная),
+  /// Receive — спокойная. Реальный вход в поток через выбор актива.
   Widget _buildActionsRow(BuildContext context) {
     final selected = _selected;
     return Row(
       children: [
-        Expanded(
-          child: VButton.primary(
-            'Receive',
-            icon: Icons.south_west,
-            onPressed: selected == null
-                ? null
-                : () => _push(AssetPickerScreen(isReceive: true), reload: true),
-          ),
-        ),
-        const SizedBox(width: 14),
         Expanded(
           child: VButton.primary(
             'Send',
@@ -356,6 +501,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: selected == null
                 ? null
                 : () => _push(AssetPickerScreen(isReceive: false)),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: VButton.secondary(
+            'Receive',
+            icon: Icons.south_west,
+            onPressed: selected == null
+                ? null
+                : () => _push(AssetPickerScreen(isReceive: true), reload: true),
           ),
         ),
       ],
@@ -397,7 +552,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Сумма монеты — реальный подтверждённый баланс из последней
     // синхронизации (кэш; без данных — 0 по решению владельца).
     final sync = BtcStateCache.instance.take();
-    final btcAmount = _maskAmount(satToBtcString(_btcBalanceSat()));
+    final balanceSat = _btcBalanceSat();
+    final rate = _fiatRate;
     return VCard(
       icon: Icons.grid_view_outlined,
       title: 'Активы',
@@ -406,36 +562,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             leading: _AssetAvatar(btc),
-            title: Text('Bitcoin'),
-            subtitle: Text('Единственный реализованный адаптер'),
+            title: const Text('Bitcoin'),
+            // Количество под именем — как в референсе.
+            subtitle: Text(
+              '${_maskAmount(satToBtcString(balanceSat))} BTC',
+              style: const TextStyle(
+                fontFamily: kMonoFont,
+                fontSize: 11.5,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  btcAmount,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                    color: VColors.textPrimary,
+                // Фиатное выражение позиции — от того же курса, что и
+                // hero-карта; курса нет — справа пусто (без выдумок).
+                if (rate != null) ...[
+                  Text(
+                    _maskAmount(formatFiat(balanceSat / 1e8 * rate)),
+                    style: const TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                      color: VColors.textPrimary,
+                    ),
                   ),
-                ),
-                Text(
-                  'BTC',
-                  style: TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 11,
-                    color: VColors.textSecondary,
+                  Text(
+                    DisplayPrefs.fiatCurrency.toUpperCase(),
+                    style: const TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11,
+                      color: VColors.textSecondary,
+                    ),
                   ),
-                ),
-                if (sync != null &&
-                    sync.unconfirmedDeltaSat.toInt() != 0)
+                ],
+                if (sync != null && sync.unconfirmedDeltaSat.toInt() != 0)
                   Text(
                     '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} BTC (мемпул)',
                     style: TextStyle(
-                      fontFamily: 'JetBrainsMono',
+                      fontFamily: kMonoFont,
                       fontSize: 11,
                       color: VColors.warning,
                     ),
@@ -483,17 +650,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                switch (item.direction) {
-                  'incoming' => Icons.south_west,
-                  'outgoing' => Icons.north_east,
-                  'internal' => Icons.swap_horiz,
-                  _ => Icons.help_outline,
-                },
-                color: VColors.textSecondary,
-                size: 18,
+              // Кружок-иконка как в референсе: зелёный приход, красный
+              // уход, нейтральный internal.
+              leading: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: switch (item.direction) {
+                    'incoming' => VColors.success.withValues(alpha: 0.14),
+                    'outgoing' => VColors.error.withValues(alpha: 0.14),
+                    _ => VColors.elevated,
+                  },
+                ),
+                child: Icon(
+                  switch (item.direction) {
+                    'incoming' => Icons.south_west,
+                    'outgoing' => Icons.north_east,
+                    'internal' => Icons.swap_horiz,
+                    _ => Icons.help_outline,
+                  },
+                  size: 16,
+                  color: switch (item.direction) {
+                    'incoming' => VColors.success,
+                    'outgoing' => VColors.error,
+                    _ => VColors.textSecondary,
+                  },
+                ),
               ),
               title: Text(
+                switch (item.direction) {
+                  'incoming' => 'Получение BTC',
+                  'outgoing' => 'Отправка BTC',
+                  'internal' => 'Внутри кошелька',
+                  _ => item.direction,
+                },
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                item.height >= 1 ? 'высота ${item.height}' : 'в мемпуле',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall!
+                    .copyWith(fontFamily: kMonoFont, fontSize: 11),
+              ),
+              // Сумма справа, цветом направления.
+              trailing: Text(
                 switch (item.direction) {
                   'incoming' =>
                     '+${satToBtcString(item.receivedSat.toInt())} BTC',
@@ -502,27 +707,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   'internal' => '0 BTC',
                   _ => '—',
                 },
-                style: const TextStyle(
-                  fontSize: 13.5,
+                style: TextStyle(
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  fontFeatures: [FontFeature.tabularFigures()],
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: switch (item.direction) {
+                    'incoming' => VColors.success,
+                    'outgoing' => VColors.error,
+                    _ => VColors.textPrimary,
+                  },
                 ),
-              ),
-              subtitle: Text(
-                switch (item.direction) {
-                  'incoming' => 'Получение',
-                  'outgoing' => 'Отправка',
-                  'internal' => 'Внутри кошелька',
-                  _ => item.direction,
-                },
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              trailing: Text(
-                item.height >= 1 ? 'высота ${item.height}' : 'в мемпуле',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall!
-                    .copyWith(fontFamily: kMonoFont, fontSize: 11),
               ),
               onTap: () =>
                   _push(TxDetailsScreen(

@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:veyro/design/components.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -210,14 +211,16 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Кошелёк-селектор с реальными именами.
-      expect(find.text('Активный кошелёк'), findsOneWidget);
+      // Кошелёк-селектор: компактный дропдаун с реальными именами.
       expect(find.text('Основной'), findsOneWidget);
 
-      // Сумма портфеля — честный ноль (решение владельца), не прочерк.
-      expect(find.text('Сумма портфеля'), findsOneWidget);
-      expect(find.text('0'), findsNWidgets(2)); // сумма 0 + бал. монеты
+      // Общий баланс в hero-карте — честный ноль (решение владельца).
+      expect(find.text('Общий баланс'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget); // hero; курс в тесте недоступен
       expect(find.text('BTC'), findsWidgets);
+      // Линия баланса и окна периода на месте (плоская при пустой истории).
+      expect(find.byType(VSparkline), findsOneWidget);
+      expect(find.text('1М'), findsOneWidget);
       expect(find.textContaining('\$'), findsNothing);
       // Чип сессии с Обзора убран (решение владельца).
       expect(find.text('BTC: сессия не активна'), findsNothing);
@@ -304,7 +307,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(DisplayPrefs.hideBalances, !initialHide);
       if (!initialHide) {
-        expect(find.text('••••••'), findsNWidgets(2)); // блок + плитка BTC
+        // Маска: hero-сумма (плитка без курса — трейлинг пуст).
+        expect(find.text('••••••'), findsOneWidget);
       }
       // Возврат.
       await tester.tap(find.byTooltip(initialHide

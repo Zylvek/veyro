@@ -101,10 +101,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Валюта отображения по умолчанию USD (без настроек); баланс
-      // 0 BTC → общая цена 0.00 USD. Одно число, без второй строки.
-      expect(find.text('0.00'), findsOneWidget);
-      expect(find.text('USD'), findsOneWidget);
-      expect(find.textContaining('≈'), findsNothing);
+      // 0 BTC → общая цена 0.00 USD. Показана в hero и у плитки.
+      expect(find.text('0.00'), findsNWidgets(2));
+      expect(find.text('USD'), findsNWidgets(2));
+      expect(find.textContaining('≈ 0.00'), findsNothing); // без дублей под числом
     });
 
     testWidgets('курса нет (нет сети) → честный BTC, без фиата', (tester) async {
@@ -117,11 +117,11 @@ void main() {
       await tester.pumpWidget(_dashboard());
       await tester.pumpAndSettle();
 
-      // Никаких выдуманных оценок: курса нет → сумма в BTC (нуль).
-      expect(find.textContaining('≈'), findsNothing);
-      expect(find.text('USD'), findsNothing);
-      expect(find.text('0'), findsNWidgets(2)); // сумма + плитка монеты
-      expect(find.text('BTC'), findsNWidgets(2)); // суффикс + плитка
+      // Никаких выдуманных оценок: курса нет → сумма в BTC (нуль),
+      // трейлинг плитки пуст.
+      expect(find.textContaining('USD'), findsNothing);
+      expect(find.text('0'), findsOneWidget); // hero
+      expect(find.text('BTC'), findsOneWidget); // суффикс hero
     });
   });
 }

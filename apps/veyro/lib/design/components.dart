@@ -541,3 +541,142 @@ class VMnemonicGrid extends StatelessWidget {
     );
   }
 }
+
+/// Hero-карта баланса Обзора (референс владельца: большая тёмная карта
+/// с радиальной подсветкой справа-сверху, светлая рамка, мягкая тень).
+/// Реализована чистой Decoration'ом — без Stack, чтобы жить внутри
+/// ленивого списка; контент свободный, поверхность рисует компонент.
+class VHeroPanel extends StatelessWidget {
+  final Widget child;
+  final BorderRadius borderRadius;
+
+  const VHeroPanel({
+    super.key,
+    required this.child,
+    this.borderRadius = const BorderRadius.all(Radius.circular(22)),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.55),
+            offset: const Offset(0, 24),
+            blurRadius: 60,
+            spreadRadius: -20,
+          ),
+        ],
+        // Подсветка primary из правого верхнего угла, как в референсе.
+        gradient: const RadialGradient(
+          center: Alignment(1.0, -1.1),
+          radius: 1.6,
+          colors: [VColors.primary, VColors.card],
+          stops: [0.0, 0.6],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          gradient: LinearGradient(
+            begin: Alignment.bottomLeft,
+            end: Alignment.center,
+            colors: [
+              VColors.secondary.withValues(alpha: 0.08),
+              VColors.secondary.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Линия баланса из реальной истории транзакций ([values] — значения от
+/// старых к новым; плоская серия рисуется горизонталью). Нормализация
+/// min-max внутри серии; при плоской серии линия на средней высоте.
+class VSparkline extends StatelessWidget {
+  final List<double> values;
+  final double height;
+
+  const VSparkline({
+    super.key,
+    required this.values,
+    this.height = 120,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _SparklinePainter(values),
+      ),
+    );
+  }
+}
+
+class _SparklinePainter extends CustomPainter {
+  final List<double> values;
+
+  _SparklinePainter(this.values);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final min = values.reduce((a, b) => a < b ? a : b);
+    final max = values.reduce((a, b) => a > b ? a : b);
+    final span = max - min;
+    final n = values.length;
+    double x(int i) =>
+        n == 1 ? size.width : i * size.width / (n - 1);
+    double y(double v) {
+      if (span == 0) return size.height * 0.62;
+      return size.height * 0.92 - (v - min) / span * size.height * 0.84;
+    }
+
+    final line = Path();
+    line.moveTo(x(0), y(values[0]));
+    for (var i = 1; i < n; i++) {
+      line.lineTo(x(i), y(values[i]));
+    }
+
+    final fill = Path.from(line);
+    fill.lineTo(x(n - 1), size.height);
+    fill.lineTo(x(0), size.height);
+    fill.close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          VColors.primary.withValues(alpha: 0.30),
+          VColors.primary.withValues(alpha: 0.0),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(fill, fillPaint);
+
+    final linePaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [VColors.primaryGlow, VColors.primary, VColors.secondary],
+      ).createShader(Offset.zero & size)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(line, linePaint);
+  }
+
+  @override
+  bool shouldRepaint(_SparklinePainter oldDelegate) =>
+      !identical(oldDelegate.values, values) ||
+      oldDelegate.values.length != values.length;
+}
