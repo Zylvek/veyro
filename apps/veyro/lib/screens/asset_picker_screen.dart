@@ -13,7 +13,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
 
-import 'asset_catalog_screen.dart' show AssetMonogram;
+import 'asset_catalog_screen.dart' show CoinIcon;
 import 'btc_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
@@ -202,7 +202,7 @@ class _BtcTile extends StatelessWidget {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: AssetMonogram(asset: asset, radius: 20),
+        leading: CoinIcon(asset: asset, radius: 20),
         title: RichText(
           text: TextSpan(
             children: [
@@ -279,7 +279,7 @@ class _DisabledAssetTile extends StatelessWidget {
             enabled: false,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            leading: AssetMonogram(asset: asset, radius: 20),
+            leading: CoinIcon(asset: asset, radius: 20),
             title: RichText(
               text: TextSpan(
                 children: [

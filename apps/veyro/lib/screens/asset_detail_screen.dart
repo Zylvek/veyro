@@ -21,7 +21,7 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'btc_screen.dart';
-import 'asset_catalog_screen.dart' show AssetMonogram;
+import 'asset_catalog_screen.dart' show CoinIcon;
 
 class AssetDetailScreen extends StatefulWidget {
   final VeyroAsset asset;
@@ -183,7 +183,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
-        AssetMonogram(asset: _asset, radius: 26),
+        CoinIcon(asset: _asset, radius: 26),
         const SizedBox(width: 14),
         Expanded(
           child: Column(

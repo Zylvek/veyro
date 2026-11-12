@@ -16,6 +16,7 @@ import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 
+import 'asset_catalog_screen.dart' show CoinIcon;
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
 import 'portfolio_screen.dart';
@@ -524,17 +525,6 @@ class _AssetAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: VColors.elevated,
-      child: Text(
-        asset.ticker.characters.first,
-        style: const TextStyle(
-          color: VColors.primary,
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
-      ),
-    );
+    return CoinIcon(asset: asset);
   }
 }

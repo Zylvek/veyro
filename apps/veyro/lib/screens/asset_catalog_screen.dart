@@ -404,7 +404,7 @@ class _AssetTile extends StatelessWidget {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: AssetMonogram(asset: asset),
+        leading: CoinIcon(asset: asset),
         title: RichText(
           text: TextSpan(
             children: [
@@ -485,6 +485,39 @@ class AssetMonogram extends StatelessWidget {
           fontSize: radius * 0.62,
           letterSpacing: 0.2,
         ),
+      ),
+    );
+  }
+}
+
+/// Иконки монет, уложенные в билд (``assets/coins/<ticker>.png`` —
+/// официальные логотипы из CoinGecko). Для активов без загруженной
+/// иконки — монограмма-фолбэк выше (спека «Logo or approved fallback»).
+const Set<String> kBundledCoinIcons = {
+  'ALPH', 'BCH', 'BSV', 'BTC', 'CFX', 'DGB', 'ERG', 'ETC', 'ETHW', 'FB',
+  'IRON', 'KAS', 'LTC', 'NEXA', 'OCTA', 'QUAI', 'RVN', 'XEC', 'XEL',
+  'XMR', 'XNA', 'ZEC', 'ZEPH',
+};
+
+class CoinIcon extends StatelessWidget {
+  final VeyroAsset asset;
+  final double radius;
+
+  const CoinIcon({super.key, required this.asset, this.radius = 18});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kBundledCoinIcons.contains(asset.ticker)) {
+      return AssetMonogram(asset: asset, radius: radius);
+    }
+    final size = radius * 2;
+    return ClipOval(
+      child: Image.asset(
+        'assets/coins/${asset.ticker.toLowerCase()}.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => AssetMonogram(asset: asset, radius: radius),
       ),
     );
   }
