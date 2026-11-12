@@ -210,25 +210,22 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
       icon: Icons.badge_outlined,
       title: 'Идентификация',
       children: [
-        kvRow('Тикер (верифицирован)', _asset.ticker, mono: true),
+        kvRow('Тикер', _asset.ticker, mono: true),
         kvRow('Имя', _asset.name),
         kvRow('Сеть', _asset.network),
-        kvRow('Статус', _asset.lifecycle.label),
         kvRow('Реализован в ядре', _asset.implemented ? 'да' : 'нет'),
       ],
     );
   }
 
   Widget _buildStatusCard(BuildContext context) {
-    final lifecycle = _asset.lifecycle;
+    // Владелец: статус-чипы не нужны («зачем писать, если работает»):
+    // осталась только честная заметка о состоянии исследования.
     return VCard(
       icon: Icons.verified_outlined,
-      title: 'Честный статус',
+      title: 'Состояние исследования',
       children: [
-        VStatusChip(lifecycle.label, kind: lifecycle.chipKind),
-        const SizedBox(height: 10),
         Text(_asset.note, style: Theme.of(context).textTheme.bodyMedium),
-
       ],
     );
   }

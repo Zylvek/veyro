@@ -442,23 +442,9 @@ class _AssetTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(asset.network, style: const TextStyle(fontSize: 12)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  VStatusChip(asset.lifecycle.label,
-                      kind: asset.lifecycle.chipKind),
-                ],
-              ),
-            ],
-          ),
+          child: Text(asset.network, style: const TextStyle(fontSize: 12)),
         ),
-        isThreeLine: true,
+        isThreeLine: false,
         trailing: IconButton(
           tooltip: favorite ? 'Убрать из избранного' : 'В избранное',
           icon: Icon(

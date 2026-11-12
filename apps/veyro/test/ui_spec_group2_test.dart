@@ -143,7 +143,9 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Iron Fish');
       await tester.pumpAndSettle();
       expect(tileTitle('Iron Fish'), findsOneWidget);
-      expect(find.text('Заблокировано'), findsOneWidget);
+      // Статус-чипы убраны с плиток каталога (решение владельца: монета
+      // работает — не надо об этом писать; другие — тоже без чипов).
+      expect(find.text('Заблокировано'), findsNothing);
 
       // Сетка фильтров: «Реализованные» оставляет только BTC.
       await tester.enterText(find.byType(TextField), '');
@@ -151,7 +153,7 @@ void main() {
       await tester.tap(find.text('Реализованные'));
       await tester.pumpAndSettle();
       expect(tileTitle('Bitcoin'), findsOneWidget);
-      expect(find.text('Отправка проверена (testnet)'), findsOneWidget);
+      expect(find.text('Отправка проверена (testnet)'), findsNothing);
       // Остальные скрыты: Monero (Researched) не рендерится.
       expect(tileTitle('Monero'), findsNothing);
     });
@@ -354,9 +356,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Iron Fish'), findsNWidgets(2)); // заголовок + kvRow
-      // Статус 'Заблокировано' тоже дважды: чип честного статуса + строка
-      // «Статус» в идентификации (kvRow — SelectableText).
-      expect(find.text('Заблокировано'), findsNWidgets(2));
+      // Статус-чипы убраны с деталей тоже (решение владельца): осталась
+      // только честная заметка о состоянии исследования.
+      expect(find.text('Заблокировано'), findsNothing);
       // Ойкеровские лекции убраны: примечание остаётся, «смысловых»
       // абзацев и паспорта больше нет.
       expect(find.textContaining('Реализация заблокирована'), findsNothing);
