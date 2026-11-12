@@ -1,12 +1,13 @@
-//! Фиатная оценка на Обзоре (мастер-план §13): прямой клиент провайдера
-//! цен без собственного сервера. Курс недоступен — фиатная строка скрыта
-//! (честное отсутствие данных); доступен — «≈ X <ВАЛЮТА>» под суммой
-//! портфеля. Источник курса — [PriceSource] с injectable-загрузчиком:
+//! Фиатная оценка и реальный график курса на Обзоре (мастер-план §13):
+//! прямой клиент провайдера цен без собственного сервера. Курс
+//! недоступен — фиатная строка и график скрыты (честное отсутствие
+//! данных). Источник — [PriceSource] с injectable-загрузчиками:
 //! реальные HTTP-вызовы в тестах не выполняются.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/price_source.dart';
@@ -23,6 +24,7 @@ Widget _dashboard() {
 void _stubPrice(PriceSource source) {
   source.resetRates();
   PriceSource.loader = () async => null;
+  PriceSource.marketLoader = (fiat, days) async => null;
 }
 
 void main() {
@@ -32,6 +34,7 @@ void main() {
   });
   tearDown(() {
     PriceSource.loader = null;
+    PriceSource.marketLoader = null;
     PriceSource.instance.resetRates();
     BtcStateCache.instance.clear();
   });
@@ -82,6 +85,29 @@ void main() {
     });
   });
 
+  group('PriceSource: реальная линия курса (график)', () {
+    test('серия по окну приходит от загрузчика и кэшируется', () async {
+      var calls = 0;
+      PriceSource.marketLoader = (fiat, days) async {
+        calls++;
+        return [1.0, 2.0, 3.0];
+      };
+      final a = await PriceSource.instance.btcMarketSeries('RUB', 30);
+      final b = await PriceSource.instance.btcMarketSeries('rub', 30);
+      expect(a, [1.0, 2.0, 3.0]);
+      expect(b, [1.0, 2.0, 3.0]);
+      expect(calls, 1);
+    });
+
+    test('провайдер не отдал серию → null (график скрыт)', () async {
+      PriceSource.marketLoader = (fiat, days) async => null;
+      expect(
+        await PriceSource.instance.btcMarketSeries('rub', 7),
+        isNull,
+      );
+    });
+  });
+
   group('formatFiat', () {
     test('группы через пробел, два знака, ноль без извращений', () {
       expect(formatFiat(0), '0.00');
@@ -96,6 +122,8 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       PriceSource.loader = () async => {'usd': 65000.0};
+      // Серию курса в этом сценарии провайдер не отдал — графика нет.
+      PriceSource.marketLoader = (fiat, days) async => null;
 
       await tester.pumpWidget(_dashboard());
       await tester.pumpAndSettle();
@@ -122,6 +150,26 @@ void main() {
       expect(find.textContaining('USD'), findsNothing);
       expect(find.text('0'), findsOneWidget); // hero
       expect(find.text('BTC'), findsOneWidget); // суффикс hero
+      // Графика курса без данных нет.
+      expect(find.byType(VSparkline), findsNothing);
+    });
+
+    testWidgets('провайдер отдал серию → реальный график курса на месте',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 2300);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      PriceSource.loader = () async => {'usd': 65000.0};
+      PriceSource.marketLoader = (fiat, days) async =>
+          [100.0, 102.5, 101.0, 105.0];
+
+      await tester.pumpWidget(_dashboard());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(VSparkline), findsOneWidget);
+      // Окна периода на месте, активное — 1М.
+      expect(find.text('1М'), findsOneWidget);
+      expect(find.text('1Д'), findsOneWidget);
     });
   });
 }

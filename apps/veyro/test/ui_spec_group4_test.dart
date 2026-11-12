@@ -185,11 +185,13 @@ void main() {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      // Без сети в тестах: фиатная строка скрыта (честное отсутствие).
+      // Без сети в тестах: фиатная строка и график курса скрыты.
       PriceSource.instance.resetRates();
       PriceSource.loader = () async => null;
+      PriceSource.marketLoader = (fiat, days) async => null;
       addTearDown(() {
         PriceSource.loader = null;
+        PriceSource.marketLoader = null;
         PriceSource.instance.resetRates();
       });
       await tester.pumpWidget(MaterialApp(

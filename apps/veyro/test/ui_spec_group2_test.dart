@@ -185,13 +185,16 @@ void main() {
   });
 
   group('Dashboard (injectable loaders)', () {
-    // Источник цен скрыт (без сети в тестах): фиатная строка отсутствует.
+    // Источник цен скрыт (без сети в тестах): фиатная строка и график
+    // курса отсутствуют.
     setUp(() {
       PriceSource.instance.resetRates();
       PriceSource.loader = () async => null;
+      PriceSource.marketLoader = (fiat, days) async => null;
     });
     tearDown(() {
       PriceSource.loader = null;
+      PriceSource.marketLoader = null;
       PriceSource.instance.resetRates();
     });
 
@@ -219,7 +222,7 @@ void main() {
       expect(find.text('0'), findsOneWidget); // hero; курс в тесте недоступен
       expect(find.text('BTC'), findsWidgets);
       // Линия баланса и окна периода на месте (плоская при пустой истории).
-      expect(find.byType(VSparkline), findsOneWidget);
+      expect(find.byType(VSparkline), findsNothing); // без сети графика нет
       expect(find.text('1М'), findsOneWidget);
       expect(find.textContaining('\$'), findsNothing);
       // Чип сессии с Обзора убран (решение владельца).

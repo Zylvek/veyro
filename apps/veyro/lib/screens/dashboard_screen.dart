@@ -59,22 +59,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
 
-  /// Полная история транзакций — источник линии баланса (только
-  /// реальные записи ядра; нет сессии — нет графика данных, линия
-  /// плоская на уровне текущего баланса).
-  List<BtcHistoryItemDto>? _historyAll;
-
-  /// Активное окно линии баланса (референс: 1D/1W/1M/1Y).
+  /// Активное окно реального графика курса (референс: 1D/1W/1M/1Y).
   String _period = '1М';
 
-  /// Окна period-табов в секундах назад.
-  static const Map<String, Duration> _periodWindows = {
-    '1Д': Duration(days: 1),
-    '1Н': Duration(days: 7),
-    '1М': Duration(days: 30),
-    '1Г': Duration(days: 365),
+  /// Окна period-табов в днях (параметр провайдера цен).
+  static const Map<String, int> _periodDays = {
+    '1Д': 1,
+    '1Н': 7,
+    '1М': 30,
+    '1Г': 365,
   };
 
+  /// Реальная линия курса BTC (валюта отображения) за окно периода —
+  /// от прямого провайдера цен; null — данных нет, график скрыт.
+  List<double>? _marketSeries;
   @override
   void initState() {
     super.initState();
@@ -137,6 +135,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       setState(() => _fiatRate = null);
     }
+    // Реальный график курса за активное окно периода.
+    await _loadMarketSeries();
+  }
+
+  /// Реальная линия курса BTC (прямой провайдер цен) за окно периода;
+  /// ошибки → график скрыт, без выдуманной линии.
+  Future<void> _loadMarketSeries() async {
+    final fiat = DisplayPrefs.fiatCurrency;
+    final days = _periodDays[_period] ?? 30;
+    try {
+      final series = await PriceSource.instance
+          .btcMarketSeries(fiat, days)
+          .timeout(const Duration(seconds: 12));
+      if (!mounted) return;
+      setState(() => _marketSeries = series);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _marketSeries = null);
+    }
   }
 
   /// Последние транзакции — только при активной BTC-сессии; ошибки ядро
@@ -148,10 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? await widget.historyLoader!()
           : await btcHistory();
       if (!mounted) return;
-      setState(() {
-        _historyAll = items;
-        _recent = items.take(3).toList();
-      });
+      setState(() => _recent = items.take(3).toList());
     } catch (e) {
       if (!mounted) return;
       setState(() => _historyError = e.toString());
@@ -320,9 +334,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Hero-карта баланса (референс владельца «Nexus»: большая тёмная
-  /// карта с подсветками) : label, крупная сумма (общая цена в валюте
-  /// отображения; курс недоступен — сумма в BTC), подпись «≈ N BTC»,
-  /// линия баланса из РЕАЛЬНОЙ истории транзакций и окна периода.
+  /// карта с подсветками): label, крупная сумма (общая цена в валюте
+  /// отображения; курс недоступен — сумма в BTC), подпись «≈ N BTC» —
+  /// примерное количество монеты (у референса монета ETH, у кошелька
+  /// BTC), под ними РЕАЛЬНЫЙ график курса валюты за окно периода.
   /// Динамику в процентах не рисуем — данных о ней ядро не отдаёт.
   Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
@@ -387,8 +402,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            VSparkline(values: _chartSeries(balanceSat.toDouble())),
-            const SizedBox(height: 6),
+            // Реальный график курса валюты за окно периода (прямой
+            // провайдер цен); данных нет — линии нет, без выдумок.
+            if (_marketSeries != null && _marketSeries!.length >= 2) ...[
+              VSparkline(values: _marketSeries!),
+              const SizedBox(height: 6),
+            ],
             _buildPeriodTabs(),
           ],
         ),
@@ -396,17 +415,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Вкладки окна линии баланса: 1Д/1Н/1М/1Г (как в референсе).
+  /// Вкладки окна реального графика курса: 1Д/1Н/1М/1Г (как в
+  /// референсе); переключение окна перезагружает серию.
   Widget _buildPeriodTabs() {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final entry in _periodWindows.entries)
+        for (final entry in _periodDays.entries)
           Padding(
             padding: const EdgeInsets.only(right: 4, bottom: 10),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => setState(() => _period = entry.key),
+              onTap: () {
+                if (_period == entry.key) return;
+                setState(() => _period = entry.key);
+                _loadMarketSeries();
+              },
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
@@ -431,51 +455,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
       ],
     );
-  }
-
-  /// Значения линии баланса за окно периода. Время транзакции
-  /// оценивается по высоте блока (~10 минут, якорь — самый свежий блок
-  /// = сейчас); mempool — самые новые. В окне записей нет → плоская
-  /// линия на уровне текущего баланса (честно: вне наблюдений).
-  List<double> _chartSeries(double currentSat) {
-    const samples = 140;
-    final now = DateTime.now();
-    final window = _periodWindows[_period]!;
-    final cutoff = now.subtract(window);
-    final cur = currentSat;
-    final items = _historyAll ?? const <BtcHistoryItemDto>[];
-
-    // (время, дельта сатов): приход − уход (internal = 0).
-    final events = <MapEntry<DateTime, double>>[];
-    final heighted = items.where((it) => it.height >= 1).toList()
-      ..sort((a, b) => b.height.compareTo(a.height));
-    final newest = heighted.isEmpty ? null : heighted.first.height;
-    for (final it in heighted) {
-      final est =
-          now.subtract(Duration(seconds: (newest! - it.height) * 600));
-      if (est.isBefore(cutoff)) continue;
-      events.add(MapEntry(
-        est,
-        (it.receivedSat - it.sentNetSat).toDouble(),
-      ));
-    }
-    for (final it in items.where((it) => it.height < 1)) {
-      events.add(MapEntry(
-        now,
-        (it.receivedSat - it.sentNetSat).toDouble(),
-      ));
-    }
-
-    // Равномерные по времени выборки ступенчатой функции баланса:
-    // баланс в момент s = текущий − Σ дельт событий позже s.
-    return List<double>.generate(samples, (i) {
-      final s = cutoff.add(window * i ~/ (samples - 1));
-      var bal = cur;
-      for (final e in events) {
-        if (e.key.isAfter(s)) bal -= e.value;
-      }
-      return bal;
-    });
   }
 
   /// Реальный подтверждённый баланс BTC из последней синхронизации
