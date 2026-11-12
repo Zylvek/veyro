@@ -190,7 +190,7 @@ void main() {
     setUp(() {
       PriceSource.instance.resetRates();
       PriceSource.loader = () async => null;
-      PriceSource.marketLoader = (fiat, days) async => null;
+      PriceSource.marketLoader = (coinId, fiat, days) async => null;
     });
     tearDown(() {
       PriceSource.loader = null;

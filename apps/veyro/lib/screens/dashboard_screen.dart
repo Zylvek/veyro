@@ -74,9 +74,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     '1Г': 365,
   };
 
-  /// Реальная линия курса BTC (валюта отображения) за окно периода —
-  /// от прямого провайдера цен; null — данных нет, график скрыт.
+  /// Реальная линия курса ЭФИРА (валюта отображения) за окно периода —
+  /// график Обзора по требованию владельца, как в референсе Nexus.
+  /// От прямого провайдера цен; null — данных нет, график скрыт.
   List<MarketPoint>? _marketPoints;
+
   @override
   void initState() {
     super.initState();
@@ -154,14 +156,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _loadMarketSeries();
   }
 
-  /// Реальная линия курса BTC (прямой провайдер цен) за окно периода;
-  /// ошибки → график скрыт, без выдуманной линии.
+  /// Реальная линия курса ЭФИРА (прямой провайдер цен; владелец:
+  /// график — Ethereum, как в референсе) за окно периода; ошибки →
+  /// график скрыт, без выдуманной линии.
   Future<void> _loadMarketSeries() async {
     final fiat = DisplayPrefs.fiatCurrency;
     final days = _periodDays[_period] ?? 30;
     try {
       final series = await PriceSource.instance
-          .btcMarketSeries(fiat, days)
+          .marketSeries('ethereum', fiat, days)
           .timeout(const Duration(seconds: 12));
       if (!mounted) return;
       setState(() => _marketPoints = series);
@@ -378,8 +381,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// отображения; курс недоступен — сумма в BTC) и подпись «≈ N ETH» —
   /// эквивалент суммы в эфире по реальному курсу провайдера, ровно как
   /// в референсе («Total balance → ≈ 7.4211 ETH»). Под ними РЕАЛЬНЫЙ
-  /// график курса валюты за окно периода. Динамику в процентах не
-  /// рисуем — данных о ней ядро не отдаёт.
+  /// график курса ЭФИРА за окно периода (требование владельца). Динамику
+  /// в процентах не рисуем — данных о ней ядро не отдаёт.
   Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
     final balanceSat = _btcBalanceSat();
@@ -445,8 +448,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             const SizedBox(height: 12),
-            // Реальный график курса валюты за окно периода (прямой
-            // провайдер цен), при наведении — цена точки и время.
+            // Реальный график курса ЭФИРА за окно периода (прямой
+            // провайдер цен, как в референсе владельца), при наведении —
+            // цена точки и время.
             if (_seriesPrices != null && _seriesPrices!.length >= 2) ...[
               VSparkline(
                 values: _seriesPrices!,

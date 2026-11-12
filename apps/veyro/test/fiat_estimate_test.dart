@@ -24,7 +24,7 @@ Widget _dashboard() {
 void _stubPrice(PriceSource source) {
   source.resetRates();
   PriceSource.loader = () async => null;
-  PriceSource.marketLoader = (fiat, days) async => null;
+  PriceSource.marketLoader = (coinId, fiat, days) async => null;
 }
 
 void main() {
@@ -92,29 +92,32 @@ void main() {
     });
   });
 
-  group('PriceSource: реальная линия курса (график)', () {
+  group('PriceSource: реальная линия курса (график ЭФИРА)', () {
     test('серия по окну приходит от загрузчика и кэшируется', () async {
       var calls = 0;
-      PriceSource.marketLoader = (fiat, days) async {
+      var requestedCoin = '';
+      PriceSource.marketLoader = (coinId, fiat, days) async {
         calls++;
+        requestedCoin = coinId;
         final t = DateTime.now();
         return [
-          MarketPoint(t.subtract(const Duration(hours: 2)), 100.0),
-          MarketPoint(t, 105.0),
+          MarketPoint(t.subtract(const Duration(hours: 2)), 2800.0),
+          MarketPoint(t, 2900.0),
         ];
       };
-      final a = await PriceSource.instance.btcMarketSeries('RUB', 30);
-      final b = await PriceSource.instance.btcMarketSeries('rub', 30);
+      final a = await PriceSource.instance.marketSeries('ethereum', 'RUB', 30);
+      final b = await PriceSource.instance.marketSeries('ethereum', 'rub', 30);
       expect(a?.length, 2);
-      expect(a?.last.price, 105.0);
+      expect(a?.last.price, 2900.0);
       expect(b?.length, 2);
       expect(calls, 1);
+      expect(requestedCoin, 'ethereum'); // график — эфир, как в референсе
     });
 
     test('провайдер не отдал серию → null (график скрыт)', () async {
-      PriceSource.marketLoader = (fiat, days) async => null;
+      PriceSource.marketLoader = (coinId, fiat, days) async => null;
       expect(
-        await PriceSource.instance.btcMarketSeries('rub', 7),
+        await PriceSource.instance.marketSeries('ethereum', 'rub', 7),
         isNull,
       );
     });
@@ -138,7 +141,7 @@ void main() {
             eth: {'usd': 3200.0},
           );
       // Серию курса в этом сценарии провайдер не отдал — графика нет.
-      PriceSource.marketLoader = (fiat, days) async => null;
+      PriceSource.marketLoader = (coinId, fiat, days) async => null;
 
       await tester.pumpWidget(_dashboard());
       await tester.pumpAndSettle();
@@ -178,7 +181,8 @@ void main() {
       addTearDown(tester.view.reset);
       PriceSource.loader = () async =>
           const FiatRates(btc: {'usd': 65000.0}, eth: {'usd': 3200.0});
-      PriceSource.marketLoader = (fiat, days) async {
+      PriceSource.marketLoader = (coinId, fiat, days) async {
+        if (coinId != 'ethereum') return null; // график — только эфир
         final t = DateTime.now();
         return [
           MarketPoint(t.subtract(const Duration(hours: 40)), 100.0),

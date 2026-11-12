@@ -188,7 +188,7 @@ void main() {
       // Без сети в тестах: фиатная строка и график курса скрыты.
       PriceSource.instance.resetRates();
       PriceSource.loader = () async => null;
-      PriceSource.marketLoader = (fiat, days) async => null;
+      PriceSource.marketLoader = (coinId, fiat, days) async => null;
       addTearDown(() {
         PriceSource.loader = null;
         PriceSource.marketLoader = null;

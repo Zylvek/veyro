@@ -108,17 +108,21 @@ class PriceSource {
 
   // ============================================================
   // Историческая линия курса (реальный график валюты на Обзоре).
+  // По требованию владельца — линия ЭФИРА (как в референсе Nexus),
+  // реальный курс от того же провайдера.
   // ============================================================
 
   /// Точка замены в тестах для исторической серии (без сети).
-  static Future<List<MarketPoint>?> Function(String fiat, int days)?
+  static Future<List<MarketPoint>?> Function(
+          String coinId, String fiat, int days)?
       marketLoader;
 
-  /// Кэш серий по ключу «валюта:окно».
+  /// Кэш серий по ключу «валюта:монета:окно».
   final Map<String, _SeriesEntry> _seriesCache = {};
 
   /// Реальный сетевой загрузчик исторической линии курса.
   static Future<List<MarketPoint>?> httpMarketLoader(
+    String coinId,
     String fiat,
     int days,
   ) async {
@@ -126,7 +130,7 @@ class PriceSource {
     try {
       final request = await client
           .getUrl(Uri.parse(
-              'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart'
+              'https://api.coingecko.com/api/v3/coins/$coinId/market_chart'
               '?vs_currency=${fiat.toLowerCase()}&days=$days'))
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
@@ -157,20 +161,25 @@ class PriceSource {
     }
   }
 
-  /// Реальная линия курса BTC за окно [days] в валюте отображения,
-  /// с метками времени провайдера (для наведения на график).
+  /// Реальная линия курса монеты [coinId] (например, 'ethereum' —
+  /// график на Обзоре, как в референсе) за окно [days] в валюте
+  /// отображения, с метками времени провайдера (для наведения).
   /// Ошибка/нет сети → null (график честно скрыт в UI).
-  Future<List<MarketPoint>?> btcMarketSeries(String fiat, int days) async {
+  Future<List<MarketPoint>?> marketSeries(
+    String coinId,
+    String fiat,
+    int days,
+  ) async {
     final code = fiat.toLowerCase();
     if (!_supported.contains(code)) return null;
-    final key = '$code:$days';
+    final key = '$code:$coinId:$days';
     final entry = _seriesCache[key];
     if (entry != null &&
         DateTime.now().difference(entry.at) <= _maxAge) {
       return entry.values;
     }
     final load = marketLoader ?? httpMarketLoader;
-    final values = await load(code, days);
+    final values = await load(coinId, code, days);
     if (values == null) return null;
     _seriesCache[key] = _SeriesEntry(values, DateTime.now());
     return values;
