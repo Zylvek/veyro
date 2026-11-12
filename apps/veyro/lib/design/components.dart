@@ -637,8 +637,43 @@ class VSparkline extends StatefulWidget {
   State<VSparkline> createState() => _VSparklineState();
 }
 
-class _VSparklineState extends State<VSparkline> {
+class _VSparklineState extends State<VSparkline>
+    with SingleTickerProviderStateMixin {
   int? _hover;
+
+  /// Отрисовка линии «выезжанием» слева направо (как в референсе
+  /// владельца); при смене серии (период 1Д→1Г) прокрут заново.
+  late final AnimationController _draw = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  )..forward();
+
+  static final Animatable<double> _drawCurve =
+      CurveTween(curve: const Cubic(0.3, 0.9, 0.35, 1.0));
+
+  bool _sameAs(List<double> a, List<double> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  void didUpdateWidget(covariant VSparkline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_sameAs(oldWidget.values, widget.values)) {
+      _hover = null;
+      _draw.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _draw.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -648,14 +683,24 @@ class _VSparklineState extends State<VSparkline> {
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, widget.height);
         final hover = _hover;
+        final settled = _draw.status == AnimationStatus.completed;
         return Stack(
           children: [
             SizedBox(
               height: widget.height,
               width: double.infinity,
-              child: CustomPaint(painter: _SparklinePainter(values)),
+              child: AnimatedBuilder(
+                animation: _draw,
+                builder: (context, _) => CustomPaint(
+                  painter: _SparklinePainter(
+                    values,
+                    drawProgress: _drawCurve.evaluate(_draw),
+                  ),
+                ),
+              ),
             ),
-            if (hover != null && hover >= 0 && hover < values.length) ...[
+            // Наведение работает, когда линия полностью отрисована.
+            if (settled && hover != null && hover >= 0 && hover < values.length) ...[
               _cursor(hover, values, size),
               _dot(hover, values, size),
               if (hints != null && hover < hints.length)
@@ -776,25 +821,49 @@ class _VSparklineState extends State<VSparkline> {
 class _SparklinePainter extends CustomPainter {
   final List<double> values;
 
-  _SparklinePainter(this.values);
+  /// Доля отрисованной линии (0..1): «выезжание» слева направо.
+  final double drawProgress;
+
+  _SparklinePainter(this.values, {this.drawProgress = 1.0});
+
+  /// Путь линии до доли [t] длины (последний сегмент интерполируется).
+  Path pathUpTo(Size size, double t) {
+    final path = Path();
+    final n = values.length;
+    final lastF = (n - 1) * t;
+    final full = lastF.floor();
+    var moved = false;
+    for (var i = 0; i <= full && i < n; i++) {
+      final p = VSparkline.pointOf(values, i, size);
+      if (!moved) {
+        path.moveTo(p.x, p.y);
+        moved = true;
+      } else {
+        path.lineTo(p.x, p.y);
+      }
+    }
+    if (full < n - 1) {
+      final frac = lastF - full;
+      final a = VSparkline.pointOf(values, full, size);
+      final b = VSparkline.pointOf(values, full + 1, size);
+      path.lineTo(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac);
+    }
+    return path;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
-    final line = Path();
-    final first = VSparkline.pointOf(values, 0, size);
-    line.moveTo(first.x, first.y);
-    for (var i = 1; i < values.length; i++) {
-      final p = VSparkline.pointOf(values, i, size);
-      line.lineTo(p.x, p.y);
-    }
+    final t = drawProgress.clamp(0.0, 1.0);
+    final line = pathUpTo(size, t);
 
     final fill = Path.from(line);
+    final endX = VSparkline.pointOf(values, values.length - 1, size).x * t;
+    fill.lineTo(endX, size.height);
     fill.lineTo(
-      VSparkline.pointOf(values, values.length - 1, size).x,
+      VSparkline.pointOf(values, 0, size).x,
       size.height,
     );
-    fill.lineTo(first.x, size.height);
     fill.close();
 
     final fillPaint = Paint()
@@ -824,5 +893,6 @@ class _SparklinePainter extends CustomPainter {
   @override
   bool shouldRepaint(_SparklinePainter oldDelegate) =>
       !identical(oldDelegate.values, values) ||
-      oldDelegate.values.length != values.length;
+      oldDelegate.values.length != values.length ||
+      oldDelegate.drawProgress != drawProgress;
 }
