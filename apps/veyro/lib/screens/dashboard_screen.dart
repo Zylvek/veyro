@@ -59,6 +59,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
 
+  /// Курс ETH в валюте отображения — эквивалент в подписи «≈ X ETH»
+  /// (как в референсе владельца). Нет курса — подпись скрыта.
+  double? _ethRate;
+
   /// Активное окно реального графика курса (референс: 1D/1W/1M/1Y).
   String _period = '1М';
 
@@ -122,18 +126,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loading = false;
     });
     await _loadRecent();
-    // Курс BTC в валюте отображения — прямой запрос к провайдеру цен
-    // (без собственного сервера). Ошибка → фиатная строка скрыта.
+    // Курс BTC и ETH в валюте отображения — прямой запрос к провайдеру
+    // цен (без собственного сервера). Ошибка → строки скрыты.
     try {
       final fiat = DisplayPrefs.fiatCurrency;
-      final rate = await PriceSource.instance
+      final source = PriceSource.instance;
+      final rate = await source
           .btcPriceIn(fiat)
           .timeout(const Duration(seconds: 12));
       if (!mounted) return;
-      setState(() => _fiatRate = rate);
+      final ethRate = await source
+          .ethPriceIn(fiat)
+          .timeout(const Duration(seconds: 12));
+      if (!mounted) return;
+      setState(() {
+        _fiatRate = rate;
+        _ethRate = ethRate;
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _fiatRate = null);
+      setState(() {
+        _fiatRate = null;
+        _ethRate = null;
+      });
     }
     // Реальный график курса за активное окно периода.
     await _loadMarketSeries();
@@ -335,10 +350,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Hero-карта баланса (референс владельца «Nexus»: большая тёмная
   /// карта с подсветками): label, крупная сумма (общая цена в валюте
-  /// отображения; курс недоступен — сумма в BTC), подпись «≈ N BTC» —
-  /// примерное количество монеты (у референса монета ETH, у кошелька
-  /// BTC), под ними РЕАЛЬНЫЙ график курса валюты за окно периода.
-  /// Динамику в процентах не рисуем — данных о ней ядро не отдаёт.
+  /// отображения; курс недоступен — сумма в BTC) и подпись «≈ N ETH» —
+  /// эквивалент суммы в эфире по реальному курсу провайдера, ровно как
+  /// в референсе («Total balance → ≈ 7.4211 ETH»). Под ними РЕАЛЬНЫЙ
+  /// график курса валюты за окно периода. Динамику в процентах не
+  /// рисуем — данных о ней ядро не отдаёт.
   Widget _buildBalanceBlock(BuildContext context) {
     final session = _session;
     final balanceSat = _btcBalanceSat();
@@ -391,16 +407,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fontSize: 42,
               ),
             const SizedBox(height: 6),
-            // Подпись-эквивалент, как в референсе (у него $ → ETH).
-            Text(
-              '≈ ${_maskAmount(satToBtcString(balanceSat))} BTC',
-              style: TextStyle(
-                fontFamily: kMonoFont,
-                fontSize: 13,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                color: VColors.textSecondary,
+            // Эквивалент суммы в ETH — как в референсе владельца
+            // («Total balance → ≈ N ETH»); курса ETH нет — строки нет.
+            if (rate != null && _ethRate != null && _ethRate! > 0)
+              Text(
+                '≈ ${_maskAmount((balanceSat / 1e8 * rate / _ethRate!).toStringAsFixed(4))} ETH',
+                style: TextStyle(
+                  fontFamily: kMonoFont,
+                  fontSize: 13,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: VColors.textSecondary,
+                ),
               ),
-            ),
             const SizedBox(height: 12),
             // Реальный график курса валюты за окно периода (прямой
             // провайдер цен); данных нет — линии нет, без выдумок.

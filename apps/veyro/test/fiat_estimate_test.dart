@@ -40,30 +40,34 @@ void main() {
   });
 
   group('PriceSource (injectable loader, без сети)', () {
-    test('курс в выбранной валюте приходит от загрузчика', () async {
+    test('курсы BTC и ETH приходят от загрузчика', () async {
       var calls = 0;
       PriceSource.loader = () async {
         calls++;
-        return {
-          'usd': 65000.0,
-          'eur': 60000.0,
-          'rub': 6200000.0,
-        };
+        return const FiatRates(
+          btc: {'usd': 65000.0, 'eur': 60000.0, 'rub': 6200000.0},
+          eth: {'usd': 3200.0, 'eur': 2900.0, 'rub': 300000.0},
+        );
       };
       final rub = await PriceSource.instance.btcPriceIn('rub');
+      final ethRub = await PriceSource.instance.ethPriceIn('rub');
       expect(rub, 6200000.0);
-      expect(calls, 1);
+      expect(ethRub, 300000.0);
+      expect(calls, 1); // обе монеты — одним запросом
     });
 
     test('кэш 5 минут: повторный запрос не бьёт по сети', () async {
       var calls = 0;
       PriceSource.loader = () async {
         calls++;
-        return {'rub': 6200000.0};
+        return const FiatRates(
+          btc: {'rub': 6200000.0},
+          eth: {'rub': 300000.0},
+        );
       };
       await PriceSource.instance.btcPriceIn('rub');
-      final second = await PriceSource.instance.btcPriceIn('RUB');
-      expect(second, 6200000.0);
+      final second = await PriceSource.instance.ethPriceIn('RUB');
+      expect(second, 300000.0);
       expect(calls, 1);
     });
 
@@ -71,7 +75,10 @@ void main() {
       var calls = 0;
       PriceSource.loader = () async {
         calls++;
-        return {'rub': 6200000.0};
+        return const FiatRates(
+          btc: {'rub': 6200000.0},
+          eth: {'rub': 300000.0},
+        );
       };
       final cny = await PriceSource.instance.btcPriceIn('cny');
       expect(cny, isNull);
@@ -117,11 +124,14 @@ void main() {
   });
 
   group('Обзор: общая цена валют — одно число', () {
-    testWidgets('курс доступен → сумма в валюте отображения', (tester) async {
+    testWidgets('курс доступен → сумма и эквивалент в ETH', (tester) async {
       tester.view.physicalSize = const Size(800, 2300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      PriceSource.loader = () async => {'usd': 65000.0};
+      PriceSource.loader = () async => const FiatRates(
+            btc: {'usd': 65000.0},
+            eth: {'usd': 3200.0},
+          );
       // Серию курса в этом сценарии провайдер не отдал — графика нет.
       PriceSource.marketLoader = (fiat, days) async => null;
 
@@ -132,7 +142,8 @@ void main() {
       // 0 BTC → общая цена 0.00 USD. Показана в hero и у плитки.
       expect(find.text('0.00'), findsNWidgets(2));
       expect(find.text('USD'), findsNWidgets(2));
-      expect(find.textContaining('≈ 0.00'), findsNothing); // без дублей под числом
+      // Эквивалент суммы в ETH — 0/3200 → «≈ 0.0000 ETH», как в референсе.
+      expect(find.text('≈ 0.0000 ETH'), findsOneWidget);
     });
 
     testWidgets('курса нет (нет сети) → честный BTC, без фиата', (tester) async {
@@ -146,8 +157,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Никаких выдуманных оценок: курса нет → сумма в BTC (нуль),
-      // трейлинг плитки пуст.
+      // трейлинг плитки пуст, эквивалент ETH скрыт.
       expect(find.textContaining('USD'), findsNothing);
+      expect(find.textContaining('ETH'), findsNothing);
       expect(find.text('0'), findsOneWidget); // hero
       expect(find.text('BTC'), findsOneWidget); // суффикс hero
       // Графика курса без данных нет.
@@ -159,7 +171,8 @@ void main() {
       tester.view.physicalSize = const Size(800, 2300);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      PriceSource.loader = () async => {'usd': 65000.0};
+      PriceSource.loader = () async =>
+          const FiatRates(btc: {'usd': 65000.0}, eth: {'usd': 3200.0});
       PriceSource.marketLoader = (fiat, days) async =>
           [100.0, 102.5, 101.0, 105.0];
 

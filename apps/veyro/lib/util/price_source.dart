@@ -1,35 +1,46 @@
 //! Источник фиатных цен — прямой клиент CoinGecko (мастер-план §13:
 //! «Price requests must go directly from the client to the selected
-//! provider», никакого своего бэкенда). Цены BTC в выбранной валюте
-//! отображения; кэш в памяти с ограничением свежести. Ошибка/нет сети →
-//! null (честное отсутствие курса, UI скрывает фиатную строку).
+//! provider», никакого своего бэкенда). Цены BTC и ETH в выбранной
+//! валюте отображения тем же запросом; кэш в памяти с ограничением
+//! свежести. Ошибка/нет сети → null (честное отсутствие курса, UI
+//! скрывает фиатные строки).
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-/// Кэш курса + загрузчик. Точка замены для тестов — [loader].
+/// Курс BTC и ETH по валютам отображения — ответ провайдера одним
+/// запросом (ids=bitcoin,ethereum).
+class FiatRates {
+  final Map<String, double> btc;
+  final Map<String, double> eth;
+
+  const FiatRates({required this.btc, required this.eth});
+}
+
+/// Кэш курсов + загрузчик. Точки замены для тестов — [loader] и
+/// [marketLoader].
 class PriceSource {
-  Map<String, double>? _btcRates; // usd/eur/gbp/rub
+  FiatRates? _rates;
   DateTime? _at;
 
   PriceSource._();
   static final PriceSource instance = PriceSource._();
 
   /// Точка замены в тестах (реальный HTTP не вызывается).
-  static Future<Map<String, double>?> Function()? loader;
+  static Future<FiatRates?> Function()? loader;
 
   static const Duration _maxAge = Duration(minutes: 5);
 
-  /// Реальный сетевой загрузчик: один запрос на все валюты сразу.
-  static Future<Map<String, double>?> httpLoader() async {
+  /// Реальный сетевой загрузчик: один запрос на все валюты и обе монеты.
+  static Future<FiatRates?> httpLoader() async {
     final client = HttpClient();
     try {
       final request = await client
           .getUrl(Uri.parse(
               'https://api.coingecko.com/api/v3/simple/price'
-              '?ids=bitcoin&vs_currencies=usd,eur,gbp,rub'))
+              '?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp,rub'))
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
             const Duration(seconds: 10),
@@ -37,12 +48,16 @@ class PriceSource {
       if (response.statusCode != 200) return null;
       final body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
-      final bitcoin = json['bitcoin'] as Map<String, dynamic>?;
-      if (bitcoin == null) return null;
-      return {
-        for (final currency in const ['usd', 'eur', 'gbp', 'rub'])
-          currency: (bitcoin[currency] as num).toDouble(),
-      };
+      Map<String, double> parse(String coin) {
+        final map = json[coin] as Map<String, dynamic>?;
+        if (map == null) return {};
+        return {
+          for (final currency in const ['usd', 'eur', 'gbp', 'rub'])
+            if (map[currency] is num) currency: (map[currency] as num).toDouble(),
+        };
+      }
+
+      return FiatRates(btc: parse('bitcoin'), eth: parse('ethereum'));
     } catch (_) {
       return null;
     } finally {
@@ -50,30 +65,41 @@ class PriceSource {
     }
   }
 
-  /// Курс BTC в данной валюте отображения (валюта — usd/eur/gbp/rub).
+  /// Курс BTC в валюте отображения (usd/eur/gbp/rub).
   Future<double?> btcPriceIn(String fiat) async {
+    final rates = await _freshRates(fiat);
+    return rates?.btc[fiat.toLowerCase()];
+  }
+
+  /// Курс ETH в валюте отображения — тот же запрос, что и для BTC.
+  Future<double?> ethPriceIn(String fiat) async {
+    final rates = await _freshRates(fiat);
+    return rates?.eth[fiat.toLowerCase()];
+  }
+
+  Future<FiatRates?> _freshRates(String fiat) async {
     final code = fiat.toLowerCase();
     if (!_supported.contains(code)) return null;
     final at = _at;
-    final cached = _btcRates;
+    final cached = _rates;
     if (cached != null &&
         at != null &&
         DateTime.now().difference(at) <= _maxAge) {
-      return cached[code];
+      return cached;
     }
     final load = loader ?? httpLoader;
     final rates = await load();
     if (rates == null) return null;
-    _btcRates = rates;
+    _rates = rates;
     _at = DateTime.now();
-    return rates[code];
+    return rates;
   }
 
   /// Сброс кэша курса — для тестов, чтобы результаты не перетекали
   /// между сценариями.
   @visibleForTesting
   void resetRates() {
-    _btcRates = null;
+    _rates = null;
     _at = null;
     _seriesCache.clear();
   }
