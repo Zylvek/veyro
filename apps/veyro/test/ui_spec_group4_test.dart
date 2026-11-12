@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/lock_screen.dart';
-import 'package:veyro/screens/network_settings_screen.dart';
 import 'package:veyro/screens/portfolio_screen.dart';
 import 'package:veyro/screens/settings_screen.dart';
 import 'package:veyro/screens/wallets_screen.dart';
@@ -69,9 +68,8 @@ void main() {
 
       expect(find.text('BTC заблокирован: ключи сессии не загружены'),
           findsOneWidget);
-      expect(find.text('Настройки сети'), findsOneWidget);
-      expect(find.textContaining('Смена сервера применяется'),
-          findsOneWidget);
+      // Выбор сети/сервера убран из Настроек: подбор автоматический.
+      expect(find.text('Настройки сети'), findsNothing);
       // Реальная версия схемы — честное число из ядра.
       expect(find.textContaining('Схема БД настроек'), findsOneWidget);
       expect(find.text('12'), findsWidgets);
@@ -117,18 +115,6 @@ void main() {
         schemaLoader: () async => throw Exception('db unavailable'),
       );
       expect(find.textContaining('не прочитано'), findsWidgets);
-    });
-
-    testWidgets('переход к экрану сети (21) выполняется', (tester) async {
-      await pumpSettings(
-        tester,
-        sessionLoader: () async => null,
-        schemaLoader: () async => 12,
-      );
-      await tester.tap(find.text('Настройки сети'));
-      await tester.pumpAndSettle();
-      // NetworkSettingsScreen сам честно ловит недоступность БД в тесте.
-      expect(find.byType(NetworkSettingsScreen), findsOneWidget);
     });
   });
 

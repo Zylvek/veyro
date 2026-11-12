@@ -21,7 +21,6 @@ import 'package:veyro/util/ui_helpers.dart';
 
 import 'about_screen.dart';
 import 'backup_screen.dart';
-import 'network_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   /// Точка замены для тестов: версия схемы БД настроек.
@@ -237,21 +236,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 .bodySmall!
                 .copyWith(color: VColors.error),
           ),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: VButton.secondary(
-            'Настройки сети',
-            icon: Icons.public_outlined,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const NetworkSettingsScreen(),
-              ));
-            },
-          ),
-        ),
         Text(
-          'Смена сервера применяется к следующей разблокировке BTC.',
+          'Сеть и сервер выбираются автоматически: при каждом входе '
+          'ядро подключается к самому быстрому живому серверу.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

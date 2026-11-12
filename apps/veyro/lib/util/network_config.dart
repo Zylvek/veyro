@@ -74,11 +74,14 @@ class BtcNetworkSettings {
   const BtcNetworkSettings({required this.networkCode, required this.serverUrl});
 }
 
-/// Сеть из настроек. Значение по умолчанию — testnet3 (код 1).
+/// Сеть из настроек. Значение по умолчанию — mainnet (код 0),
+/// решениевладельца: сеть выбирается автоматически, никакого
+/// ручного testnet-переключения. Genesis-проверка ядра при unlock
+/// защищает от сервера чужой сети.
 Future<int> loadNetworkCode() async {
   final raw = await dbGetSetting(key: keyNetworkCode);
   final code = raw == null ? null : int.tryParse(raw);
-  if (code == null || BtcNetworkChoice.byCode(code) == null) return 1;
+  if (code == null || BtcNetworkChoice.byCode(code) == null) return 0;
   return code;
 }
 

@@ -15,6 +15,7 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/server_probe.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
@@ -144,12 +145,16 @@ class _LockScreenState extends State<LockScreen> {
       } else {
         final settings = await loadSettings();
         if (!mounted) return;
+        // Автоподбор лучшего живого сервера (решение владельца):
+        // короткий пинг кандидатов, самый быстрый — подключаемся к нему.
+        final best = await probeBestServer(settings.networkCode)
+            .timeout(const Duration(seconds: 5), onTimeout: () => null);
         await btcUnlock(
           walletsDir: walletsDir(),
           walletId: _wallet!.id,
           password: password,
           networkCode: settings.networkCode,
-          serverUrl: settings.serverUrl,
+          serverUrl: best ?? settings.serverUrl,
         );
       }
       if (!mounted) return;

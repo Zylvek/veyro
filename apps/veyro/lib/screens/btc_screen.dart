@@ -16,7 +16,6 @@ import 'package:veyro/util/ui_helpers.dart';
 
 import 'addresses_screen.dart';
 import 'history_screen.dart';
-import 'network_settings_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 
@@ -210,16 +209,14 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _openNetworkSettings() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const NetworkSettingsScreen(),
+    // Выбор сети/сервера убран (решение владельца): сервер подбирается
+    // автоматически при входе. Кнопки сети больше никуда не ведут.
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text(
+          'Сеть и сервер выбираются автоматически — ничего настраивать '
+          'не нужно.'),
     ));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Настройки сети применяются к следующему unlock. Чтобы сменить '
-            'сеть сейчас — заблокируйте BTC и откройте заново.'),
-      ));
-    }
   }
 
   @override
