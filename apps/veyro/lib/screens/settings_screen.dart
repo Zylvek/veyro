@@ -130,8 +130,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               _buildGeneral(context),
               const SizedBox(height: 12),
-              _buildNetwork(context),
-              const SizedBox(height: 12),
               _buildSecurity(context),
               const SizedBox(height: 12),
               _buildIntegrity(context),
@@ -208,40 +206,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
             ],
-    );
-  }
-
-  Widget _buildNetwork(BuildContext context) {
-    final session = _session;
-    return VCard(
-      title: 'Сеть',
-      icon: Icons.lan_outlined,
-      children: [
-        if (session != null) ...[
-          kvRow('BTC-сеть', ruNetworkText(session.networkDisplay) ?? '—'),
-          kvRow('Сервер', session.serverUrl),
-        ] else if (!_sessionChecked)
-          const CircularProgressIndicator(strokeWidth: 2)
-        else
-          Text(
-            'BTC-сессия не активна — используемый сервер и сеть неизвестны '
-            '(разблокируйте BTC в разделе «Кошельки»).',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        if (_sessionError != null)
-          Text(
-            'Состояние сессии не прочитано: $_sessionError',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
-                .copyWith(color: VColors.error),
-          ),
-        Text(
-          'Сеть и сервер выбираются автоматически: при каждом входе '
-          'ядро подключается к самому быстрому живому серверу.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
     );
   }
 
