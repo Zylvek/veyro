@@ -203,15 +203,13 @@ void main() {
       expect(find.text('Активный кошелёк'), findsOneWidget);
       expect(find.text('Основной'), findsOneWidget);
 
-      // Сумма портфеля — только честное отсутствие данных.
+      // Сумма портфеля — честный ноль (решение владельца), не прочерк.
       expect(find.text('Сумма портфеля'), findsOneWidget);
-      expect(find.text('—'), findsOneWidget);
-      expect(find.text('нет данных'), findsOneWidget);
+      expect(find.text('0'), findsNWidgets(2)); // сумма 0 + бал. монеты
+      expect(find.text('BTC'), findsWidgets);
       expect(find.textContaining('\$'), findsNothing);
-
-      // Сеть: сессия не активна → честный чип в верхней панели; карточек
-      // лекций на чистом Обзоре нет.
-      expect(find.text('BTC: сессия не активна'), findsOneWidget);
+      // Чип сессии с Обзора убран (решение владельца).
+      expect(find.text('BTC: сессия не активна'), findsNothing);
       expect(find.textContaining('Сеть'), findsNothing);
       expect(find.text('Последние транзакции'), findsNothing);
 
@@ -263,7 +261,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('BTC: testnet4'), findsOneWidget);
+      // Чип сессии с Обзора убран: сеть/сервер — в центре BTC.
+      expect(find.textContaining('BTC: testnet4'), findsNothing);
       expect(find.text('Есть синхронизированные средства'), findsOneWidget);
       // Реальные суммы истории (formatters, табличные цифры).
       expect(find.text('+0.00015 BTC'), findsOneWidget);
@@ -294,7 +293,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(DisplayPrefs.hideBalances, !initialHide);
       if (!initialHide) {
-        expect(find.text('••••••'), findsOneWidget);
+        expect(find.text('••••••'), findsNWidgets(2)); // блок + плитка BTC
       }
       // Возврат.
       await tester.tap(find.byTooltip(initialHide

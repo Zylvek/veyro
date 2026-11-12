@@ -13,6 +13,7 @@ import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 
@@ -201,7 +202,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// BTC-сессии и переключатель скрытия сумм — в одну строку.
   Widget _buildTopPanel(BuildContext context) {
     final wallets = _wallets ?? const <WalletInfoDto>[];
-    final session = _session;
     return Row(
       children: [
         Expanded(
@@ -239,16 +239,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   'БД настроек недоступна',
                   kind: VChipKind.warning,
                 ),
-              if (session != null)
-                VStatusChip(
-                  'BTC: ${session.networkDisplay}',
-                  kind: VChipKind.success,
-                )
-              else
-                const VStatusChip(
-                  'BTC: сессия не активна',
-                  kind: VChipKind.neutral,
-                ),
               IconButton(
                 tooltip: DisplayPrefs.hideBalances
                     ? 'Показать суммы'
@@ -281,7 +271,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            VAmount(_maskAmount('—'), suffix: 'нет данных', fontSize: 34),
+            // Честный ноль (решение владельца): средств нет/ещё не
+            // синхронизировано — 0 BTC, а не прочерк.
+            VAmount(
+              _maskAmount(satToBtcString(_btcBalanceSat())),
+              suffix: 'BTC',
+              fontSize: 34,
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 8,
@@ -298,6 +294,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ],
     );
+  }
+
+  /// Реальный подтверждённый баланс BTC из последней синхронизации
+  /// (кэш от экрана входа/центра). Данных нет — 0 (решение владельца).
+  int _btcBalanceSat() {
+    final sync = BtcStateCache.instance.take();
+    if (sync == null) return 0;
+    final confirmed = sync.confirmedSat.toInt();
+    final delta = sync.unconfirmedDeltaSat.toInt();
+    return delta < 0 ? confirmed + delta : confirmed;
   }
 
   /// Receive / Send — реальный вход в поток через выбор актива.
@@ -360,6 +366,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildAssetsCard(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
     final wallet = _selected;
+    // Сумма монеты — реальный подтверждённый баланс из последней
+    // синхронизации (кэш; без данных — 0 по решению владельца).
+    final sync = BtcStateCache.instance.take();
+    final btcAmount = _maskAmount(satToBtcString(_btcBalanceSat()));
     return VCard(
       icon: Icons.grid_view_outlined,
       title: 'Активы',
@@ -370,9 +380,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: _AssetAvatar(btc),
             title: Text('Bitcoin'),
             subtitle: Text('Единственный реализованный адаптер'),
-            trailing: const VStatusChip(
-              'Send supported',
-              kind: VChipKind.success,
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  btcAmount,
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                    color: VColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  'BTC',
+                  style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 11,
+                    color: VColors.textSecondary,
+                  ),
+                ),
+                if (sync != null &&
+                    sync.unconfirmedDeltaSat.toInt() != 0)
+                  Text(
+                    '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} BTC (мемпул)',
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 11,
+                      color: VColors.warning,
+                    ),
+                  ),
+              ],
             ),
             // Тап по BTC → сразу центр управления (решение владельца:
             // никакой промежуточной страницы деталей).
