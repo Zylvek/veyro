@@ -596,26 +596,178 @@ class VHeroPanel extends StatelessWidget {
   }
 }
 
-/// Линия баланса из реальной истории транзакций ([values] — значения от
-/// старых к новым; плоская серия рисуется горизонталью). Нормализация
-/// min-max внутри серии; при плоской серии линия на средней высоте.
-class VSparkline extends StatelessWidget {
+/// Линия реального курса ([values] — цены от старых к новым, [hints] —
+/// подписи точек для наведения, той же длины; плоская серия рисуется
+/// горизонталью). Наведение (как в референсе владельца): вертикальный
+/// курсор, точка и подпись цены курса.
+class VSparkline extends StatefulWidget {
   final List<double> values;
+  final List<String>? hints;
   final double height;
 
   const VSparkline({
     super.key,
     required this.values,
+    this.hints,
     this.height = 120,
   });
 
+  /// Координаты точки серии внутри отрисовки (используются и painter'ом,
+  /// и hover-оверлеем, чтобы курсор сидел точно на линии).
+  static ({double x, double y}) pointOf(
+    List<double> values,
+    int index,
+    Size size,
+  ) {
+    final min = values.reduce((a, b) => a < b ? a : b);
+    final max = values.reduce((a, b) => a > b ? a : b);
+    final span = max - min;
+    final n = values.length;
+    final x = n == 1 ? size.width : index * size.width / (n - 1);
+    final double y;
+    if (span == 0) {
+      y = size.height * 0.62;
+    } else {
+      y = size.height * 0.92 - (values[index] - min) / span * size.height * 0.84;
+    }
+    return (x: x, y: y);
+  }
+
+  @override
+  State<VSparkline> createState() => _VSparklineState();
+}
+
+class _VSparklineState extends State<VSparkline> {
+  int? _hover;
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: CustomPaint(
-        painter: _SparklinePainter(values),
+    final values = widget.values;
+    final hints = widget.hints;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, widget.height);
+        final hover = _hover;
+        return Stack(
+          children: [
+            SizedBox(
+              height: widget.height,
+              width: double.infinity,
+              child: CustomPaint(painter: _SparklinePainter(values)),
+            ),
+            if (hover != null && hover >= 0 && hover < values.length) ...[
+              _cursor(hover, values, size),
+              _dot(hover, values, size),
+              if (hints != null && hover < hints.length)
+                _tooltip(hover, hints, values, size),
+            ],
+            // Полотно наведения — самый верхний слой.
+            Positioned.fill(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.precise,
+                onHover: (event) {
+                  final n = values.length;
+                  if (n < 2) return;
+                  final i =
+                      ((event.localPosition.dx / size.width) * (n - 1))
+                          .round()
+                          .clamp(0, n - 1);
+                  if (i != _hover) setState(() => _hover = i);
+                },
+                onExit: (_) {
+                  if (_hover != null) setState(() => _hover = null);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Positioned _cursor(int index, List<double> values, Size size) {
+    final p = VSparkline.pointOf(values, index, size);
+    return Positioned(
+      left: p.x - 0.5,
+      top: 0,
+      bottom: 0,
+      width: 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              VColors.primary.withValues(alpha: 0.0),
+              VColors.primary.withValues(alpha: 0.55),
+              VColors.primary.withValues(alpha: 0.0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Positioned _dot(int index, List<double> values, Size size) {
+    final p = VSparkline.pointOf(values, index, size);
+    return Positioned(
+      left: p.x - 5,
+      top: p.y - 5,
+      child: Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+          border: Border.all(color: VColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: VColors.primary.withValues(alpha: 0.45),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Positioned _tooltip(
+    int index,
+    List<String> hints,
+    List<double> values,
+    Size size,
+  ) {
+    final p = VSparkline.pointOf(values, index, size);
+    return Positioned(
+      left: p.x.clamp(52, size.width - 52),
+      top: (p.y - 12).clamp(0, widget.height),
+      child: FractionalTranslation(
+        translation: const Offset(-0.5, -1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: VColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.11)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Text(
+            hints[index],
+            style: const TextStyle(
+              fontFamily: kMonoFont,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: VColors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -629,26 +781,20 @@ class _SparklinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
-    final min = values.reduce((a, b) => a < b ? a : b);
-    final max = values.reduce((a, b) => a > b ? a : b);
-    final span = max - min;
-    final n = values.length;
-    double x(int i) =>
-        n == 1 ? size.width : i * size.width / (n - 1);
-    double y(double v) {
-      if (span == 0) return size.height * 0.62;
-      return size.height * 0.92 - (v - min) / span * size.height * 0.84;
-    }
-
     final line = Path();
-    line.moveTo(x(0), y(values[0]));
-    for (var i = 1; i < n; i++) {
-      line.lineTo(x(i), y(values[i]));
+    final first = VSparkline.pointOf(values, 0, size);
+    line.moveTo(first.x, first.y);
+    for (var i = 1; i < values.length; i++) {
+      final p = VSparkline.pointOf(values, i, size);
+      line.lineTo(p.x, p.y);
     }
 
     final fill = Path.from(line);
-    fill.lineTo(x(n - 1), size.height);
-    fill.lineTo(x(0), size.height);
+    fill.lineTo(
+      VSparkline.pointOf(values, values.length - 1, size).x,
+      size.height,
+    );
+    fill.lineTo(first.x, size.height);
     fill.close();
 
     final fillPaint = Paint()

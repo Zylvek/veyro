@@ -111,14 +111,14 @@ class PriceSource {
   // ============================================================
 
   /// Точка замены в тестах для исторической серии (без сети).
-  static Future<List<double>?> Function(String fiat, int days)?
+  static Future<List<MarketPoint>?> Function(String fiat, int days)?
       marketLoader;
 
   /// Кэш серий по ключу «валюта:окно».
   final Map<String, _SeriesEntry> _seriesCache = {};
 
   /// Реальный сетевой загрузчик исторической линии курса.
-  static Future<List<double>?> httpMarketLoader(
+  static Future<List<MarketPoint>?> httpMarketLoader(
     String fiat,
     int days,
   ) async {
@@ -137,10 +137,19 @@ class PriceSource {
       final json = jsonDecode(body) as Map<String, dynamic>;
       final prices = json['prices'] as List?;
       if (prices == null) return null;
-      return [
-        for (final point in prices)
-          double.parse((point as List)[1].toString()),
-      ];
+      final points = <MarketPoint>[];
+      for (final point in prices) {
+        final list = point as List;
+        final ts = list[0];
+        final price = list[1];
+        if (ts is num && price is num) {
+          points.add(MarketPoint(
+            DateTime.fromMillisecondsSinceEpoch(ts.toInt()),
+            price.toDouble(),
+          ));
+        }
+      }
+      return points;
     } catch (_) {
       return null;
     } finally {
@@ -148,9 +157,10 @@ class PriceSource {
     }
   }
 
-  /// Реальная линия курса BTC за окно [days] в валюте отображения.
+  /// Реальная линия курса BTC за окно [days] в валюте отображения,
+  /// с метками времени провайдера (для наведения на график).
   /// Ошибка/нет сети → null (график честно скрыт в UI).
-  Future<List<double>?> btcMarketSeries(String fiat, int days) async {
+  Future<List<MarketPoint>?> btcMarketSeries(String fiat, int days) async {
     final code = fiat.toLowerCase();
     if (!_supported.contains(code)) return null;
     final key = '$code:$days';
@@ -167,8 +177,16 @@ class PriceSource {
   }
 }
 
+/// Точка реального курса: метка времени провайдера + цена.
+class MarketPoint {
+  final DateTime time;
+  final double price;
+
+  const MarketPoint(this.time, this.price);
+}
+
 class _SeriesEntry {
-  final List<double> values;
+  final List<MarketPoint> values;
   final DateTime at;
 
   const _SeriesEntry(this.values, this.at);

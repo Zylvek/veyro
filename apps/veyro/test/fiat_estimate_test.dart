@@ -97,12 +97,17 @@ void main() {
       var calls = 0;
       PriceSource.marketLoader = (fiat, days) async {
         calls++;
-        return [1.0, 2.0, 3.0];
+        final t = DateTime.now();
+        return [
+          MarketPoint(t.subtract(const Duration(hours: 2)), 100.0),
+          MarketPoint(t, 105.0),
+        ];
       };
       final a = await PriceSource.instance.btcMarketSeries('RUB', 30);
       final b = await PriceSource.instance.btcMarketSeries('rub', 30);
-      expect(a, [1.0, 2.0, 3.0]);
-      expect(b, [1.0, 2.0, 3.0]);
+      expect(a?.length, 2);
+      expect(a?.last.price, 105.0);
+      expect(b?.length, 2);
       expect(calls, 1);
     });
 
@@ -173,8 +178,14 @@ void main() {
       addTearDown(tester.view.reset);
       PriceSource.loader = () async =>
           const FiatRates(btc: {'usd': 65000.0}, eth: {'usd': 3200.0});
-      PriceSource.marketLoader = (fiat, days) async =>
-          [100.0, 102.5, 101.0, 105.0];
+      PriceSource.marketLoader = (fiat, days) async {
+        final t = DateTime.now();
+        return [
+          MarketPoint(t.subtract(const Duration(hours: 40)), 100.0),
+          MarketPoint(t.subtract(const Duration(hours: 20)), 102.5),
+          MarketPoint(t, 105.0),
+        ];
+      };
 
       await tester.pumpWidget(_dashboard());
       await tester.pumpAndSettle();

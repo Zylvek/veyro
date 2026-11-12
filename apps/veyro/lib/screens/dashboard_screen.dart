@@ -76,7 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Реальная линия курса BTC (валюта отображения) за окно периода —
   /// от прямого провайдера цен; null — данных нет, график скрыт.
-  List<double>? _marketSeries;
+  List<MarketPoint>? _marketPoints;
   @override
   void initState() {
     super.initState();
@@ -164,11 +164,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .btcMarketSeries(fiat, days)
           .timeout(const Duration(seconds: 12));
       if (!mounted) return;
-      setState(() => _marketSeries = series);
+      setState(() => _marketPoints = series);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _marketSeries = null);
+      setState(() => _marketPoints = null);
     }
+  }
+
+  /// Цены серии для линии.
+  List<double>? get _seriesPrices =>
+      _marketPoints?.map((p) => p.price).toList();
+
+  /// Подписи точек для наведения: «цена · время» (реальные данные
+  /// провайдера; окно до суток → только часы:минуты, длинные → дата).
+  List<String>? get _seriesHints {
+    final points = _marketPoints;
+    if (points == null || points.isEmpty) return null;
+    final compact =
+        points.last.time.difference(points.first.time).inHours <= 34;
+    return [for (final p in points) _marketLabel(p, compact)];
+  }
+
+  String _marketLabel(MarketPoint point, bool compact) {
+    String pad(int v) => v.toString().padLeft(2, '0');
+    final t = point.time;
+    final currency = DisplayPrefs.fiatCurrency.toUpperCase();
+    final price = '${formatFiat(point.price)} $currency';
+    final time = compact
+        ? '${pad(t.hour)}:${pad(t.minute)}'
+        : '${pad(t.day)}.${pad(t.month)}';
+    return '$price · $time';
   }
 
   /// Последние транзакции — только при активной BTC-сессии; ошибки ядро
@@ -421,9 +446,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             const SizedBox(height: 12),
             // Реальный график курса валюты за окно периода (прямой
-            // провайдер цен); данных нет — линии нет, без выдумок.
-            if (_marketSeries != null && _marketSeries!.length >= 2) ...[
-              VSparkline(values: _marketSeries!),
+            // провайдер цен), при наведении — цена точки и время.
+            if (_seriesPrices != null && _seriesPrices!.length >= 2) ...[
+              VSparkline(
+                values: _seriesPrices!,
+                hints: _seriesHints,
+              ),
               const SizedBox(height: 6),
             ],
             _buildPeriodTabs(),
@@ -619,22 +647,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRecentCard(BuildContext context) {
     final recent = _recent;
-    // Без активной сессии истории нет и карточки нет (состояние сессии
-    // уже показывает чип «Итого»); без лекций на Обзоре.
-    if (_session == null) return const SizedBox.shrink();
+    // Без активной сессии — истории нет и карточки нет (состояние
+    // сессии уже видно в центре BTC). Ошибка ядра (нет просканированных
+    // адресов до btc_sync) — сырым текстом на Обзоре не сыпем:
+    // Обзор остаётся спокойным, диагностика — в центре BTC.
+    if (_session == null || _historyError != null) {
+      return const SizedBox.shrink();
+    }
     return VCard(
       icon: Icons.receipt_long_outlined,
       title: 'Последние транзакции',
       children: [
-        if (_historyError != null)
-          Text(
-            'Ядро вернуло ошибку истории: $_historyError',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium!
-                .copyWith(color: VColors.error),
-          )
-        else if (recent == null)
+        if (recent == null)
           const Padding(
             padding: EdgeInsets.all(8),
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
