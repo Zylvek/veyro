@@ -6,9 +6,11 @@
 //! после явной синхронизации пользователем. Избранное — реальное
 //! (DisplayPrefs → SQLite-настройки).
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:typed_data';
 
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
@@ -568,21 +570,40 @@ class CoinIcon extends StatefulWidget {
 }
 
 class _CoinIconState extends State<CoinIcon> {
+  /// Кэш текстов бандл-SVG (одна загрузка за процесс).
+  static final Map<String, String> _svgCache = <String, String>{};
+
   bool get _hasVector =>
       kBundledCoinVectorIcons.contains(widget.asset.ticker);
 
-  Uint8List? _svg;
+  String? _svg;
 
   @override
   void initState() {
     super.initState();
-    // Сеть — только для монет, которых нет в билде (будущие интеграции);
-    // результат кэшируется сервисом и не дёргает сеть повторно.
-    if (!_hasVector &&
-        !kBundledCoinIcons.contains(widget.asset.ticker)) {
+    _prepare();
+  }
+
+  Future<void> _prepare() async {
+    // 1) Бандл-SVG: текст читается один раз за процесс, рисуется
+    // векторно через SvgPicture.string (сырой SVG).
+    if (_hasVector) {
+      final key = widget.asset.ticker.toUpperCase();
+      if (!_svgCache.containsKey(key)) {
+        try {
+          _svgCache[key] = await rootBundle
+              .loadString('assets/coins/${key.toLowerCase()}.svg');
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() => _svg = _svgCache[key]);
+      return;
+    }
+    // 2) Сеть (Iconify) — только для монет вне билда; кэш сервиса.
+    if (!kBundledCoinIcons.contains(widget.asset.ticker)) {
       CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
         if (!mounted || bytes == null) return;
-        setState(() => _svg = bytes);
+        setState(() => _svg = utf8.decode(bytes));
       });
     }
   }
@@ -590,11 +611,12 @@ class _CoinIconState extends State<CoinIcon> {
   @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
-    // 1) Бандл-SVG с Kryptex: правильный свежий логотип, вектор.
-    if (_hasVector) {
+    // 1) Настоящий вектор (Kryptex / Iconify).
+    final svg = _svg;
+    if (svg != null) {
       return ClipOval(
-        child: SvgPicture.asset(
-          'assets/coins/${widget.asset.ticker.toLowerCase()}.svg',
+        child: SvgPicture.string(
+          svg,
           width: size,
           height: size,
           fit: BoxFit.cover,
@@ -602,18 +624,7 @@ class _CoinIconState extends State<CoinIcon> {
         ),
       );
     }
-    // 2) Iconify (скачанный в память/диск кэш).
-    if (_svg != null) {
-      return ClipOval(
-        child: SvgPicture.memory(
-          _svg!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-    // 3) Пока грузится / сети нет — bundle-PNG, затем монограмма.
+    // 2) Пока SVG читается / не получился — bundle-PNG, затем монограмма.
     return _pngOrMonogram(size);
   }
 
