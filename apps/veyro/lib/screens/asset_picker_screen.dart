@@ -188,7 +188,7 @@ class _BtcTile extends StatelessWidget {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: CoinIcon(asset: asset, radius: 20),
+        leading: CoinIcon(asset: asset, radius: 20, key: ValueKey(asset.ticker)),
         title: RichText(
           text: TextSpan(
             children: [
@@ -265,7 +265,7 @@ class _DisabledAssetTile extends StatelessWidget {
             enabled: false,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            leading: CoinIcon(asset: asset, radius: 20),
+            leading: CoinIcon(asset: asset, radius: 20, key: ValueKey(asset.ticker)),
             title: RichText(
               text: TextSpan(
                 children: [

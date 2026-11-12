@@ -781,6 +781,6 @@ class _AssetAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CoinIcon(asset: asset);
+    return CoinIcon(asset: asset, key: ValueKey(asset.ticker));
   }
 }

@@ -451,7 +451,7 @@ class _AssetTile extends StatelessWidget {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: CoinIcon(asset: asset),
+        leading: CoinIcon(asset: asset, key: ValueKey(asset.ticker)),
         title: RichText(
           text: TextSpan(
             children: [
@@ -579,10 +579,27 @@ class _CoinIconState extends State<CoinIcon> {
 
   String? _svg;
 
+  String? _assetTicker;
+
   @override
   void initState() {
     super.initState();
+    _assetTicker = widget.asset.ticker;
     _prepare();
+  }
+
+  @override
+  void didUpdateWidget(covariant CoinIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Важное: списки (поиск/фильтр) переиспользуют state-виджеты ПО
+    // ПОЗИЦИИ — без этого у новой монеты на месте оставался значок
+    // прежней («иконки привязаны к месту в списке», реплика владельца).
+    // Смена монеты на месте → значок перезагружается по её тикеру.
+    if (_assetTicker != widget.asset.ticker) {
+      _assetTicker = widget.asset.ticker;
+      _svg = null;
+      _prepare();
+    }
   }
 
   Future<void> _prepare() async {
