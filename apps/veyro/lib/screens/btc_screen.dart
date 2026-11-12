@@ -91,7 +91,7 @@ class _BtcScreenState extends State<BtcScreen> {
 
     final password = await promptPassword(
       context,
-      title: 'Разблокировать BTC',
+      title: 'Разблокировать BTC — «${widget.info.name}»',
       confirmLabel: 'Подключиться',
     );
     if (password == null || !mounted) return;
@@ -113,8 +113,16 @@ class _BtcScreenState extends State<BtcScreen> {
       await _doSync();
     } catch (e) {
       if (!mounted) return;
+      final raw = e.toString();
+      // vault даёт generic-ошибку расшифровки: добавляем честную подсказку
+      // (частый случай — пароль другого из нескольких кошельков).
+      final hint = raw.contains('decryption failed')
+          ? '$e\n\nПохоже, это пароль другого кошелька. Пароль — от '
+              '«${widget.info.name}»; при забытых паролях паре кошельков '
+              'переключите кошелёк на Обзоре.'
+          : e.toString();
       setState(() {
-        _error = e.toString();
+        _error = hint;
         _busy = false;
       });
     }
@@ -228,6 +236,11 @@ class _BtcScreenState extends State<BtcScreen> {
                       const Text(
                         'Подключение к Electrum-серверу выбранной сети.',
                         style: TextStyle(color: Colors.white60),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Кошелёк: «${widget.info.name}»',
+                        style: const TextStyle(color: Colors.white38, fontSize: 12),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
