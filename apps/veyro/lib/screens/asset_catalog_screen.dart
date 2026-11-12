@@ -544,8 +544,10 @@ const Set<String> kBundledCoinIcons = {
   'XMR', 'XNA', 'ZEC', 'ZEPH',
 };
 
-/// Значок монеты: bundle-иконка (официальный логотип, оффлайн) →
-/// Iconify API (цветная крипто-иконка, решает владелец) → монограмма.
+/// Значок монеты: настоящий Vector-SVG с Iconify API (решение
+/// владельца: «желательно вообще использовать .svg» — PNG-иконки были
+/// мутными) → пока SVG не загрузился и нет сети: bundle-PNG → если и
+/// его нет (моном), монограмма.
 class CoinIcon extends StatefulWidget {
   final VeyroAsset asset;
   final double radius;
@@ -562,18 +564,30 @@ class _CoinIconState extends State<CoinIcon> {
   @override
   void initState() {
     super.initState();
-    if (!kBundledCoinIcons.contains(widget.asset.ticker)) {
-      CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
-        if (!mounted || bytes == null) return;
-        setState(() => _svg = bytes);
-      });
-    }
+    // SVG в приоритете для ВСЕХ монет (вектор = чётко в любом размере);
+    // результат кэшируется сервисом (память/диск) и не дёргает сеть.
+    CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
+      if (!mounted || bytes == null) return;
+      setState(() => _svg = bytes);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
-    // 1) Бандл: официальный логотип из CoinGecko, оффлайн.
+    // 1) Вектор с Iconify — основной значок.
+    final svg = _svg;
+    if (svg != null) {
+      return ClipOval(
+        child: SvgPicture.memory(
+          svg,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    // 2) Пока SVG не загрузился / сети нет — bundle-PNG (оффлайн-фолбэк).
     if (kBundledCoinIcons.contains(widget.asset.ticker)) {
       return ClipOval(
         child: Image.asset(
@@ -586,19 +600,7 @@ class _CoinIconState extends State<CoinIcon> {
         ),
       );
     }
-    // 2) Iconify (настоящая иконка с api.iconify.design). Пока грузится
-    // или иконки нет — 3) монограмма (спека «approved fallback»).
-    final svg = _svg;
-    if (svg != null) {
-      return ClipOval(
-        child: SvgPicture.memory(
-          svg,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
+    // 3) Нет и SVG, и PNG — монограмма («approved fallback»).
     return AssetMonogram(asset: widget.asset, radius: widget.radius);
   }
 }
