@@ -235,8 +235,6 @@ class _BtcScreenState extends State<BtcScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                if (state != null && state.networkCode == 0)
-                  _buildMainnetBanner(context, state),
                 if (_error != null)
                   SectionCard(
                     title: 'Ошибка',
@@ -292,31 +290,6 @@ class _BtcScreenState extends State<BtcScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMainnetBanner(BuildContext context, BtcSessionStateDto state) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade700),
-        color: Colors.red.shade900.withValues(alpha: 0.25),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_outlined, color: Colors.redAccent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Mainnet: здесь реальные средства. Проверьте адрес и сумму '
-              'дважды. Сеть сессии: ${state.networkDisplay}.',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
       ),
     );
   }
