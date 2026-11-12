@@ -96,64 +96,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : await btcSessionState();
 
   Future<void> _refresh() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-      _recent = null;
-      _historyError = null;
-    });
+    final repeat = _loading == false; // повторный refresh (pull-down):
+    // не вешаем полноэкранную загрузку, чтобы карты не мигали.
+    if (!repeat) {
+      setState(() {
+        _loading = true;
+        _error = null;
+        _recent = null;
+        _historyError = null;
+      });
+    }
     await DisplayPrefs.ensureLoaded();
-    final wallets = <WalletInfoDto>[];
-    BtcSessionStateDto? session;
     try {
-      wallets.addAll(await _loadWallets());
-      session = await _loadSession();
+      final wallets = await _loadWallets();
+      final session = await _loadSession();
+      if (!mounted) return;
+      final selected = DisplayPrefs.walletId != null &&
+              wallets.any((w) => w.id == DisplayPrefs.walletId)
+          ? DisplayPrefs.walletId
+          : (wallets.isEmpty ? null : wallets.first.id);
+      // Курсы BTC/ETH и линию курса эфира забираем ДО снятия загрузки,
+      // иначе hero-карта рисуется пустой и «допрыгивает» контентом.
+      double? rate;
+      double? ethRate;
+      List<MarketPoint>? series;
+      try {
+        final fiat = DisplayPrefs.fiatCurrency;
+        final source = PriceSource.instance;
+        rate = await source
+            .btcPriceIn(fiat)
+            .timeout(const Duration(seconds: 12));
+        ethRate = await source
+            .ethPriceIn(fiat)
+            .timeout(const Duration(seconds: 12));
+        series = await PriceSource.instance
+            .marketSeries('ethereum', fiat, _periodDays[_period] ?? 30)
+            .timeout(const Duration(seconds: 12));
+      } catch (_) {
+        // сети нет → честные пустые поля (строки/график скрыты)
+      }
+      if (!mounted) return;
+      setState(() {
+        _wallets = wallets;
+        _selectedId = selected;
+        _session = session;
+        _fiatRate = rate;
+        _ethRate = ethRate;
+        _marketPoints = series;
+        _loading = false;
+      });
+      await _loadRecent();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
       });
-      return;
     }
-    if (!mounted) return;
-    final selected = DisplayPrefs.walletId != null &&
-            wallets.any((w) => w.id == DisplayPrefs.walletId)
-        ? DisplayPrefs.walletId
-        : (wallets.isEmpty ? null : wallets.first.id);
-    setState(() {
-      _wallets = wallets;
-      _selectedId = selected;
-      _session = session;
-      _loading = false;
-    });
-    await _loadRecent();
-    // Курс BTC и ETH в валюте отображения — прямой запрос к провайдеру
-    // цен (без собственного сервера). Ошибка → строки скрыты.
-    try {
-      final fiat = DisplayPrefs.fiatCurrency;
-      final source = PriceSource.instance;
-      final rate = await source
-          .btcPriceIn(fiat)
-          .timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      final ethRate = await source
-          .ethPriceIn(fiat)
-          .timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      setState(() {
-        _fiatRate = rate;
-        _ethRate = ethRate;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _fiatRate = null;
-        _ethRate = null;
-      });
-    }
-    // Реальный график курса за активное окно периода.
-    await _loadMarketSeries();
   }
 
   /// Реальная линия курса ЭФИРА (прямой провайдер цен; владелец:
@@ -448,16 +447,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             const SizedBox(height: 12),
-            // Реальный график курса ЭФИРА за окно периода (прямой
-            // провайдер цен, как в референсе владельца), при наведении —
-            // цена точки и время.
-            if (_seriesPrices != null && _seriesPrices!.length >= 2) ...[
-              VSparkline(
-                values: _seriesPrices!,
-                hints: _seriesHints,
-              ),
-              const SizedBox(height: 6),
-            ],
+            // Резерв высоты под линию курса: карта не «допрыгивает»
+            // контентом, когда серия ещё не дошла или сети нет —
+            // зона просто пуста (выдуманную линию не рисуем).
+            SizedBox(
+              height: 126,
+              width: double.infinity,
+              child: (_seriesPrices != null && _seriesPrices!.length >= 2)
+                  ? VSparkline(
+                      values: _seriesPrices!,
+                      hints: _seriesHints,
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 6),
             _buildPeriodTabs(),
           ],
         ),
