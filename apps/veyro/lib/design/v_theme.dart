@@ -107,15 +107,14 @@ ThemeData buildVeyroTheme() {
     ),
     cardTheme: const CardThemeData(
       elevation: 0,
-      color: VColors.card,
+      color: Colors.transparent, // карточка-стекло рисует VCard (GlassPanel)
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
-        side: BorderSide(color: VColors.elevated),
       ),
     ),
     dialogTheme: const DialogThemeData(
-      backgroundColor: VColors.card,
+      backgroundColor: Color(0xCC14213A), // стеклянный диалог (85% card)
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(20)),
       ),

@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/ambience.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
@@ -110,31 +111,32 @@ class _VeyroShellState extends State<VeyroShell> {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= kShellWideBreakpoint;
-    return wide
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: kSidebarWidth,
-                child: KeyedSubtree(
-                  key: const Key('shell-sidebar'),
-                  // НЕ const: сайдбар обязан перестраиваться при каждом
-                  // переключении раздела, иначе подсветка выбранного
-                  // элемента замерзает на стартовой вкладке.
-                  child: _Sidebar(),
+    return AmbienceSurface(
+      child: wide
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: kSidebarWidth,
+                  child: KeyedSubtree(
+                    key: const Key('shell-sidebar'),
+                    // НЕ const: сайдбар обязан перестраиваться при каждом
+                    // переключении раздела, иначе подсветка выбранного
+                    // элемента замерзает на стартовой вкладке.
+                    child: _Sidebar(),
+                  ),
                 ),
+                Expanded(child: _content()),
+              ],
+            )
+          : Scaffold(
+              body: _content(),
+              bottomNavigationBar: _BottomNav(
+                currentId: _current.id,
+                onSelect: (id) => _selectById(id),
               ),
-              const VerticalDivider(width: 1, color: VColors.elevated),
-              Expanded(child: _content()),
-            ],
-          )
-        : Scaffold(
-            body: _content(),
-            bottomNavigationBar: _BottomNav(
-              currentId: _current.id,
-              onSelect: (id) => _selectById(id),
             ),
-          );
+    );
   }
 
   Widget _content() => KeyedSubtree(
@@ -155,8 +157,10 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = context.findAncestorStateOfType<_VeyroShellState>();
     final selection = shell!._current;
-    return ColoredBox(
-      color: VColors.surface,
+    return GlassPanel(
+      borderRadius: BorderRadius.zero,
+      fillOpacity: 0.55,
+      sigma: 20,
       child: SafeArea(
         right: false,
         child: Column(

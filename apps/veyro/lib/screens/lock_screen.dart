@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/ambience.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -223,29 +224,22 @@ class _LockScreenState extends State<LockScreen> {
 
   Widget _buildForm(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          color: VColors.background,
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.6),
-            radius: 1.0,
-            colors: [
-              VColors.primaryGlow.withValues(alpha: 0.12),
-              VColors.background,
-            ],
-            stops: const [0, 1],
-          ),
-        ),
+      body: AmbienceSurface(
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                child: GlassPanel(
+                  borderRadius: const BorderRadius.all(Radius.circular(24)),
+                  sigma: 22,
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                     const Center(child: VeyroLogo(size: 72)),
                     const SizedBox(height: 16),
                     const Text(
@@ -311,8 +305,10 @@ class _LockScreenState extends State<LockScreen> {
           ),
         ),
       ),
-    );
-  }
+      ),
+    ),
+  );
+}
 
   Future<void> _chooseWallet(BuildContext context) async {
     final picked = await showDialog<WalletInfoDto>(

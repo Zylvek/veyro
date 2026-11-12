@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/ambience.dart';
 
 /// Максимальная ширина основного содержимого на desktop (аудит UI:
 /// «ориентировочно 1400 px»; экраны перестают быть узкой колонкой).
@@ -55,9 +56,9 @@ class VTwoColumn extends StatelessWidget {
   }
 }
 
-/// Карточка с заголовком-иконкой — базовый блок всех экранов (замена
-/// SectionCard из util/ui_helpers в новых экранах; старые экраны мигрируют
-/// в ходе своих групп).
+/// Карточка-стекло с заголовком-иконкой — базовый блок всех экранов.
+/// Матовый blur + полупрозрачная заливка поверх ambient-фона; данные
+/// не имитируются: компонент отображает то, что ему отдано.
 class VCard extends StatelessWidget {
   final String? title;
   final IconData? icon;
@@ -74,7 +75,7 @@ class VCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
