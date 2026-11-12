@@ -20,6 +20,7 @@ import 'package:veyro/screens/wallets_screen.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/price_source.dart';
 
 const _session = BtcSessionStateDto(
   networkCode: 2,
@@ -184,6 +185,13 @@ void main() {
       tester.view.physicalSize = const Size(800, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
+      // Без сети в тестах: фиатная строка скрыта (честное отсутствие).
+      PriceSource.instance.resetRates();
+      PriceSource.loader = () async => null;
+      addTearDown(() {
+        PriceSource.loader = null;
+        PriceSource.instance.resetRates();
+      });
       await tester.pumpWidget(MaterialApp(
         home: DashboardScreen(
           walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],

@@ -21,6 +21,7 @@ import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/asset_detail_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/price_source.dart';
 
 WalletInfoDto _wallet(String id, String name) => WalletInfoDto(
       id: id,
@@ -183,6 +184,16 @@ void main() {
   });
 
   group('Dashboard (injectable loaders)', () {
+    // Источник цен скрыт (без сети в тестах): фиатная строка отсутствует.
+    setUp(() {
+      PriceSource.instance.resetRates();
+      PriceSource.loader = () async => null;
+    });
+    tearDown(() {
+      PriceSource.loader = null;
+      PriceSource.instance.resetRates();
+    });
+
     testWidgets('два кошелька: селектор, честный пустой портфель',
         (tester) async {
       // Высокий вьюпорт: ListView ленивый — иначе нижние карточки не строятся.

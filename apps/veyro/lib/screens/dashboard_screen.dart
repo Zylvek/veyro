@@ -16,6 +16,7 @@ import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/price_source.dart';
 
 import 'asset_catalog_screen.dart' show CoinIcon;
 import 'asset_detail_screen.dart';
@@ -53,6 +54,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _historyError;
   bool _loading = true;
   String? _error;
+
+  /// Курс BTC в валюте отображения; null — курс недоступен (сети нет),
+  /// тогда фиатная строка честно скрыта.
+  double? _fiatRate;
 
   @override
   void initState() {
@@ -103,6 +108,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _loading = false;
     });
     await _loadRecent();
+    // Курс BTC в валюте отображения — прямой запрос к провайдеру цен
+    // (без собственного сервера). Ошибка → фиатная строка скрыта.
+    try {
+      final fiat = DisplayPrefs.fiatCurrency;
+      final rate = await PriceSource.instance
+          .btcPriceIn(fiat)
+          .timeout(const Duration(seconds: 12));
+      if (!mounted) return;
+      setState(() => _fiatRate = rate);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _fiatRate = null);
+    }
   }
 
   /// Последние транзакции — только при активной BTC-сессии; ошибки ядро
@@ -272,12 +290,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Честный ноль (решение владельца): средств нет/ещё не
-            // синхронизировано — 0 BTC, а не прочерк.
+            // синхронизировано — 0 BTC, а не прочерк. Под числом —
+            // фиатная оценка от прямого источника цен (если доступен).
             VAmount(
               _maskAmount(satToBtcString(_btcBalanceSat())),
               suffix: 'BTC',
               fontSize: 34,
             ),
+            if (_fiatRate != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '≈ ${_maskAmount(formatFiat(_btcBalanceSat() / 1e8 * _fiatRate!))}'
+                  ' ${DisplayPrefs.fiatCurrency.toUpperCase()}',
+                  style: TextStyle(
+                    color: VColors.textSecondary,
+                    fontSize: 13,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 8,
