@@ -544,10 +544,19 @@ const Set<String> kBundledCoinIcons = {
   'XMR', 'XNA', 'ZEC', 'ZEPH',
 };
 
-/// Значок монеты: настоящий Vector-SVG с Iconify API (решение
-/// владельца: «желательно вообще использовать .svg» — PNG-иконки были
-/// мутными) → пока SVG не загрузился и нет сети: bundle-PNG → если и
-/// его нет (моном), монограмма.
+/// Иконки монет, уложенные в билд (``assets/coins/<ticker>.svg`` —
+/// официальные векторные значки из Kryptex Pool, источник подсказан
+/// владельцем; оффлайн и чёткие в любом размере). PNG-набор остаётся
+/// запасным оффлайн-фолбэком.
+const Set<String> kBundledCoinVectorIcons = {
+  'ALPH', 'BCH', 'BSV', 'BTC', 'CFX', 'DGB', 'ERG', 'ETC', 'ETHW', 'FB',
+  'IRON', 'KAS', 'LTC', 'NEXA', 'OCTA', 'PRL', 'QTC', 'QUAI', 'RVN', 'XEC',
+  'XEL', 'XNA', 'XMR', 'XTM', 'ZEC', 'ZEPH',
+};
+
+/// Значок монеты: бандл-SVG (Kryptex, оффлайн) → бандл-PNG →
+/// Iconify API (решает владелец, для монет без иконки в билде) →
+/// монограмма.
 class CoinIcon extends StatefulWidget {
   final VeyroAsset asset;
   final double radius;
@@ -559,48 +568,68 @@ class CoinIcon extends StatefulWidget {
 }
 
 class _CoinIconState extends State<CoinIcon> {
+  bool get _hasVector =>
+      kBundledCoinVectorIcons.contains(widget.asset.ticker);
+
   Uint8List? _svg;
 
   @override
   void initState() {
     super.initState();
-    // SVG в приоритете для ВСЕХ монет (вектор = чётко в любом размере);
-    // результат кэшируется сервисом (память/диск) и не дёргает сеть.
-    CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
-      if (!mounted || bytes == null) return;
-      setState(() => _svg = bytes);
-    });
+    // Сеть — только для монет, которых нет в билде (будущие интеграции);
+    // результат кэшируется сервисом и не дёргает сеть повторно.
+    if (!_hasVector &&
+        !kBundledCoinIcons.contains(widget.asset.ticker)) {
+      CoinIconService.instance.load(widget.asset.ticker).then((bytes) {
+        if (!mounted || bytes == null) return;
+        setState(() => _svg = bytes);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
-    // 1) Вектор с Iconify — основной значок.
-    final svg = _svg;
-    if (svg != null) {
+    // 1) Бандл-SVG с Kryptex: правильный свежий логотип, вектор.
+    if (_hasVector) {
+      return ClipOval(
+        child: SvgPicture.asset(
+          'assets/coins/${widget.asset.ticker.toLowerCase()}.svg',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _pngOrMonogram(size),
+        ),
+      );
+    }
+    // 2) Iconify (скачанный в память/диск кэш).
+    if (_svg != null) {
       return ClipOval(
         child: SvgPicture.memory(
-          svg,
+          _svg!,
           width: size,
           height: size,
           fit: BoxFit.cover,
         ),
       );
     }
-    // 2) Пока SVG не загрузился / сети нет — bundle-PNG (оффлайн-фолбэк).
-    if (kBundledCoinIcons.contains(widget.asset.ticker)) {
-      return ClipOval(
-        child: Image.asset(
-          'assets/coins/${widget.asset.ticker.toLowerCase()}.png',
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) =>
-              AssetMonogram(asset: widget.asset, radius: widget.radius),
-        ),
-      );
+    // 3) Пока грузится / сети нет — bundle-PNG, затем монограмма.
+    return _pngOrMonogram(size);
+  }
+
+  Widget _pngOrMonogram(double size) {
+    if (!kBundledCoinIcons.contains(widget.asset.ticker)) {
+      return AssetMonogram(asset: widget.asset, radius: widget.radius);
     }
-    // 3) Нет и SVG, и PNG — монограмма («approved fallback»).
-    return AssetMonogram(asset: widget.asset, radius: widget.radius);
+    return ClipOval(
+      child: Image.asset(
+        'assets/coins/${widget.asset.ticker.toLowerCase()}.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) =>
+            AssetMonogram(asset: widget.asset, radius: widget.radius),
+      ),
+    );
   }
 }
