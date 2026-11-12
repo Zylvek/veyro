@@ -33,6 +33,10 @@ class _BtcScreenState extends State<BtcScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Что сейчас происходит (аудит: «Подключение…» без деталей выглядит
+  /// как зависание). busyLabel: Разблокировка → Синхронизация.
+  String _busyLabel = 'Подключение…';
+
   /// Диалог пароля показывается автоматически один раз на вход (решение
   /// владельца: «подключаться сразу», без лишних нажатий). После отмены
   /// остаются ручные кнопки — повторно сам не выскакивает.
@@ -94,6 +98,7 @@ class _BtcScreenState extends State<BtcScreen> {
 
     setState(() {
       _busy = true;
+      _busyLabel = 'Разблокировка…';
       _error = null;
     });
     try {
@@ -116,6 +121,11 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _doSync() async {
+    setState(() {
+      _busyLabel = 'Синхронизация адресов… (gap-limit 20, это может занять '
+          'до минуты)';
+      _error = null;
+    });
     try {
       final sync = await btcSync(gapLimit: 20);
       if (!mounted) return;
@@ -222,7 +232,7 @@ class _BtcScreenState extends State<BtcScreen> {
                       const SizedBox(height: 12),
                       FilledButton(
                         onPressed: _busy ? null : _unlock,
-                        child: Text(_busy ? 'Подключение…' : 'Разблокировать BTC'),
+                        child: Text(_busy ? _busyLabel : 'Разблокировать BTC'),
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton(

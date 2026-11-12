@@ -246,7 +246,15 @@ impl ElectrumGateway {
                 "{url} (expected tcp:// or ssl:// scheme)"
             )));
         }
-        let client = electrum_client::Client::new(url)
+        // Явный таймаут вместо молчаливого зависания: недоступный сервер
+        // даёт честную ошибку не позже ~6 секунд (аудит UX: «херня не
+        // работает» — зависание на Client::new без таймаута). Одна
+        // попытка без ретраев: сервер можно сменить в настройках сети.
+        let config = electrum_client::ConfigBuilder::new()
+            .retry(1)
+            .timeout(Some(6))
+            .build();
+        let client = electrum_client::Client::from_config(url, config)
             .map_err(|e| ChainError::Transport(format!("{url}: {e}")))?;
         Ok(Self {
             client: std::sync::Arc::new(client),
