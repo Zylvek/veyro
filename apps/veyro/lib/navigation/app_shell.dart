@@ -15,7 +15,6 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 
-import '../screens/settings_screen.dart';
 
 /// Раздел каркаса. Все разделы реализованы (builder обязателен).
 class ShellDestination {
@@ -33,10 +32,9 @@ class ShellDestination {
   });
 }
 
-/// Реестр разделов каркаса (решение владельца): Обзор, Активы,
-/// Настройки — три пункта навигации. Кошельки (создание/импорт/список)
-/// живут в «Настройках» (карточка «Кошельки»), бэкап и «О VEYRO» — тоже
-/// оттуда.
+/// Реестр разделов каркаса (решение владельца): Обзор и Активы — два
+/// пункта навигации. Настройки — шестерёнка в шапке Обзора (правый
+/// верхний угол); кошельки, бэкап и «О VEYRO» живут в них же.
 const List<ShellDestination> kShellDestinations = [
   ShellDestination(
     id: 'overview',
@@ -50,17 +48,10 @@ const List<ShellDestination> kShellDestinations = [
     label: 'Активы',
     builder: _buildAssets,
   ),
-  ShellDestination(
-    id: 'settings',
-    icon: Icons.tune_outlined,
-    label: 'Настройки',
-    builder: _buildSettings,
-  ),
 ];
 
 Widget _buildOverview(BuildContext context) => const DashboardScreen();
 Widget _buildAssets(BuildContext context) => const AssetCatalogScreen();
-Widget _buildSettings(BuildContext context) => const SettingsScreen();
 /// Порог, ниже которого каркас переключается на нижнюю навигацию
 /// (Android-телефон); десктопные окна шире и получают сайдбар 240 px.
 const double kShellWideBreakpoint = 960;

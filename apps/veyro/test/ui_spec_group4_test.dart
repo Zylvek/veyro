@@ -271,29 +271,29 @@ void main() {
     });
   });
 
-  group('Каркас: четыре раздела навигации (решение владельца)', () {
-    test('реестр kShellDestinations: 3 назначения, порядок и id', () {
-      expect(kShellDestinations.length, 3);
+  group('Каркас: два раздела навигации (решение владельца)', () {
+    test('реестр kShellDestinations: 2 назначения, порядок и id', () {
+      expect(kShellDestinations.length, 2);
       expect(
         [for (final d in kShellDestinations) d.id],
         [
           'overview',
           'assets',
-          'settings',
         ],
       );
       final labels = [for (final d in kShellDestinations) d.label];
       expect(labels, containsAll([
         'Обзор',
         'Активы',
-        'Настройки',
       ]));
-      // Вкладки «Транзакции» и «Кошельки» удалены (история монет живёт
-      // в их экранах, кошельки — в «Настройках»); бэкап / «О VEYRO» —
-      // из «Настроек» (не в навигации); адресная книга удалена из
-      // проекта целиком (решение владельца).
+      // Вкладки «Транзакции», «Кошельки» и «Настройки» удалены: история
+      // монет живёт в их экранах, кошельки — в «Настройках», а настройки
+      // открываются шестерёнкой в шапке Обзора; бэкап / «О VEYRO» — из
+      // «Настроек» (not in nav); адресная книга удалена целиком
+      // (решение владельца).
       expect(labels.contains('Транзакции'), isFalse);
       expect(labels.contains('Кошельки'), isFalse);
+      expect(labels.contains('Настройки'), isFalse);
       expect(labels.contains('Бэкап'), isFalse);
       expect(labels.contains('О VEYRO'), isFalse);
       expect(labels.contains('Адреса'), isFalse);

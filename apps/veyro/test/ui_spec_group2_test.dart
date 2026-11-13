@@ -21,6 +21,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/asset_detail_screen.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
+import 'package:veyro/screens/settings_screen.dart';
 import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/price_source.dart';
@@ -338,6 +339,36 @@ void main() {
           : 'Показать суммы'));
       await tester.pumpAndSettle();
       expect(DisplayPrefs.hideBalances, initialHide);
+    });
+
+    testWidgets('шестерёнка настроек: открывает экран Настройки',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      PriceSource.instance.resetRates();
+      CoinIconService.instance.resetForTest();
+      CoinIconService.useDiskCache = false;
+      CoinIconService.fetcher = (ticker) async => null;
+      addTearDown(() {
+        PriceSource.loader = null;
+        PriceSource.marketLoader = null;
+        CoinIconService.fetcher = null;
+        CoinIconService.instance.resetForTest();
+      });
+      await tester.pumpWidget(MaterialApp(
+        home: DashboardScreen(
+          walletLoader: () async => [_wallet('w1', 'Основной')],
+          sessionLoader: () async => null,
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Шестерёнка в правом верхнем углу шапки Обзора.
+      expect(find.byTooltip('Настройки'), findsOneWidget);
+      await tester.tap(find.byTooltip('Настройки'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsScreen), findsOneWidget);
     });
   });
 

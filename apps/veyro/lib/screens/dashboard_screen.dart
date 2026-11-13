@@ -19,6 +19,7 @@ import 'package:veyro/util/format.dart';
 import 'package:veyro/util/price_source.dart';
 
 import 'asset_catalog_screen.dart' show CoinIcon;
+import 'settings_screen.dart';
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
 import 'btc_screen.dart';
@@ -367,6 +368,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: VColors.textSecondary,
                 ),
                 onPressed: _toggleHide,
+              ),
+              // Настройки — шестерёнка в правом верхнем углу Обзора
+              // (решение владельца): навигация без вкладки настроек.
+              IconButton(
+                tooltip: 'Настройки',
+                icon: const Icon(Icons.settings_outlined,
+                    color: VColors.textSecondary),
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ));
+                },
               ),
             ],
           ),

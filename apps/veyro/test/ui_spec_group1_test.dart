@@ -13,7 +13,7 @@ import 'package:veyro/design/v_theme.dart';
 import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/create_wallet_flow.dart';
-import 'package:veyro/screens/settings_screen.dart';
+import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/welcome_screen.dart';
 
 void main() {
@@ -108,12 +108,13 @@ void main() {
     );
     await tester.pump();
 
-    // Сайдбар: логотип и три реальных раздела (вкладка «Кошельки»
-    // удалена — кошельки живут в «Настройках»; заглушки отсутствуют).
+    // Сайдбар: логотип и два реальных раздела (вкладки «Кошельки» и
+    // «Настройки» удалены — их нет в навигации каркаса; заглушки
+    // отсутствуют).
     expect(find.text('VEYRO'), findsOneWidget);
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
-    expect(find.text('Настройки'), findsOneWidget);
+    expect(find.text('Кошельки'), findsNothing);
     expect(find.byIcon(Icons.wallet_outlined), findsNothing);
     expect(find.text('группа 2'), findsNothing);
 
@@ -145,16 +146,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Три раздела навигации (решение владельца): вкладки «Транзакции» и
-    // «Кошельки» удалены — кошельки живут в «Настройках».
-    expect(find.byType(NavigationDestination), findsNWidgets(3));
+    // Два раздела навигации (решение владельца): вкладки «Транзакции» и
+    // «Кошельки» удалены, а настройки — шестерёнка в шапке Обзора.
+    expect(find.byType(NavigationDestination), findsNWidgets(2));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
     // Вкладка «Транзакции» удалена (решение владельца: это история монет).
     expect(find.text('Транзакции'), findsNothing);
-    // Вкладка «Кошельки» удалена: кошельки — в «Настройках».
+    // Вкладки «Кошельки» и «Настройки» удалены из навигации: настройки
+    // открываются шестерёнкой в шапке Обзора (проверяется в группе
+    // Dashboard c injectable-загрузчиками ядра).
     expect(find.text('Кошельки'), findsNothing);
-    expect(find.text('Настройки'), findsWidgets);
+    expect(find.text('Настройки'), findsNothing);
     // Эти разделы — из «Настроек»: их нет в нижней навигации.
     expect(find.text('Бэкап'), findsNothing);
     expect(find.text('Адреса'), findsNothing);
@@ -172,7 +175,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'settings'),
+        home: const VeyroShell(initialDestination: 'overview'),
       ),
     );
     await tester.pump();
@@ -184,12 +187,12 @@ void main() {
           ),
         );
 
-    // Стартовая подсветка — «Настройки».
+    // Стартовая подсветка — «Обзор» (вкладки «Настройки» нет).
     var selectedTiles = tester
         .widgetList<ListTile>(sidebarSelected())
         .where((t) => t.selected)
         .toList();
-    expect((selectedTiles.single.title as Text).data, 'Настройки');
+    expect((selectedTiles.single.title as Text).data, 'Обзор');
 
     // Переключение на «Активы»: контент — реальный каталог...
     await tester.tap(find.text('Активы'));
@@ -203,14 +206,14 @@ void main() {
     expect((selectedTiles.single.title as Text).data, 'Активы');
 
     // Обратное переключение.
-    await tester.tap(find.text('Настройки'));
+    await tester.tap(find.text('Обзор'));
     await tester.pumpAndSettle();
-    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(DashboardScreen), findsOneWidget);
     selectedTiles = tester
         .widgetList<ListTile>(sidebarSelected())
         .where((t) => t.selected)
         .toList();
-    expect((selectedTiles.single.title as Text).data, 'Настройки');
+    expect((selectedTiles.single.title as Text).data, 'Обзор');
   });
 
   testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',
