@@ -14,7 +14,6 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/btc.dart' show btcLock;
 import 'package:veyro/src/rust/api/session.dart';
-import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -42,8 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _prefsReady = false;
   bool _lockBusy = false;
 
-  int? _schema;
-  String? _schemaError;
 
   BtcSessionStateDto? _session;
   bool _sessionChecked = false;
@@ -60,7 +57,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() => _prefsReady = true);
     await _loadSession();
-    await _loadSchema();
   }
 
   Future<void> _loadSession() async {
@@ -83,24 +79,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _loadSchema() async {
-    try {
-      final loader = widget.schemaLoader;
-      final schema =
-          loader != null ? await loader() : await dbSchemaVersion();
-      if (!mounted) return;
-      setState(() {
-        _schema = schema.toInt();
-        _schemaError = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _schema = null;
-        _schemaError = e.toString();
-      });
-    }
-  }
 
   Future<void> _lockBtc() async {
     if (_lockBusy) return;
@@ -131,8 +109,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildGeneral(context),
               const SizedBox(height: 12),
               _buildSecurity(context),
-              const SizedBox(height: 12),
-              _buildIntegrity(context),
               const SizedBox(height: 12),
               _buildNotifications(context),
               const SizedBox(height: 12),
@@ -172,15 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: DisplayPrefs.hideBalances,
-                onChanged: (hide) {
-                  DisplayPrefs.setHideBalances(hide);
-                  setState(() {});
-                },
-                title: const Text('Скрывать суммы', style: TextStyle(fontSize: 13.5)),
-              ),
+              // Тумблер «Скрывать суммы» убран (решение владельца): эту
+              // функцию делает глазик в шапке Обзора.
               if (DisplayPrefs.degraded)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 6),
@@ -301,29 +270,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildIntegrity(BuildContext context) {
-    return VCard(
-      title: 'Целостность данных',
-      icon: Icons.verified_outlined,
-      children: [
-        kvRow(
-          'Схема БД настроек',
-          _schema == null
-              ? (_schemaError != null ? 'не прочитано: $_schemaError' : '…')
-              : '$_schema',
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Резервные копии проверяются при восстановлении: ядро сверяет '
-          'формат (app id), поддерживаемую версию и целостность '
-          'расшифровки — неверный пароль или подменённый файл дают '
-          'отказ, а не восстановление «как получится».',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
     );
   }
 

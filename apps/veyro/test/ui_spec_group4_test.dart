@@ -58,8 +58,8 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('сессия закрыта: честный статус, схема из ядра, пометки '
-        'вместо переключателей нереализованного', (tester) async {
+    testWidgets('сессия закрыта: честный статус, пометки вместо '
+        'переключателей нереализованного', (tester) async {
       await pumpSettings(
         tester,
         sessionLoader: () async => null,
@@ -70,17 +70,16 @@ void main() {
           findsOneWidget);
       // Выбор сети/сервера убран из Настроек: подбор автоматический.
       expect(find.text('Настройки сети'), findsNothing);
-      // Реальная версия схемы — честное число из ядра.
-      expect(find.textContaining('Схема БД настроек'), findsOneWidget);
-      expect(find.text('12'), findsWidgets);
+      // Карточка «Целостность данных» удалена (решение владельца).
+      expect(find.textContaining('Схема БД настроек'), findsNothing);
       // Честные пометки вместо переключателей нереализованного.
       expect(find.textContaining('не реализовано в ядре (нет таймера'),
           findsOneWidget);
       expect(find.textContaining('Биометрия'), findsOneWidget);
       expect(find.textContaining('Уведомления не реализованы'),
           findsOneWidget);
-      // Единственный переключатель — «Скрывать суммы» (реальная функция).
-      expect(find.byType(Switch), findsOneWidget);
+      // Тумблер «Скрывать суммы» убран: это делает глазик в Обзоре.
+      expect(find.byType(Switch), findsNothing);
     });
 
     testWidgets('ручная блокировка: доступна при активной сессии и '
@@ -105,16 +104,6 @@ void main() {
       // Состояние перечитано: блокировка отразилась честным чипом.
       expect(find.text('BTC заблокирован: ключи сессии не загружены'),
           findsOneWidget);
-    });
-
-    testWidgets('схема БД не прочитана: честный текст вместо выдуманного '
-        'числа', (tester) async {
-      await pumpSettings(
-        tester,
-        sessionLoader: () async => null,
-        schemaLoader: () async => throw Exception('db unavailable'),
-      );
-      expect(find.textContaining('не прочитано'), findsWidgets);
     });
   });
 
