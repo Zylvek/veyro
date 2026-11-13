@@ -13,7 +13,7 @@ import 'package:veyro/design/v_theme.dart';
 import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/create_wallet_flow.dart';
-import 'package:veyro/screens/wallets_screen.dart';
+import 'package:veyro/screens/settings_screen.dart';
 import 'package:veyro/screens/welcome_screen.dart';
 
 void main() {
@@ -103,17 +103,18 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'wallets'),
+        home: const VeyroShell(initialDestination: 'overview'),
       ),
     );
     await tester.pump();
 
-    // Сайдбар: логотип и все шесть реальных разделов (заглушки
-    // отсутствуют).
+    // Сайдбар: логотип и три реальных раздела (вкладка «Кошельки»
+    // удалена — кошельки живут в «Настройках»; заглушки отсутствуют).
     expect(find.text('VEYRO'), findsOneWidget);
-    expect(find.text('Кошельки'), findsWidgets); // нав. элемент + заголовок
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
+    expect(find.text('Настройки'), findsOneWidget);
+    expect(find.byIcon(Icons.wallet_outlined), findsNothing);
     expect(find.text('группа 2'), findsNothing);
 
     // Контент реального раздела (экран кошельков из ядра — FFI не вызывается
@@ -138,21 +139,21 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'wallets'),
+        home: const VeyroShell(initialDestination: 'overview'),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    // Четыре раздела навигации (решение владельца): вкладка «Транзакции»
-    // удалена, бэкап и «О VEYRO» открываются из «Настроек».
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    // Три раздела навигации (решение владельца): вкладки «Транзакции» и
+    // «Кошельки» удалены — кошельки живут в «Настройках».
+    expect(find.byType(NavigationDestination), findsNWidgets(3));
     expect(find.text('Обзор'), findsOneWidget);
     expect(find.text('Активы'), findsOneWidget);
     // Вкладка «Транзакции» удалена (решение владельца: это история монет).
     expect(find.text('Транзакции'), findsNothing);
-    // «Кошельки» и в навигации, и в AppBar открытого раздела.
-    expect(find.text('Кошельки'), findsWidgets);
+    // Вкладка «Кошельки» удалена: кошельки — в «Настройках».
+    expect(find.text('Кошельки'), findsNothing);
     expect(find.text('Настройки'), findsWidgets);
     // Эти разделы — из «Настроек»: их нет в нижней навигации.
     expect(find.text('Бэкап'), findsNothing);
@@ -171,7 +172,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'wallets'),
+        home: const VeyroShell(initialDestination: 'settings'),
       ),
     );
     await tester.pump();
@@ -183,12 +184,12 @@ void main() {
           ),
         );
 
-    // Стартовая подсветка — «Кошельки».
+    // Стартовая подсветка — «Настройки».
     var selectedTiles = tester
         .widgetList<ListTile>(sidebarSelected())
         .where((t) => t.selected)
         .toList();
-    expect((selectedTiles.single.title as Text).data, 'Кошельки');
+    expect((selectedTiles.single.title as Text).data, 'Настройки');
 
     // Переключение на «Активы»: контент — реальный каталог...
     await tester.tap(find.text('Активы'));
@@ -202,14 +203,14 @@ void main() {
     expect((selectedTiles.single.title as Text).data, 'Активы');
 
     // Обратное переключение.
-    await tester.tap(find.text('Кошельки'));
+    await tester.tap(find.text('Настройки'));
     await tester.pumpAndSettle();
-    expect(find.byType(WalletsScreen), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsOneWidget);
     selectedTiles = tester
         .widgetList<ListTile>(sidebarSelected())
         .where((t) => t.selected)
         .toList();
-    expect((selectedTiles.single.title as Text).data, 'Кошельки');
+    expect((selectedTiles.single.title as Text).data, 'Настройки');
   });
 
   testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',

@@ -20,6 +20,9 @@ import 'package:veyro/util/ui_helpers.dart';
 
 import 'about_screen.dart';
 import 'backup_screen.dart';
+import 'create_wallet_flow.dart';
+import 'import_wallet_screen.dart';
+import 'wallets_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   /// Точка замены для тестов: версия схемы БД настроек.
@@ -107,6 +110,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               _buildGeneral(context),
+              const SizedBox(height: 12),
+              _buildWallets(context),
               const SizedBox(height: 12),
               _buildSecurity(context),
               const SizedBox(height: 12),
@@ -286,6 +291,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'завершение синхронизации, статус бэкапа. Маркетинг и '
           'реклама исключены безусловно.',
           style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  /// Карточка «Кошельки» в Настройках (решение владельца: вкладка
+  /// кошельков в навигации не нужна — создание, импорт и реестр здесь).
+  Widget _buildWallets(BuildContext context) {
+    return VCard(
+      title: 'Кошельки',
+      icon: Icons.wallet_outlined,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: VButton.secondary(
+                'Создать',
+                icon: Icons.add_circle_outline,
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const CreateWalletFlow(),
+                  ));
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: VButton.secondary(
+                'Импорт',
+                icon: Icons.restore_outlined,
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const ImportWalletScreen(),
+                  ));
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: VButton.secondary(
+            'Открыть кошельки',
+            icon: Icons.list_alt,
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const WalletsScreen(),
+              ));
+            },
+          ),
         ),
       ],
     );
