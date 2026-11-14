@@ -31,7 +31,8 @@ Future<void> main() async {
 ///
 /// Ядро на Rust подключено через flutter_rust_bridge (RustLib.init в main).
 /// Дизайн-система: docs/UI_SPEC.md (Electric Blue Dark), тема — design/.
-/// Что не реализовано — не показывается как доступное.
+/// Один экран Обзор (сайдбар убран решением владельца — активы и настройки
+/// доступны из него же). Что не реализовано — не показывается.
 class VeyroApp extends StatelessWidget {
   const VeyroApp({super.key});
 

@@ -14,7 +14,7 @@ import 'package:veyro/util/app_dirs.dart';
 import 'create_wallet_flow.dart';
 import 'import_backup_screens.dart';
 import 'import_wallet_screen.dart';
-import '../navigation/app_shell.dart';
+import 'dashboard_screen.dart';
 
 /// Welcome. `walletCountLoader` — точка замены в виджет-тестах (нормально
 /// возвращает реальный реестр; тест передаёт статическую функцию).
@@ -49,7 +49,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       // сам откроется и запросит пароль). Один раз на вход в Welcome.
       if (count != null && count > 0 && mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+          MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
           (route) => false,
         );
       }

@@ -14,7 +14,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
-import '../navigation/app_shell.dart';
+import 'dashboard_screen.dart';
 
 /// Позиционная проверка запоминания фразы: сравнение без учёта регистра и
 /// пробелов по краям. Вынесена наверх для юнит-тестов.
@@ -151,7 +151,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
       ),
     );
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+      MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
       (route) => false,
     );
   }

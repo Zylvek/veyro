@@ -10,8 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/v_theme.dart';
-import 'package:veyro/navigation/app_shell.dart';
-import 'package:veyro/screens/asset_catalog_screen.dart';
 import 'package:veyro/screens/create_wallet_flow.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/welcome_screen.dart';
@@ -95,127 +93,6 @@ void main() {
     expect(find.text('Полный путь к файлу .veybackup'), findsOneWidget);
   });
 
-  testWidgets('Каркас: сайдбар 240 px на широком окне', (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'overview'),
-      ),
-    );
-    await tester.pump();
-
-    // Сайдбар: логотип и два реальных раздела (вкладки «Кошельки» и
-    // «Настройки» удалены — их нет в навигации каркаса; заглушки
-    // отсутствуют).
-    expect(find.text('VEYRO'), findsOneWidget);
-    expect(find.text('Обзор'), findsOneWidget);
-    expect(find.text('Активы'), findsOneWidget);
-    expect(find.text('Кошельки'), findsNothing);
-    expect(find.byIcon(Icons.wallet_outlined), findsNothing);
-    expect(find.text('группа 2'), findsNothing);
-
-    // Контент реального раздела (экран кошельков из ядра — FFI не вызывается
-    // в тесте: экран покажет прогресс/состояние, каркас не падает).
-    expect(find.byType(VeyroShell), findsOneWidget);
-
-    expect(
-      tester
-          .getSize(
-            find.byKey(const Key('shell-sidebar')),
-          )
-          .width,
-      moreOrLessEquals(240, epsilon: 0.5),
-    );
-  });
-
-  testWidgets('Каркас: нижняя навигация на узком экране', (tester) async {
-    tester.view.physicalSize = const Size(412, 920);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'overview'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(NavigationBar), findsOneWidget);
-    // Два раздела навигации (решение владельца): вкладки «Транзакции» и
-    // «Кошельки» удалены, а настройки — шестерёнка в шапке Обзора.
-    expect(find.byType(NavigationDestination), findsNWidgets(2));
-    expect(find.text('Обзор'), findsOneWidget);
-    expect(find.text('Активы'), findsOneWidget);
-    // Вкладка «Транзакции» удалена (решение владельца: это история монет).
-    expect(find.text('Транзакции'), findsNothing);
-    // Вкладки «Кошельки» и «Настройки» удалены из навигации: настройки
-    // открываются шестерёнкой в шапке Обзора (проверяется в группе
-    // Dashboard c injectable-загрузчиками ядра).
-    expect(find.text('Кошельки'), findsNothing);
-    expect(find.text('Настройки'), findsNothing);
-    // Эти разделы — из «Настроек»: их нет в нижней навигации.
-    expect(find.text('Бэкап'), findsNothing);
-    expect(find.text('Адреса'), findsNothing);
-  });
-
-  testWidgets('Каркас: выбор раздела обновляет и сайдбар, и контент',
-      (tester) async {
-    // Регрессия: сайдбар был const-виджетом и не перерисовывался при
-    // переключении — подсветка «замерзала» на стартовой вкладке
-    // (отзыв владельца: «слева ничего не меняется»).
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildVeyroTheme(),
-        home: const VeyroShell(initialDestination: 'overview'),
-      ),
-    );
-    await tester.pump();
-
-    Finder sidebarSelected() => find.descendant(
-          of: find.byKey(const Key('shell-sidebar')),
-          matching: find.byWidgetPredicate(
-            (w) => w is ListTile && w.selected == true,
-          ),
-        );
-
-    // Стартовая подсветка — «Обзор» (вкладки «Настройки» нет).
-    var selectedTiles = tester
-        .widgetList<ListTile>(sidebarSelected())
-        .where((t) => t.selected)
-        .toList();
-    expect((selectedTiles.single.title as Text).data, 'Обзор');
-
-    // Переключение на «Активы»: контент — реальный каталог...
-    await tester.tap(find.text('Активы'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AssetCatalogScreen), findsOneWidget);
-    // ...и подсветка сайдбара переехала (сайдбар перестроился).
-    selectedTiles = tester
-        .widgetList<ListTile>(sidebarSelected())
-        .where((t) => t.selected)
-        .toList();
-    expect((selectedTiles.single.title as Text).data, 'Активы');
-
-    // Обратное переключение.
-    await tester.tap(find.text('Обзор'));
-    await tester.pumpAndSettle();
-    expect(find.byType(DashboardScreen), findsOneWidget);
-    selectedTiles = tester
-        .widgetList<ListTile>(sidebarSelected())
-        .where((t) => t.selected)
-        .toList();
-    expect((selectedTiles.single.title as Text).data, 'Обзор');
-  });
-
   testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',
       (tester) async {
     await tester.pumpWidget(
@@ -226,9 +103,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Каркас открыт вместо Welcome (решение владельца: сразу в кошелёк);
+    // Вместо Welcome открыт Обзор (решение владельца: сразу в кошелёк);
     // кнопки Welcome исчезли (кроме «Войти», которой больше нет).
-    expect(find.byType(VeyroShell), findsOneWidget);
+    expect(find.byType(DashboardScreen), findsOneWidget);
     expect(find.text('Создать кошелёк'), findsNothing);
     expect(find.text('Войти в кошелёк'), findsNothing);
   });

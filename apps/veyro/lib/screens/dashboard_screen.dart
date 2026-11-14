@@ -18,7 +18,7 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/price_source.dart';
 
-import 'asset_catalog_screen.dart' show CoinIcon;
+import 'asset_catalog_screen.dart' show AssetCatalogScreen, CoinIcon;
 import 'settings_screen.dart';
 import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
@@ -659,6 +659,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: wallet == null
                 ? null
                 : () => _push(BtcScreen(info: wallet)),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: VButton.secondary(
+            'Все монеты',
+            icon: Icons.grid_view_outlined,
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => AssetCatalogScreen(),
+              ));
+            },
           ),
         ),
       ],

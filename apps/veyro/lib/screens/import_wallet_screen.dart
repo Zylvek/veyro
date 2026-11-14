@@ -9,7 +9,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
-import '../navigation/app_shell.dart';
+import 'dashboard_screen.dart';
 
 class ImportWalletScreen extends StatefulWidget {
   const ImportWalletScreen({super.key});
@@ -62,7 +62,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
         ),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+        MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
         (route) => false,
       );
     } catch (e) {

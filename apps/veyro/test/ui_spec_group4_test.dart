@@ -10,7 +10,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:veyro/navigation/app_shell.dart';
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/lock_screen.dart';
 import 'package:veyro/screens/portfolio_screen.dart';
@@ -218,7 +217,7 @@ void main() {
         walletsLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
         sessionLoader: () async => session,
       );
-      expect(find.byType(VeyroShell), findsOneWidget);
+      expect(find.byType(DashboardScreen), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
     });
 
@@ -239,7 +238,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(unlockedFor, 'w1');
       // Сразу на каркас (Обзор).
-      expect(find.byType(VeyroShell), findsOneWidget);
+      expect(find.byType(DashboardScreen), findsOneWidget);
     });
 
     testWidgets('неверный пароль: честная ошибка, вход не выполнен',
@@ -255,7 +254,7 @@ void main() {
       await tester.tap(find.text('Войти'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Неверный пароль'), findsOneWidget);
-      expect(find.byType(VeyroShell), findsNothing);
+      expect(find.byType(DashboardScreen), findsNothing);
       // Снова можно ввести.
       expect(find.byType(TextField), findsOneWidget);
     });
@@ -271,41 +270,9 @@ void main() {
     });
   });
 
-  group('Каркас: два раздела навигации (решение владельца)', () {
-    test('реестр kShellDestinations: 2 назначения, порядок и id', () {
-      expect(kShellDestinations.length, 2);
-      expect(
-        [for (final d in kShellDestinations) d.id],
-        [
-          'overview',
-          'assets',
-        ],
-      );
-      final labels = [for (final d in kShellDestinations) d.label];
-      expect(labels, containsAll([
-        'Обзор',
-        'Активы',
-      ]));
-      // Вкладки «Транзакции», «Кошельки» и «Настройки» удалены: история
-      // монет живёт в их экранах, кошельки — в «Настройках», а настройки
-      // открываются шестерёнкой в шапке Обзора; бэкап / «О VEYRO» — из
-      // «Настроек» (not in nav); адресная книга удалена целиком
-      // (решение владельца).
-      expect(labels.contains('Транзакции'), isFalse);
-      expect(labels.contains('Кошельки'), isFalse);
-      expect(labels.contains('Настройки'), isFalse);
-      expect(labels.contains('Бэкап'), isFalse);
-      expect(labels.contains('О VEYRO'), isFalse);
-      expect(labels.contains('Адреса'), isFalse);
-      expect(labels.contains('Сеть'), isFalse);
-    });
-
-    test('дата кошелька: unix-секунды ядра → dd.mm.yyyy без «1970»',
-        () {
-      // Регрессия «21.01.1970»: createdAtUnix передаётся в СЕКУНДАХ.
-      expect(formatWalletDate(1699000000), '03.11.2023');
-      expect(formatWalletDate(0), '01.01.1970');
-    });
+  test('дата кошелька: unix-секунды ядра → dd.mm.yyyy без «1970»', () {
+    // Регрессия «21.01.1970»: createdAtUnix передаётся в СЕКУНДАХ.
+    expect(formatWalletDate(1699000000), '03.11.2023');
+    expect(formatWalletDate(0), '01.01.1970');
   });
 }
-

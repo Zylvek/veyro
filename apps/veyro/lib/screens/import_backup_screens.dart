@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/components.dart';
 
-import '../navigation/app_shell.dart';
+import 'dashboard_screen.dart';
 import 'backup_screens.dart';
 
 /// Экран 7: импорт зашифрованного бэкапа из файла — реальная функция моста.
@@ -26,7 +26,7 @@ class BackupImportScreen extends StatelessWidget {
           doneLabel: 'В кошельки',
           onDone: () {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+              MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
               (route) => false,
             );
           },

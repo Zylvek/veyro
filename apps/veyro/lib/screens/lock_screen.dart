@@ -20,7 +20,7 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
 
-import '../navigation/app_shell.dart';
+import 'dashboard_screen.dart';
 import 'welcome_screen.dart';
 
 class LockScreen extends StatefulWidget {
@@ -110,7 +110,7 @@ class _LockScreenState extends State<LockScreen> {
 
   void _enterShell() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const VeyroShell()),
+      MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
       (route) => false,
     );
   }
