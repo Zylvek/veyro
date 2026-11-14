@@ -1,20 +1,24 @@
-//! Экраны 22/23/24 спеки одним разделом: General settings + Security +
-//! Notifications. Реализовано честно: валюта фиата и скрытие сумм
-//! (SQLite-настройки моста), ручная блокировка BTC-сессии (btc_lock),
-//! версия схемы БД настроек (db_schema_version), переходы в сеть/бэкап/
-//! «О VEYRO». Чего нет в ядре — нет и в UI: авто-блокировка, биометрия,
-//! смена пароля и уведомления описаны статически, БЕЗ переключателей
-//! (правило спеки: не добавлять переключатели для нереализованных функций).
+//! Настройки единым разделом: General + Кошельки (создание, импорт,
+//! реестр и удаление) + Security + Notifications + Ссылки. Реализовано
+//! честно: валюта фиата (SQLite-настройки моста), ручная блокировка
+//! BTC-сессии (btc_lock), удаление кошелька (vault-файл снимается с
+//! диска с подтверждением). Чего нет в ядре — нет и в UI: авто-блокировка,
+//! биометрия, смена пароля и уведомления описаны статически, БЕЗ
+//! переключателей (правило спеки: не добавлять переключатели для
+//! нереализованных функций).
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
-    show PlatformInt64;
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/btc.dart' show btcLock;
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/src/rust/api/wallet.dart';
+import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -22,19 +26,16 @@ import 'about_screen.dart';
 import 'backup_screen.dart';
 import 'create_wallet_flow.dart';
 import 'import_wallet_screen.dart';
-import 'wallets_screen.dart';
+import 'portfolio_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  /// Точка замены для тестов: версия схемы БД настроек.
-  final Future<PlatformInt64> Function()? schemaLoader;
-
   /// Точка замены для тестов: состояние BTC-сессии.
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
 
   /// Точка замены для тестов: действие блокировки (по умолчанию btcLock).
   final Future<void> Function()? lockAction;
 
-  const SettingsScreen({super.key, this.schemaLoader, this.sessionLoader, this.lockAction});
+  const SettingsScreen({super.key, this.sessionLoader, this.lockAction});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -49,6 +50,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _sessionChecked = false;
   String? _sessionError;
 
+  /// Реестр кошельков (для карточки «Кошельки»).
+  List<WalletInfoDto>? _wallets;
+  String? _walletsError;
+  bool _walletsLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() => _prefsReady = true);
     await _loadSession();
+    await _reloadWallets();
   }
 
   Future<void> _loadSession() async {
@@ -82,6 +89,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _reloadWallets() async {
+    try {
+      final list = await listWallets(walletsDir: walletsDir());
+      if (!mounted) return;
+      setState(() {
+        _wallets = list;
+        _walletsLoading = false;
+        _walletsError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _walletsLoading = false;
+        _walletsError = e.toString();
+      });
+    }
+  }
 
   Future<void> _lockBtc() async {
     if (_lockBusy) return;
@@ -95,6 +119,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _lockBusy = false);
+      showError(context, e);
+    }
+  }
+
+  /// Удаление кошелька: подтверждение + снятие vault-файла
+  /// (`<id>.wallet.json`) с диска — реестр ядра перечитывает каталог.
+  Future<void> _deleteWallet(WalletInfoDto info) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Удалить кошелёк «${info.name}»?'),
+        content: Text(
+          'Хранилище ключей этого кошелька (vault-файл) будет удалено с '
+          'диска навсегда. Без резервной копии восстановить доступ к '
+          'средствам будет невозможно.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: VColors.error),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Удалить навсегда'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final file = File(
+          '${walletsDir()}${Platform.pathSeparator}${info.id}.wallet.json');
+      if (file.existsSync()) file.deleteSync();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Кошелёк «${info.name}» удалён.'),
+      ));
+      await _reloadWallets();
+    } catch (e) {
+      if (!mounted) return;
+      showError(context, e);
+    }
+  }
+
+  /// Показ seed-фразы по паролю (тот же честный путь ядра, что был
+  /// на вкладке кошельков).
+  Future<void> _revealMnemonic(WalletInfoDto info) async {
+    final password = await promptPassword(
+      context,
+      title: 'Показать seed-фразу «${info.name}»',
+    );
+    if (password == null || !mounted) return;
+    try {
+      final phrase = await revealMnemonic(
+        walletsDir: walletsDir(),
+        id: info.id,
+        password: password,
+      );
+      if (!mounted) return;
+      await showMnemonicDialog(context, phrase);
+    } catch (e) {
+      if (!mounted) return;
       showError(context, e);
     }
   }
@@ -297,8 +384,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Карточка «Кошельки» в Настройках (решение владельца: вкладка
-  /// кошельков в навигации не нужна — создание, импорт и реестр здесь).
+  /// кошельков в навигации не нужна — создание, импорт, реестр и
+  /// удаление здесь).
   Widget _buildWallets(BuildContext context) {
+    final wallets = _wallets;
     return VCard(
       title: 'Кошельки',
       icon: Icons.wallet_outlined,
@@ -309,10 +398,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: VButton.secondary(
                 'Создать',
                 icon: Icons.add_circle_outline,
-                onPressed: () {
+                onPressed: () async {
                   Navigator.of(context).push(MaterialPageRoute<void>(
                     builder: (_) => const CreateWalletFlow(),
                   ));
+                  await _reloadWallets();
                 },
               ),
             ),
@@ -321,28 +411,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: VButton.secondary(
                 'Импорт',
                 icon: Icons.restore_outlined,
-                onPressed: () {
+                onPressed: () async {
                   Navigator.of(context).push(MaterialPageRoute<void>(
                     builder: (_) => const ImportWalletScreen(),
                   ));
+                  await _reloadWallets();
                 },
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: VButton.secondary(
-            'Открыть кошельки',
-            icon: Icons.list_alt,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const WalletsScreen(),
-              ));
-            },
-          ),
-        ),
+        const SizedBox(height: 12),
+        if (_walletsLoading)
+          const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        else if (_walletsError != null)
+          Text(
+            'Реестр не прочитан: $_walletsError',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall!
+                .copyWith(color: VColors.error),
+          )
+        else if (wallets == null || wallets.isEmpty)
+          Text(
+            'Кошельков нет. Первый появится после создания или '
+            'восстановления фразы.',
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else
+          for (final info in wallets)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: VColors.elevated,
+                  child: Text(
+                    info.name.isEmpty
+                        ? '?'
+                        : info.name.characters.first.toUpperCase(),
+                    style: const TextStyle(
+                      color: VColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                title: Text(info.name),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 2),
+                    Text(
+                      'vault · создан '
+                          '${formatWalletDate(info.createdAtUnix.toInt())}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'ID: ${info.id}',
+                      style: const TextStyle(
+                          fontFamily: kMonoFont, fontSize: 12),
+                    ),
+                  ],
+                ),
+                isThreeLine: true,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Показать seed-фразу',
+                      icon: const Icon(Icons.key_outlined),
+                      onPressed: () => _revealMnemonic(info),
+                    ),
+                    IconButton(
+                      tooltip: 'Удалить кошелёк',
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: VColors.error,
+                      ),
+                      onPressed: () => _deleteWallet(info),
+                    ),
+                  ],
+                ),
+                onTap: () async {
+                  await Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => PortfolioScreen(info: info),
+                  ));
+                  if (mounted) await _reloadWallets();
+                },
+              ),
+            ),
       ],
     );
   }

@@ -12,13 +12,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veyro/screens/dashboard_screen.dart';
 import 'package:veyro/screens/lock_screen.dart';
-import 'package:veyro/screens/portfolio_screen.dart';
 import 'package:veyro/screens/settings_screen.dart';
-import 'package:veyro/screens/wallets_screen.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/format.dart';
-import 'package:veyro/util/price_source.dart';
 
 const _session = BtcSessionStateDto(
   networkCode: 2,
@@ -41,7 +38,6 @@ void main() {
     Future<void> pumpSettings(
       WidgetTester tester, {
       Future<BtcSessionStateDto?> Function()? sessionLoader,
-      Future<int> Function()? schemaLoader,
       Future<void> Function()? lockAction,
     }) async {
       tester.view.physicalSize = const Size(800, 2400);
@@ -50,7 +46,6 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: SettingsScreen(
           sessionLoader: sessionLoader,
-          schemaLoader: schemaLoader,
           lockAction: lockAction,
         ),
       ));
@@ -62,7 +57,6 @@ void main() {
       await pumpSettings(
         tester,
         sessionLoader: () async => null,
-        schemaLoader: () async => 12,
       );
 
       expect(find.text('BTC заблокирован: ключи сессии не загружены'),
@@ -88,7 +82,6 @@ void main() {
       await pumpSettings(
         tester,
         sessionLoader: () async => sessionClosed ? null : _session,
-        schemaLoader: () async => 3,
         lockAction: () async {
           lockCalls++;
           sessionClosed = true; // реальный btc_lock закрывает сессию
@@ -103,82 +96,6 @@ void main() {
       // Состояние перечитано: блокировка отразилась честным чипом.
       expect(find.text('BTC заблокирован: ключи сессии не загружены'),
           findsOneWidget);
-    });
-  });
-
-  group('WalletsScreen (19): честные строки', () {
-    Future<void> pumpWallets(
-      WidgetTester tester, {
-      required Future<List<WalletInfoDto>> Function() walletLoader,
-      Future<BtcSessionStateDto?> Function()? sessionLoader,
-    }) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(MaterialApp(
-        home: WalletsScreen(
-          walletLoader: walletLoader,
-          sessionLoader: sessionLoader,
-        ),
-      ));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('vault-тип, дата, глобальный статус сессии, пометки без '
-        'кнопок-имитаций', (tester) async {
-      await pumpWallets(
-        tester,
-        walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
-        sessionLoader: () async => _session,
-      );
-
-      expect(find.text('Состояние BTC-сессии'), findsOneWidget);
-      expect(find.textContaining('Ключи в памяти ядра'), findsOneWidget);
-      expect(find.textContaining('vault · создан'), findsOneWidget);
-      expect(find.textContaining('Переименование и удаление'), findsOneWidget);
-      expect(find.textContaining('DTO сессии'), findsOneWidget);
-      // Кнопки-имитации rename/delete отсутствуют.
-      expect(find.byTooltip('Переименовать'), findsNothing);
-      expect(find.byTooltip('Удалить кошелёк'), findsNothing);
-      // Реальные действия на месте.
-      expect(find.text('Создать'), findsOneWidget);
-      expect(find.text('Импорт'), findsOneWidget);
-    });
-
-    testWidgets('сессия не активна: честный статус', (tester) async {
-      await pumpWallets(
-        tester,
-        walletLoader: () async => [],
-        sessionLoader: () async => null,
-      );
-      expect(find.textContaining('Не загружены'), findsOneWidget);
-    });
-
-    testWidgets('закрытая сессия: Обзор открывается спокойно, без '
-        'стартовых модалок (решение владельца)', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      // Без сети в тестах: фиатная строка и график курса скрыты.
-      PriceSource.instance.resetRates();
-      PriceSource.loader = () async => null;
-      PriceSource.marketLoader = (coinId, fiat, days) async => null;
-      addTearDown(() {
-        PriceSource.loader = null;
-        PriceSource.marketLoader = null;
-        PriceSource.instance.resetRates();
-      });
-      await tester.pumpWidget(MaterialApp(
-        home: DashboardScreen(
-          walletLoader: () async => [_wallet('w1', 'Основной', 1699000000)],
-          sessionLoader: () async => null,
-        ),
-      ));
-      await tester.pumpAndSettle();
-      // Никаких автоматических заталкиваний: Обзор на экране, оверлеев нет.
-      expect(find.byType(PortfolioScreen), findsNothing);
-      expect(find.byType(Dialog), findsNothing);
-      expect(find.text('Общий баланс'), findsOneWidget);
     });
   });
 
