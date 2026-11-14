@@ -4,7 +4,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/ambience.dart';
@@ -400,12 +399,10 @@ class VEmptyState extends StatelessWidget {
   }
 }
 
-/// Логотип-монограмма с утверждённым свечением акцента.
-/// Логотип VEYRO — фирменный знак из assets/brand/veyro_logo.svg
-/// (абстрактная V: две тёмные плоскости + электрическая жила;
-/// авторский вариант, сгенерированный по промту и доведённый до
-/// векторной геометрии). Рисуется на прозрачном фоне — тёмный
-/// интерфейс сам даёт знак контраст.
+/// Логотип VEYRO: фирменный знак из assets/brand/logo.png
+/// (скруглённый тёмно-фиолетовый квадрат, два пересекающихся круга).
+/// Поставка — растровый PNG 512px авторского знака владельца; рисуется
+/// на прозрачном фоне — тёмный интерфейс сам даёт контраст.
 class VeyroLogo extends StatelessWidget {
   final double size;
 
@@ -416,8 +413,8 @@ class VeyroLogo extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: SvgPicture.asset(
-        'assets/brand/veyro_logo.svg',
+      child: Image.asset(
+        'assets/brand/logo.png',
         fit: BoxFit.contain,
       ),
     );
