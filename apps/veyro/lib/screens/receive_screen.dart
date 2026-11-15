@@ -1,9 +1,10 @@
-//! Экран 13 спеки (asset-поток Receive, BTC): свежий адрес получения из
-//! ядра (btc_receive_address — следующий свободный индекс после последней
-//! синхронизации) + QR-код + путь деривации. Copy работает по-настоящему;
-//! Share отключён честно (системный share-канал в этой сборке не подключён,
-//! url_launcher/системный шеринг отсутствуют). BTC не использует memo/tag —
-//! об этом честно сказано на экране, а не выдумано поле.
+//! Экран 13 спеки (asset-поток Receive, BTC/LTC): свежий адрес получения из
+//! ядра (btc_receive_address / ltc_receive_address — следующий свободный
+//! индекс после последней синхронизации) + QR-код + путь деривации. Copy
+//! работает по-настоящему; Share отключён честно (системный share-канал в
+//! этой сборке не подключён). BTC/LTC не используют memo/tag — об этом
+//! честно сказано на экране, а не выдумано поле. Для LTC под адресом видно
+//! предупреждение MWEB-слепоты (паспорт LTC).
 
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -11,24 +12,34 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 class ReceiveScreen extends StatefulWidget {
-  /// Точки замены для виджет-тестов (без RustLib).
+  final WalletCoin coin;
+
+  /// Точки замены для виджет-тестов (без RustLib); BTC-шные типы —
+  /// исторический контракт тестов (поля совпадают с LTC).
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
   final Future<BtcAddressDto> Function()? addressLoader;
 
-  const ReceiveScreen({super.key, this.sessionLoader, this.addressLoader});
+  const ReceiveScreen({
+    super.key,
+    this.coin = WalletCoin.btc,
+    this.sessionLoader,
+    this.addressLoader,
+  });
 
   @override
   State<ReceiveScreen> createState() => _ReceiveScreenState();
 }
 
 class _ReceiveScreenState extends State<ReceiveScreen> {
-  BtcAddressDto? _address;
-  BtcSessionStateDto? _state;
+  String? _addressText;
+  String? _networkDisplay;
   String? _error;
   bool _loading = true;
   String? _sessionError;
@@ -45,21 +56,33 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     // (адрес требует активной сессии, но ошибка сессии показывается
     // как отдельная, честная строка).
     try {
-      final loader = widget.sessionLoader;
-      final state = loader != null ? await loader() : await btcSessionState();
+      String? network;
+      if (widget.sessionLoader != null) {
+        final state = await widget.sessionLoader!();
+        network = state?.networkDisplay;
+      } else if (widget.coin == WalletCoin.ltc) {
+        network = (await ltcSessionState())?.networkDisplay;
+      } else {
+        network = (await btcSessionState())?.networkDisplay;
+      }
       if (!mounted) return;
-      setState(() => _state = state);
+      setState(() => _networkDisplay = network);
     } catch (e) {
       if (!mounted) return;
       setState(() => _sessionError = e.toString());
     }
     try {
-      final loader = widget.addressLoader;
-      final address =
-          loader != null ? await loader() : await btcReceiveAddress();
+      final String address;
+      if (widget.addressLoader != null) {
+        address = (await widget.addressLoader!()).address;
+      } else if (widget.coin == WalletCoin.ltc) {
+        address = (await ltcReceiveAddress()).address;
+      } else {
+        address = (await btcReceiveAddress()).address;
+      }
       if (!mounted) return;
       setState(() {
-        _address = address;
+        _addressText = address;
         _error = null;
         _loading = false;
       });
@@ -74,7 +97,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final network = _state?.networkDisplay;
+    final network = _networkDisplay;
     return Scaffold(
       appBar: AppBar(title: Text(t('receive_title'))),
       body: Center(
@@ -93,7 +116,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 icon: Icons.qr_code_2_outlined,
                 children: _buildContent(context),
               ),
-
             ],
           ),
         ),
@@ -134,11 +156,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         VButton.secondary(t('retry'), icon: Icons.refresh, onPressed: _load),
       ];
     }
-    final address = _address;
+    final address = _addressText;
     if (address == null) {
       return [
-        Text(t('address_unavailable'),
-            style: Theme.of(context).textTheme.bodyMedium)
+        Text(
+          t('address_unavailable'),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       ];
     }
     return [
@@ -150,7 +174,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: QrImageView(
-            data: address.address,
+            data: address,
             version: QrVersions.auto,
             size: 220,
             gapless: true,
@@ -158,16 +182,24 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         ),
       ),
       const SizedBox(height: 14),
-      VMonoCopyRow(label: t('address_label'), value: address.address),
+      VMonoCopyRow(label: t('address_label'), value: address),
       const SizedBox(height: 12),
+      if (widget.coin == WalletCoin.ltc) ...[
+        Text(
+          t('ltc_mweb_warning'),
+          style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                color: Colors.orangeAccent,
+              ),
+        ),
+        const SizedBox(height: 12),
+      ],
       Row(
         children: [
           Expanded(
             child: VButton.primary(
               t('copy_address_btn'),
               icon: Icons.copy_outlined,
-              onPressed: () =>
-                  copyToClipboard(context, t('address_label'), address.address),
+              onPressed: () => copyToClipboard(context, t('address_label'), address),
             ),
           ),
           const SizedBox(width: 10),
@@ -182,4 +214,3 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     ];
   }
 }
-

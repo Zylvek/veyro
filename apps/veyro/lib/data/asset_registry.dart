@@ -4,7 +4,7 @@
 //! Tari L2/Ootle «TARI» — сети и кошелька нет, показывать нельзя).
 //! ЗАПРЕЩЕНО выдавать researched-актив за реализованный: баланс и
 //! транзакции показываются только для активов с реальным адаптером
-//! (сейчас — BTC).
+//! (сейчас — BTC и LTC receive-only).
 //!
 //! Синхронизация: при изменении матрицы — обновить таблицу и тест-счётчики
 //! (ui_spec_group2_test.dart).
@@ -19,6 +19,10 @@ enum AssetLifecycle {
 
   /// Отправка проверена на тестнете; полный цикл не заявлен (BTC).
   sendSupported('Отправка проверена (testnet)', VChipKind.success),
+
+  /// Приём проверен вживую (genesis-чек + адрес + баланс/история);
+  /// отправка ещё не заявлена (LTC, receive-only milestone).
+  receiveSupported('Приём проверен (live)', VChipKind.success),
 
   /// Исследование не завершено.
   researchRequired('Требует изучения', VChipKind.warning),
@@ -41,6 +45,8 @@ enum AssetLifecycle {
         return t('lc_researched');
       case sendSupported:
         return t('lc_send_supported');
+      case receiveSupported:
+        return t('lc_receive_supported');
       case researchRequired:
         return t('lc_research_required');
       case blocked:
@@ -333,10 +339,13 @@ const List<VeyroAsset> kAssetRegistry = [
     ticker: 'LTC',
     name: 'Litecoin',
     network: 'L1 · PoW Scrypt',
-    lifecycle: AssetLifecycle.researched,
+    lifecycle: AssetLifecycle.receiveSupported,
+    implemented: true,
     passport: 'docs/coins/LTC.md',
-    note: 'Без MWEB; обязательное предупреждение о MWEB-слепоте '
-        '(баланс может быть неполным); 7 публичных Electrum-серверов.',
+    note: 'Реализовано в ядре (receive-only): ltc1 bech32, m/84\'/2\', '
+        'genesis-чек, live-серверы electrum-ltc (petrkr/stackwallet). '
+        'Отправка — отдельный этап. Без MWEB: обязательное предупреждение '
+        'о MWEB-слепоте (баланс может быть неполным).',
   ),
   VeyroAsset(
     row: 26,

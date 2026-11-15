@@ -6,6 +6,9 @@
 /// Имя explorer'а, доступного для BTC-сетей.
 const String kBtcExplorerName = 'mempool.space';
 
+/// Имя explorer'а для LTC mainnet.
+const String kLtcExplorerName = 'litecoinspace.org';
+
 /// URL транзакции в block explorer по коду сети ядра:
 /// 0 = mainnet, 1 = testnet3, 2 = testnet4 (см. util/network_config.dart).
 /// Для сетей без поддерживаемого explorer — null (экран покажет честное «—»).
@@ -20,4 +23,10 @@ String? explorerTxUrl(int networkCode, String txid) {
     default:
       return null;
   }
+}
+
+/// URL транзакции LTC mainnet (паспорт LTC §1: litecoinspace.org,
+/// проверен живым 11.11.2026).
+String? ltcTxUrl(String txid) {
+  return 'https://litecoinspace.org/tx/$txid';
 }

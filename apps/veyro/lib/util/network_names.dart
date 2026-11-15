@@ -11,6 +11,9 @@ String? ruNetworkText(String? display) {
   if (display == null) return null;
   final d = display.toLowerCase();
   final en = DisplayPrefs.language == 'en';
+  if (d.contains('litecoin') && d.contains('mainnet')) {
+    return en ? 'Litecoin · mainnet' : 'Litecoin · основная сеть (mainnet)';
+  }
   if (d.contains('mainnet')) {
     return en ? 'Bitcoin · mainnet' : 'Bitcoin · основная сеть (mainnet)';
   }

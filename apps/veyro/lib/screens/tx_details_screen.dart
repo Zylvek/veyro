@@ -10,7 +10,9 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/links.dart';
@@ -63,6 +65,10 @@ String? networkName(int? networkCode) {
 class TxDetailsScreen extends StatefulWidget {
   final BtcHistoryItemDto item;
 
+  /// Монета записи (BTC или LTC) — меняет статус-запрос, суффикс суммы и
+  /// explorer-карту.
+  final WalletCoin coin;
+
   /// Код сети для explorer-ссылки (из активной сессии, если известен).
   final int? networkCode;
 
@@ -72,6 +78,7 @@ class TxDetailsScreen extends StatefulWidget {
   const TxDetailsScreen({
     super.key,
     required this.item,
+    this.coin = WalletCoin.btc,
     this.networkCode,
     this.statusLoader,
   });
@@ -111,7 +118,24 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
       _statusError = null;
     });
     try {
-      final loader = widget.statusLoader ?? (txid) => btcTxStatus(txid: txid);
+      late final Future<BtcTxStatusDto> Function(String txid) loader;
+      if (widget.statusLoader != null) {
+        loader = widget.statusLoader!;
+      } else if (widget.coin == WalletCoin.ltc) {
+        loader = (txid) async {
+          // LtcTxStatusDto и BtcTxStatusDto структурно одинаковы; общий
+          // тип UI-состояния — BTC-класс (исторический контракт тестов).
+          final s = await ltcTxStatus(txid: txid);
+          return BtcTxStatusDto(
+            state: s.state,
+            height: s.height,
+            confirmations: s.confirmations,
+            txid: s.txid,
+          );
+        };
+      } else {
+        loader = (txid) => btcTxStatus(txid: txid);
+      }
       final status = await loader(widget.item.txid);
       if (!mounted) return;
       setState(() {
@@ -239,7 +263,9 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         VAmount(_amountText,
             suffix: item.direction == 'internal'
                 ? null
-                : 'BTC',
+                : widget.coin == WalletCoin.ltc
+                    ? 'LTC'
+                    : 'BTC',
             fontSize: 26),
         const SizedBox(height: 4),
         Text(_directionNote, style: Theme.of(context).textTheme.bodySmall),
@@ -249,17 +275,27 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         _row(
           context,
           t('fee_row_label'),
-          item.feeSat != null
-              ? tf(
-                  'tx_fee_row',
-                  {
-                    'btc': satToBtcString(item.feeSat!.toInt()),
-                    'sats': groupDigits(item.feeSat!.toInt()),
-                    'vsize': '0',
-                    'rate': '0',
-                  },
-                )
-              : '—',
+          widget.coin == WalletCoin.ltc
+              ? item.feeSat != null
+                  ? tf(
+                      'tx_fee_row_ltc',
+                      {
+                        'ltc': satToBtcString(item.feeSat!.toInt()),
+                        'sats': groupDigits(item.feeSat!.toInt()),
+                      },
+                    )
+                  : '—'
+              : item.feeSat != null
+                  ? tf(
+                      'tx_fee_row',
+                      {
+                        'btc': satToBtcString(item.feeSat!.toInt()),
+                        'sats': groupDigits(item.feeSat!.toInt()),
+                        'vsize': '0',
+                        'rate': '0',
+                      },
+                    )
+                  : '—',
         ),
       ],
     );
@@ -331,13 +367,23 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   }
 
   Widget _buildExplorerCard(BuildContext context) {
+    final isLtc = widget.coin == WalletCoin.ltc;
     final code = _networkCode;
-    final url = code == null ? null : explorerTxUrl(code, widget.item.txid);
+    final url = isLtc
+        ? ltcTxUrl(widget.item.txid)
+        : (code == null ? null : explorerTxUrl(code, widget.item.txid));
+    final explorerName = isLtc ? kLtcExplorerName : kBtcExplorerName;
     return VCard(
       title: t('network_explorer_card'),
       icon: Icons.public_outlined,
       children: [
-        _row(context, t('network_label'), networkName(code) ?? t('network_unknown')),
+        _row(
+          context,
+          t('network_label'),
+          isLtc
+              ? (ruNetworkText('Litecoin mainnet') ?? 'Litecoin mainnet')
+              : networkName(code) ?? t('network_unknown'),
+        ),
         const SizedBox(height: 8),
         if (url != null) ...[
           VMonoCopyRow(label: 'Explorer', value: url),
@@ -346,7 +392,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           Text(
             tf(
               'explorer_note',
-              {'name': kBtcExplorerName},
+              {'name': explorerName},
             ),
             style: Theme.of(context).textTheme.bodySmall,
           ),

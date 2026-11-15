@@ -373,6 +373,40 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Разблокировать и управлять BTC',
     'en': 'Unlock and manage BTC',
   },
+  // LTC-центр (receive-only milestone: приём/баланс/история; отправка
+  // LTC — отдельный этап).
+  'unlock_ltc_btn': {
+    'ru': 'Разблокировать LTC',
+    'en': 'Unlock LTC',
+  },
+  'ltc_unlock_title': {
+    'ru': 'Разблокировать LTC — «{name}»',
+    'en': 'Unlock LTC — "{name}"',
+  },
+  'ltc_wallet_field': {'ru': 'Кошелёк для LTC', 'en': 'Wallet for LTC'},
+  'open_ltc_center': {
+    'ru': 'Открыть центр управления LTC',
+    'en': 'Open the LTC control center',
+  },
+  'unlock_manage_ltc': {
+    'ru': 'Разблокировать и управлять LTC',
+    'en': 'Unlock and manage LTC',
+  },
+  'ltc_mweb_warning': {
+    'ru': 'Лайткоин имеет расширение конфиденциальности MWEB: переводы '
+        'в MWEB-адреса не видны этому кошельку. Баланс и история '
+        'отражают только прозрачные (обычные) транзакции ltc1….',
+    'en': 'Litecoin has the MWEB privacy extension: transfers to MWEB '
+        'addresses are invisible to this wallet. Balance and history '
+        'cover transparent (regular) ltc1… transactions only.',
+  },
+  'ltc_server_autopick_note': {
+    'ru': 'Сервер Electrum-LTC подбирается автоматически из живых '
+        'публичных (проверка genesis обязателен).',
+    'en': 'The Electrum-LTC server is picked automatically from live '
+        'public ones (the genesis check is mandatory).',
+  },
+  'ltc_unit': {'ru': 'лит.', 'en': 'lits'},
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).
@@ -600,6 +634,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Комиссия: {btc} BTC ({sats} сат, {vsize} vSize, {rate} sat/vB)',
     'en': 'Fee: {btc} BTC ({sats} sat, {vsize} vSize, {rate} sat/vB)',
   },
+  'tx_fee_row_ltc': {
+    'ru': 'Комиссия: {ltc} LTC ({sats} лит.)',
+    'en': 'Fee: {ltc} LTC ({sats} lits)',
+  },
   'change_label': {'ru': 'Сдача', 'en': 'Change'},
   'copy_txid': {'ru': 'Копировать TXID', 'en': 'Copy TXID'},
   'done_btn': {'ru': 'Готово', 'en': 'Done'},
@@ -774,6 +812,10 @@ const Map<String, Map<String, String>> _strings = {
   },
   // Статусы жизненного цикла реестра.
   'lc_researched': {'ru': 'Исследовано', 'en': 'Researched'},
+  'lc_receive_supported': {
+    'ru': 'Приём проверен (live)',
+    'en': 'Receives verified (live)',
+  },
   'lc_send_supported': {
     'ru': 'Отправка проверена (testnet)',
     'en': 'Sends verified (testnet)',

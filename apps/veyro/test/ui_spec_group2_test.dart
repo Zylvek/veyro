@@ -54,6 +54,9 @@ void main() {
       final sendSupported = kAssetRegistry
           .where((a) => a.lifecycle == AssetLifecycle.sendSupported)
           .toList();
+      final receiveSupported = kAssetRegistry
+          .where((a) => a.lifecycle == AssetLifecycle.receiveSupported)
+          .toList();
       final researchRequired = kAssetRegistry
           .where((a) => a.lifecycle == AssetLifecycle.researchRequired)
           .toList();
@@ -64,17 +67,21 @@ void main() {
           .where((a) => a.lifecycle == AssetLifecycle.historical)
           .toList();
 
-      expect(researched.length, 24);
+      // LTC реализован в ядре (receive-only, 15.11.2026) — второй
+      // реализованный актив.
+      expect(researched.length, 23);
       expect(sendSupported.length, 1);
+      expect(receiveSupported.length, 1);
       expect(researchRequired.length, 0);
       expect(blocked.length, 1);
       // Фиктивный XTR (historical) удалён — исторических строк нет.
       expect(historical.length, 0);
 
-      // 24 + 1 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
+      // 23 + 1 + 1 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
       expect(
         researched.length +
             sendSupported.length +
+            receiveSupported.length +
             researchRequired.length +
             blocked.length +
             historical.length,
@@ -82,14 +89,18 @@ void main() {
       );
     });
 
-    test('единственный реализованный адаптер — BTC', () {
+    test('реализованные адаптеры — BTC (полный) и LTC (receive-only)', () {
       final implemented =
           kAssetRegistry.where((a) => a.implemented).toList();
-      expect(implemented.length, 1);
-      expect(implemented.single.ticker, 'BTC');
-      expect(implemented.single.lifecycle, AssetLifecycle.sendSupported);
+      expect(implemented.length, 2);
+      final btc = implemented.firstWhere((a) => a.ticker == 'BTC');
+      expect(btc.lifecycle, AssetLifecycle.sendSupported);
       // Send supported ≠ Full support: честное отличие защищено.
-      expect(implemented.single.name, 'Bitcoin');
+      expect(btc.name, 'Bitcoin');
+      final ltc = implemented.firstWhere((a) => a.ticker == 'LTC');
+      expect(ltc.lifecycle, AssetLifecycle.receiveSupported);
+      // Receive-only: отправки в ядре для LTC НЕТ — честный этап.
+      expect(ltc.name, 'Litecoin');
     });
 
     test('особые строки реестра на своих местах', () {
@@ -148,12 +159,13 @@ void main() {
       // работает — не надо об этом писать; другие — тоже без чипов).
       expect(find.text('Заблокировано'), findsNothing);
 
-      // Сетка фильтров: «Реализованные» оставляет только BTC.
+      // Фильтр «Реализованные»: BTC и LTC (receive-only).
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Реализованные'));
       await tester.pumpAndSettle();
       expect(tileTitle('Bitcoin'), findsOneWidget);
+      expect(tileTitle('Litecoin'), findsOneWidget);
       expect(find.text('Отправка проверена (testnet)'), findsNothing);
       // Остальные скрыты: Monero (Researched) не рендерится.
       expect(tileTitle('Monero'), findsNothing);
@@ -165,7 +177,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // LTC (researched) — не реализован: находим через поиск.
+      // LTC (receive-only) — избранное через реальный DisplayPrefs.
       await tester.enterText(find.byType(TextField), 'Litecoin');
       await tester.pumpAndSettle();
 

@@ -15,6 +15,7 @@ import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -24,6 +25,7 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'btc_screen.dart';
+import 'ltc_screen.dart';
 import 'asset_catalog_screen.dart' show CoinIcon;
 
 class AssetDetailScreen extends StatefulWidget {
@@ -51,6 +53,7 @@ class AssetDetailScreen extends StatefulWidget {
 
 class _AssetDetailScreenState extends State<AssetDetailScreen> {
   BtcSessionStateDto? _session;
+  LtcSessionStateDto? _ltcSession;
   bool _sessionChecked = false;
   List<WalletInfoDto>? _wallets;
   String? _walletError;
@@ -106,18 +109,41 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   Future<void> _loadSession() async {
     try {
+      if (_asset.ticker == 'LTC') {
+        try {
+          final state = await ltcSessionState();
+          if (!mounted) return;
+          setState(() {
+            _ltcSession = state;
+            _session = null;
+            _sessionChecked = true;
+          });
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          setState(() {
+            _ltcSession = null;
+            _session = null;
+            _sessionChecked = true;
+            _walletError ??= 'Состояние сессии LTC не прочитано: $e';
+          });
+          return;
+        }
+      }
       final session = widget.sessionLoader != null
           ? await widget.sessionLoader!()
           : await btcSessionState();
       if (!mounted) return;
       setState(() {
         _session = session;
+        _ltcSession = null;
         _sessionChecked = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _session = null;
+        _ltcSession = null;
         _sessionChecked = true;
         _walletError ??= 'Состояние сессии BTC не прочитано: $e';
       });
@@ -134,6 +160,18 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     if (wallet == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => BtcScreen(info: wallet)),
+    );
+    // Возврат из центра управления — перечитать сессию (могли unlock/lock).
+    if (mounted) {
+      await _loadSession();
+    }
+  }
+
+  Future<void> _openLtcWorkbench() async {
+    final wallet = _chosenWallet;
+    if (wallet == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => LtcScreen(info: wallet)),
     );
     // Возврат из центра управления — перечитать сессию (могли unlock/lock).
     if (mounted) {
@@ -171,6 +209,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
               const SizedBox(height: 14),
               if (_asset.ticker == 'BTC') ...[
                 _buildBtcCard(context),
+                const SizedBox(height: 14),
+              ] else if (_asset.ticker == 'LTC') ...[
+                _buildLtcCard(context),
                 const SizedBox(height: 14),
               ],
               _buildStatusCard(context),
@@ -218,6 +259,80 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         kvRow(
           t('implemented_in_core'),
           _asset.implemented ? t('yes') : t('no'),
+        ),
+      ],
+    );
+  }
+
+  /// Карточка управления LTC: сессия ядра без hasSpendables-чипа
+  /// (receive-only milestone; чип spendables у BTC — про отправку).
+  Widget _buildLtcCard(BuildContext context) {
+    final session = _ltcSession;
+    return VCard(
+      icon: Icons.settings_backup_restore,
+      title: t('management_card'),
+      children: [
+        if (!_sessionChecked)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
+          )
+        else if (session != null) ...[
+          kvRow(t('network_label'), ruNetworkText(session.networkDisplay) ?? '—'),
+          VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
+          kvRow(t('account_row'), "m/84'/2'/${session.account}'"),
+        ] else
+          Text(
+            t('session_closed_note'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        const Divider(height: 22),
+        Text(
+          t('sync_note'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        if (_walletError != null) ...[
+          Text(
+            tf(
+              'wallets_read_error',
+              {'error': '$_walletError'},
+            ),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall!
+                .copyWith(color: VColors.error),
+          ),
+        ] else if (_wallets != null && _wallets!.isEmpty) ...[
+          Text(
+            t('no_wallets_btc'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ] else if (_wallets != null && _wallets!.length > 1) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _chosenWallet?.id,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: t('ltc_wallet_field')),
+            items: [
+              for (final w in _wallets!)
+                DropdownMenuItem(value: w.id, child: Text(w.name)),
+            ],
+            onChanged: (id) async {
+              final chosen = _wallets!.firstWhere((w) => w.id == id);
+              setState(() => _chosenWallet = chosen);
+              await DisplayPrefs.setWalletId(chosen.id);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        VButton.primary(
+          session != null
+              ? t('open_ltc_center')
+              : t('unlock_manage_ltc'),
+          icon: Icons.lock_open_outlined,
+          onPressed: _chosenWallet == null ? null : _openLtcWorkbench,
         ),
       ],
     );

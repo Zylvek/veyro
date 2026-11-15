@@ -1,9 +1,10 @@
 //! Экран 16 спеки: History — фильтры (Все/Входящие/Исходящие/Ожидающие/
 //! Подтверждённые; «Неудачные» честно отключены — ядро не отдаёт неуспешные
 //! в истории), поиск по TXID (адресов в данных истории нет — честная
-//! пометка), переход в детали (экран 17). Данные — только btcHistory;
-//! история собирается синхронизацией адресов (btcSync) — сетевая операция,
-//! запускается только действием пользователя.
+//! пометка), переход в детали (экран 17). Данные — только btcHistory /
+//! ltcHistory (walletCoin); история собирается синхронизацией адресов
+//! (btcSync / ltcSync) — сетевая операция, запускается только действием
+//! пользователя.
 
 import 'package:flutter/material.dart';
 
@@ -11,11 +12,13 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 
 import 'tx_details_screen.dart';
+import 'package:veyro/util/coin.dart';
 
 /// Фильтры истории. failed есть в enum, но в UI отключён: история ядра
 /// не содержит неуспешных транзакций (broadcast неудачных отклоняется до
@@ -23,6 +26,9 @@ import 'tx_details_screen.dart';
 enum HistoryFilter { all, incoming, outgoing, pending, confirmed, failed }
 
 class HistoryScreen extends StatefulWidget {
+  /// Монета истории (BTC дефолт — исторический контракт тестов).
+  final WalletCoin walletCoin;
+
   /// Точки замены для виджет-тестов (без RustLib).
   final Future<List<BtcHistoryItemDto>> Function()? historyLoader;
   final Future<void> Function()? syncLoader;
@@ -30,6 +36,7 @@ class HistoryScreen extends StatefulWidget {
 
   const HistoryScreen({
     super.key,
+    this.walletCoin = WalletCoin.btc,
     this.historyLoader,
     this.syncLoader,
     this.sessionLoader,
@@ -72,15 +79,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
     // Код сети нужен для explorer-ссылки в деталях; падение не критично.
     try {
-      final loader = widget.sessionLoader;
-      final session = loader != null ? await loader() : await btcSessionState();
-      if (mounted) setState(() => _networkCode = session?.networkCode);
+      int? code;
+      if (widget.sessionLoader != null) {
+        final session = await widget.sessionLoader!();
+        code = session?.networkCode;
+      } else if (widget.walletCoin == WalletCoin.ltc) {
+        // LTC: сеть одна (mainnet) — код сети в сессии смысла не имеет,
+        // детали берут LTC-эксплорер напрямую.
+        code = null;
+      } else {
+        code = (await btcSessionState())?.networkCode;
+      }
+      if (mounted) setState(() => _networkCode = code);
     } catch (_) {
       // Сеть неизвестна — детали покажут честное «—».
     }
     try {
-      final loader = widget.historyLoader;
-      final items = loader != null ? await loader() : await btcHistory();
+      final List<BtcHistoryItemDto> items;
+      if (widget.historyLoader != null) {
+        items = await widget.historyLoader!();
+      } else if (widget.walletCoin == WalletCoin.ltc) {
+        // LtcHistoryItemDto структурно одинаков с BtcHistoryItemDto —
+        // приводим к общему типу экрана (исторический контракт тестов).
+        items = (await ltcHistory())
+            .map((e) => BtcHistoryItemDto(
+                  txid: e.txid,
+                  height: e.height,
+                  direction: e.direction,
+                  receivedSat: e.receivedSat,
+                  sentNetSat: e.sentNetSat,
+                  feeSat: e.feeSat,
+                ))
+            .toList();
+      } else {
+        items = await btcHistory();
+      }
       if (!mounted) return;
       setState(() {
         _items = items;
@@ -102,6 +135,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final loader = widget.syncLoader;
       if (loader != null) {
         await loader();
+      } else if (widget.walletCoin == WalletCoin.ltc) {
+        await ltcSync(gapLimit: 20);
       } else {
         await btcSync(gapLimit: 20);
       }
@@ -176,6 +211,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     if (_hasError) {
       final needsSync = _error!.contains('btc_sync first') ||
+          _error!.contains('ltc_sync first') ||
           _error!.contains('no scanned addresses');
       return Padding(
         padding: const EdgeInsets.all(24),
@@ -398,23 +434,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
       amountText: '—',
       directionText: '',
     );
+    final unit = widget.walletCoin == WalletCoin.ltc ? 'LTC' : 'BTC';
     final data = switch (item.direction) {
       'incoming' => (
           icon: Icons.south_west,
           color: VColors.success,
-          amountText: '+${satToBtcString(item.receivedSat.toInt())} BTC',
+          amountText: '+${satToBtcString(item.receivedSat.toInt())} $unit',
           directionText: t('dir_incoming'),
         ),
       'outgoing' => (
           icon: Icons.north_east,
           color: VColors.error,
-          amountText: '-${satToBtcString(item.sentNetSat.toInt())} BTC',
+          amountText: '-${satToBtcString(item.sentNetSat.toInt())} $unit',
           directionText: t('dir_outgoing'),
         ),
       'internal' => (
           icon: Icons.swap_horiz,
           color: VColors.secondary,
-          amountText: '0 BTC',
+          amountText: '0 $unit',
           directionText: t('dir_internal'),
         ),
       _ => (icon: unknown.icon, color: unknown.color,
@@ -423,7 +460,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final feeText = item.feeSat != null && item.direction == 'outgoing'
         ? tf(
             'fee_prefix',
-            {'value': satToBtcString(item.feeSat!.toInt())},
+            {'value': '${satToBtcString(item.feeSat!.toInt())} $unit'},
           )
         : '';
     return (
