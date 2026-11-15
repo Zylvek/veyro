@@ -5,6 +5,7 @@
 
 import 'api/backup.dart';
 import 'api/btc.dart';
+import 'api/ltc.dart';
 import 'api/session.dart';
 import 'api/storage.dart';
 import 'api/wallet.dart';
@@ -71,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -966457246;
+  int get rustContentHash => -338604761;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -153,6 +154,27 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<WalletInfoDto>> crateApiWalletListWallets({
     required String walletsDir,
+  });
+
+  Future<List<LtcHistoryItemDto>> crateApiLtcLtcHistory();
+
+  Future<void> crateApiLtcLtcLock();
+
+  Future<LtcAddressDto> crateApiLtcLtcReceiveAddress();
+
+  Future<List<String>> crateApiLtcLtcServers();
+
+  Future<LtcSessionStateDto?> crateApiLtcLtcSessionState();
+
+  Future<LtcSyncDto> crateApiLtcLtcSync({required int gapLimit});
+
+  Future<LtcTxStatusDto> crateApiLtcLtcTxStatus({required String txid});
+
+  Future<LtcUnlockDto> crateApiLtcLtcUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
   });
 
   Future<WalletInfoDto> crateApiWalletRestoreWallet({
@@ -835,6 +857,235 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_wallets", argNames: ["walletsDir"]);
 
   @override
+  Future<List<LtcHistoryItemDto>> crateApiLtcLtcHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_ltc_history_item_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcHistoryConstMeta =>
+      const TaskConstMeta(debugName: "ltc_history", argNames: []);
+
+  @override
+  Future<void> crateApiLtcLtcLock() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcLockConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcLockConstMeta =>
+      const TaskConstMeta(debugName: "ltc_lock", argNames: []);
+
+  @override
+  Future<LtcAddressDto> crateApiLtcLtcReceiveAddress() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_address_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcReceiveAddressConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcReceiveAddressConstMeta =>
+      const TaskConstMeta(debugName: "ltc_receive_address", argNames: []);
+
+  @override
+  Future<List<String>> crateApiLtcLtcServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLtcLtcServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcServersConstMeta =>
+      const TaskConstMeta(debugName: "ltc_servers", argNames: []);
+
+  @override
+  Future<LtcSessionStateDto?> crateApiLtcLtcSessionState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_ltc_session_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcSessionStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcSessionStateConstMeta =>
+      const TaskConstMeta(debugName: "ltc_session_state", argNames: []);
+
+  @override
+  Future<LtcSyncDto> crateApiLtcLtcSync({required int gapLimit}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(gapLimit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcSyncConstMeta,
+        argValues: [gapLimit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcSyncConstMeta =>
+      const TaskConstMeta(debugName: "ltc_sync", argNames: ["gapLimit"]);
+
+  @override
+  Future<LtcTxStatusDto> crateApiLtcLtcTxStatus({required String txid}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(txid, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_tx_status_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcTxStatusConstMeta,
+        argValues: [txid],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcTxStatusConstMeta =>
+      const TaskConstMeta(debugName: "ltc_tx_status", argNames: ["txid"]);
+
+  @override
+  Future<LtcUnlockDto> crateApiLtcLtcUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_String(walletId, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(serverUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_unlock_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcUnlockConstMeta,
+        argValues: [walletsDir, walletId, password, serverUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcUnlockConstMeta => const TaskConstMeta(
+    debugName: "ltc_unlock",
+    argNames: ["walletsDir", "walletId", "password", "serverUrl"],
+  );
+
+  @override
   Future<WalletInfoDto> crateApiWalletRestoreWallet({
     required String walletsDir,
     required String name,
@@ -854,7 +1105,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 30,
             port: port_,
           );
         },
@@ -891,7 +1142,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 31,
             port: port_,
           );
         },
@@ -928,7 +1179,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 32,
             port: port_,
           );
         },
@@ -982,6 +1233,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BtcSessionStateDto dco_decode_box_autoadd_btc_session_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_btc_session_state_dto(raw);
+  }
+
+  @protected
+  LtcSessionStateDto dco_decode_box_autoadd_ltc_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_ltc_session_state_dto(raw);
   }
 
   @protected
@@ -1155,6 +1412,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
   List<BackupWalletRequest> dco_decode_list_backup_wallet_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
@@ -1172,6 +1435,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<BtcHistoryItemDto> dco_decode_list_btc_history_item_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_btc_history_item_dto).toList();
+  }
+
+  @protected
+  List<LtcAddressDto> dco_decode_list_ltc_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_ltc_address_dto).toList();
+  }
+
+  @protected
+  List<LtcHistoryItemDto> dco_decode_list_ltc_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_ltc_history_item_dto).toList();
   }
 
   @protected
@@ -1193,6 +1468,101 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LtcAddressDto dco_decode_ltc_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return LtcAddressDto(
+      address: dco_decode_String(arr[0]),
+      branch: dco_decode_u_32(arr[1]),
+      index: dco_decode_u_32(arr[2]),
+      path: dco_decode_String(arr[3]),
+      used: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  LtcHistoryItemDto dco_decode_ltc_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return LtcHistoryItemDto(
+      txid: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      direction: dco_decode_String(arr[2]),
+      receivedSat: dco_decode_u_64(arr[3]),
+      sentNetSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  LtcSessionStateDto dco_decode_ltc_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LtcSessionStateDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      account: dco_decode_u_32(arr[2]),
+      accountXpub: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  LtcSyncDto dco_decode_ltc_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return LtcSyncDto(
+      confirmedSat: dco_decode_u_64(arr[0]),
+      unconfirmedDeltaSat: dco_decode_i_64(arr[1]),
+      utxoCount: dco_decode_u_32(arr[2]),
+      usedAddresses: dco_decode_list_ltc_address_dto(arr[3]),
+      nextReceive: dco_decode_ltc_address_dto(arr[4]),
+      nextChange: dco_decode_ltc_address_dto(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      serverUrl: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
+  LtcTxStatusDto dco_decode_ltc_tx_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LtcTxStatusDto(
+      state: dco_decode_String(arr[0]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[1]),
+      confirmations: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      txid: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  LtcUnlockDto dco_decode_ltc_unlock_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return LtcUnlockDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      serverVersion: dco_decode_String(arr[2]),
+      protocolMin: dco_decode_String(arr[3]),
+      protocolMax: dco_decode_String(arr[4]),
+      genesisHashHex: dco_decode_String(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      accountXpub: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -1206,6 +1576,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_btc_session_state_dto(raw);
+  }
+
+  @protected
+  LtcSessionStateDto? dco_decode_opt_box_autoadd_ltc_session_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_ltc_session_state_dto(raw);
   }
 
   @protected
@@ -1307,6 +1687,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_btc_session_state_dto(deserializer));
+  }
+
+  @protected
+  LtcSessionStateDto sse_decode_box_autoadd_ltc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_ltc_session_state_dto(deserializer));
   }
 
   @protected
@@ -1514,6 +1902,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<BackupWalletRequest> sse_decode_list_backup_wallet_request(
     SseDeserializer deserializer,
   ) {
@@ -1556,6 +1956,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LtcAddressDto> sse_decode_list_ltc_address_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LtcAddressDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_ltc_address_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LtcHistoryItemDto> sse_decode_list_ltc_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LtcHistoryItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_ltc_history_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1591,6 +2019,122 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LtcAddressDto sse_decode_ltc_address_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_branch = sse_decode_u_32(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_used = sse_decode_bool(deserializer);
+    return LtcAddressDto(
+      address: var_address,
+      branch: var_branch,
+      index: var_index,
+      path: var_path,
+      used: var_used,
+    );
+  }
+
+  @protected
+  LtcHistoryItemDto sse_decode_ltc_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_receivedSat = sse_decode_u_64(deserializer);
+    var var_sentNetSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    return LtcHistoryItemDto(
+      txid: var_txid,
+      height: var_height,
+      direction: var_direction,
+      receivedSat: var_receivedSat,
+      sentNetSat: var_sentNetSat,
+      feeSat: var_feeSat,
+    );
+  }
+
+  @protected
+  LtcSessionStateDto sse_decode_ltc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_account = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return LtcSessionStateDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      account: var_account,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
+  LtcSyncDto sse_decode_ltc_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_confirmedSat = sse_decode_u_64(deserializer);
+    var var_unconfirmedDeltaSat = sse_decode_i_64(deserializer);
+    var var_utxoCount = sse_decode_u_32(deserializer);
+    var var_usedAddresses = sse_decode_list_ltc_address_dto(deserializer);
+    var var_nextReceive = sse_decode_ltc_address_dto(deserializer);
+    var var_nextChange = sse_decode_ltc_address_dto(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    return LtcSyncDto(
+      confirmedSat: var_confirmedSat,
+      unconfirmedDeltaSat: var_unconfirmedDeltaSat,
+      utxoCount: var_utxoCount,
+      usedAddresses: var_usedAddresses,
+      nextReceive: var_nextReceive,
+      nextChange: var_nextChange,
+      tipHeight: var_tipHeight,
+      serverUrl: var_serverUrl,
+    );
+  }
+
+  @protected
+  LtcTxStatusDto sse_decode_ltc_tx_status_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_confirmations = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_txid = sse_decode_String(deserializer);
+    return LtcTxStatusDto(
+      state: var_state,
+      height: var_height,
+      confirmations: var_confirmations,
+      txid: var_txid,
+    );
+  }
+
+  @protected
+  LtcUnlockDto sse_decode_ltc_unlock_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_serverVersion = sse_decode_String(deserializer);
+    var var_protocolMin = sse_decode_String(deserializer);
+    var var_protocolMax = sse_decode_String(deserializer);
+    var var_genesisHashHex = sse_decode_String(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return LtcUnlockDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      serverVersion: var_serverVersion,
+      protocolMin: var_protocolMin,
+      protocolMax: var_protocolMax,
+      genesisHashHex: var_genesisHashHex,
+      tipHeight: var_tipHeight,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1609,6 +2153,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_btc_session_state_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  LtcSessionStateDto? sse_decode_opt_box_autoadd_ltc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_ltc_session_state_dto(deserializer));
     } else {
       return null;
     }
@@ -1731,6 +2288,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_btc_session_state_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_ltc_session_state_dto(
+    LtcSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_ltc_session_state_dto(self, serializer);
   }
 
   @protected
@@ -1883,6 +2449,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_backup_wallet_request(
     List<BackupWalletRequest> self,
     SseSerializer serializer,
@@ -1915,6 +2490,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_btc_history_item_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_ltc_address_dto(
+    List<LtcAddressDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_ltc_address_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_ltc_history_item_dto(
+    List<LtcHistoryItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_ltc_history_item_dto(item, serializer);
     }
   }
 
@@ -1953,6 +2552,83 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_ltc_address_dto(
+    LtcAddressDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_32(self.branch, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_bool(self.used, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_history_item_dto(
+    LtcHistoryItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_u_64(self.receivedSat, serializer);
+    sse_encode_u_64(self.sentNetSat, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.feeSat, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_session_state_dto(
+    LtcSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_32(self.account, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_sync_dto(LtcSyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.confirmedSat, serializer);
+    sse_encode_i_64(self.unconfirmedDeltaSat, serializer);
+    sse_encode_u_32(self.utxoCount, serializer);
+    sse_encode_list_ltc_address_dto(self.usedAddresses, serializer);
+    sse_encode_ltc_address_dto(self.nextReceive, serializer);
+    sse_encode_ltc_address_dto(self.nextChange, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_tx_status_dto(
+    LtcTxStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.height, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.confirmations, serializer);
+    sse_encode_String(self.txid, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_unlock_dto(LtcUnlockDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_String(self.serverVersion, serializer);
+    sse_encode_String(self.protocolMin, serializer);
+    sse_encode_String(self.protocolMax, serializer);
+    sse_encode_String(self.genesisHashHex, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1972,6 +2648,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_btc_session_state_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_ltc_session_state_dto(
+    LtcSessionStateDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_ltc_session_state_dto(self, serializer);
     }
   }
 

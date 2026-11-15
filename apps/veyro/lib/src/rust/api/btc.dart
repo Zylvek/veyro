@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_dto`, `derive_dto`, `map_status`, `scanned_scripts`
+// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `map_status`, `scanned_scripts`, `transient_sync_error`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Unlock a wallet for BTC operations (must be re-done per app run; `btc_lock`

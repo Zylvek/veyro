@@ -22,6 +22,7 @@
 pub mod api;
 mod btc_session;
 mod frb_generated;
+mod ltc_session;
 
 use crypto_vault::KdfParams;
 

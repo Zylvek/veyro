@@ -5,6 +5,7 @@
 
 pub mod backup;
 pub mod btc;
+pub mod ltc;
 pub mod session;
 pub mod storage;
 pub mod wallet;

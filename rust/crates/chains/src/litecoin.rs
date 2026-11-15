@@ -216,6 +216,7 @@ impl AddressSource for LtcAccount {
 
 /// Ltc-транспорт: тот же electrum_client, что у BTC, но с валидацией
 /// genesis Litecoin и бэкоффом на «дохлые» свежие соединения.
+#[derive(Clone)]
 pub struct LtcGateway {
     client: std::sync::Arc<electrum_client::Client>,
     url: String,

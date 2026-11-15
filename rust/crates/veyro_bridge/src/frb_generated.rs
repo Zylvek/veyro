@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -966457246;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -338604761;
 
 // Section: executor
 
@@ -816,6 +816,287 @@ fn wire__crate__api__wallet__list_wallets_impl(
         },
     )
 }
+fn wire__crate__api__ltc__ltc_history_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_history",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_history()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_lock_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_lock",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_lock()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_receive_address_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_receive_address",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_receive_address()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_servers_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_servers",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::ltc::ltc_servers())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_session_state_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_session_state",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_session_state()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_sync_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_sync",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_gap_limit = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_sync(api_gap_limit)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_tx_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_tx_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_txid = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_tx_status(api_txid)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__ltc__ltc_unlock_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ltc_unlock",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_wallets_dir = <String>::sse_decode(&mut deserializer);
+            let api_wallet_id = <String>::sse_decode(&mut deserializer);
+            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_server_url = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ltc::ltc_unlock(
+                            api_wallets_dir,
+                            api_wallet_id,
+                            api_password,
+                            api_server_url,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__wallet__restore_wallet_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1172,6 +1453,18 @@ impl SseDecode for i64 {
     }
 }
 
+impl SseDecode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::backup::BackupWalletRequest> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1205,6 +1498,32 @@ impl SseDecode for Vec<crate::api::btc::BtcHistoryItemDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::btc::BtcHistoryItemDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::ltc::LtcAddressDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::ltc::LtcAddressDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::ltc::LtcHistoryItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::ltc::LtcHistoryItemDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -1252,6 +1571,124 @@ impl SseDecode for Vec<crate::api::storage::WalletRowDto> {
     }
 }
 
+impl SseDecode for crate::api::ltc::LtcAddressDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_address = <String>::sse_decode(deserializer);
+        let mut var_branch = <u32>::sse_decode(deserializer);
+        let mut var_index = <u32>::sse_decode(deserializer);
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_used = <bool>::sse_decode(deserializer);
+        return crate::api::ltc::LtcAddressDto {
+            address: var_address,
+            branch: var_branch,
+            index: var_index,
+            path: var_path,
+            used: var_used,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ltc::LtcHistoryItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_txid = <String>::sse_decode(deserializer);
+        let mut var_height = <i64>::sse_decode(deserializer);
+        let mut var_direction = <String>::sse_decode(deserializer);
+        let mut var_receivedSat = <u64>::sse_decode(deserializer);
+        let mut var_sentNetSat = <u64>::sse_decode(deserializer);
+        let mut var_feeSat = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::ltc::LtcHistoryItemDto {
+            txid: var_txid,
+            height: var_height,
+            direction: var_direction,
+            received_sat: var_receivedSat,
+            sent_net_sat: var_sentNetSat,
+            fee_sat: var_feeSat,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ltc::LtcSessionStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_networkDisplay = <String>::sse_decode(deserializer);
+        let mut var_serverUrl = <String>::sse_decode(deserializer);
+        let mut var_account = <u32>::sse_decode(deserializer);
+        let mut var_accountXpub = <String>::sse_decode(deserializer);
+        return crate::api::ltc::LtcSessionStateDto {
+            network_display: var_networkDisplay,
+            server_url: var_serverUrl,
+            account: var_account,
+            account_xpub: var_accountXpub,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ltc::LtcSyncDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_confirmedSat = <u64>::sse_decode(deserializer);
+        let mut var_unconfirmedDeltaSat = <i64>::sse_decode(deserializer);
+        let mut var_utxoCount = <u32>::sse_decode(deserializer);
+        let mut var_usedAddresses = <Vec<crate::api::ltc::LtcAddressDto>>::sse_decode(deserializer);
+        let mut var_nextReceive = <crate::api::ltc::LtcAddressDto>::sse_decode(deserializer);
+        let mut var_nextChange = <crate::api::ltc::LtcAddressDto>::sse_decode(deserializer);
+        let mut var_tipHeight = <u32>::sse_decode(deserializer);
+        let mut var_serverUrl = <String>::sse_decode(deserializer);
+        return crate::api::ltc::LtcSyncDto {
+            confirmed_sat: var_confirmedSat,
+            unconfirmed_delta_sat: var_unconfirmedDeltaSat,
+            utxo_count: var_utxoCount,
+            used_addresses: var_usedAddresses,
+            next_receive: var_nextReceive,
+            next_change: var_nextChange,
+            tip_height: var_tipHeight,
+            server_url: var_serverUrl,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ltc::LtcTxStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_height = <Option<u32>>::sse_decode(deserializer);
+        let mut var_confirmations = <Option<u32>>::sse_decode(deserializer);
+        let mut var_txid = <String>::sse_decode(deserializer);
+        return crate::api::ltc::LtcTxStatusDto {
+            state: var_state,
+            height: var_height,
+            confirmations: var_confirmations,
+            txid: var_txid,
+        };
+    }
+}
+
+impl SseDecode for crate::api::ltc::LtcUnlockDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_networkDisplay = <String>::sse_decode(deserializer);
+        let mut var_serverUrl = <String>::sse_decode(deserializer);
+        let mut var_serverVersion = <String>::sse_decode(deserializer);
+        let mut var_protocolMin = <String>::sse_decode(deserializer);
+        let mut var_protocolMax = <String>::sse_decode(deserializer);
+        let mut var_genesisHashHex = <String>::sse_decode(deserializer);
+        let mut var_tipHeight = <u32>::sse_decode(deserializer);
+        let mut var_accountXpub = <String>::sse_decode(deserializer);
+        return crate::api::ltc::LtcUnlockDto {
+            network_display: var_networkDisplay,
+            server_url: var_serverUrl,
+            server_version: var_serverVersion,
+            protocol_min: var_protocolMin,
+            protocol_max: var_protocolMax,
+            genesis_hash_hex: var_genesisHashHex,
+            tip_height: var_tipHeight,
+            account_xpub: var_accountXpub,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1268,6 +1705,19 @@ impl SseDecode for Option<crate::api::session::BtcSessionStateDto> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::session::BtcSessionStateDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::ltc::LtcSessionStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::ltc::LtcSessionStateDto>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -1391,9 +1841,17 @@ fn pde_ffi_dispatcher_primary_impl(
         19 => wire__crate__api__backup__export_backup_impl(port, ptr, rust_vec_len, data_len),
         20 => wire__crate__api__backup__import_backup_impl(port, ptr, rust_vec_len, data_len),
         21 => wire__crate__api__wallet__list_wallets_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__wallet__restore_wallet_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__wallet__reveal_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__wallet__unlock_wallet_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__ltc__ltc_history_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__ltc__ltc_lock_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__ltc__ltc_receive_address_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__ltc__ltc_servers_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__ltc__ltc_session_state_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__ltc__ltc_sync_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__ltc__ltc_tx_status_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__ltc__ltc_unlock_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__wallet__restore_wallet_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__wallet__reveal_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__wallet__unlock_wallet_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1655,6 +2113,149 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wallet::CreatedWalletDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcAddressDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.address.into_into_dart().into_dart(),
+            self.branch.into_into_dart().into_dart(),
+            self.index.into_into_dart().into_dart(),
+            self.path.into_into_dart().into_dart(),
+            self.used.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ltc::LtcAddressDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcAddressDto>
+    for crate::api::ltc::LtcAddressDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcAddressDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcHistoryItemDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.txid.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.direction.into_into_dart().into_dart(),
+            self.received_sat.into_into_dart().into_dart(),
+            self.sent_net_sat.into_into_dart().into_dart(),
+            self.fee_sat.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ltc::LtcHistoryItemDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcHistoryItemDto>
+    for crate::api::ltc::LtcHistoryItemDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcHistoryItemDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcSessionStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.network_display.into_into_dart().into_dart(),
+            self.server_url.into_into_dart().into_dart(),
+            self.account.into_into_dart().into_dart(),
+            self.account_xpub.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ltc::LtcSessionStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcSessionStateDto>
+    for crate::api::ltc::LtcSessionStateDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcSessionStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcSyncDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.confirmed_sat.into_into_dart().into_dart(),
+            self.unconfirmed_delta_sat.into_into_dart().into_dart(),
+            self.utxo_count.into_into_dart().into_dart(),
+            self.used_addresses.into_into_dart().into_dart(),
+            self.next_receive.into_into_dart().into_dart(),
+            self.next_change.into_into_dart().into_dart(),
+            self.tip_height.into_into_dart().into_dart(),
+            self.server_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ltc::LtcSyncDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcSyncDto>
+    for crate::api::ltc::LtcSyncDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcSyncDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcTxStatusDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.state.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.confirmations.into_into_dart().into_dart(),
+            self.txid.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::ltc::LtcTxStatusDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcTxStatusDto>
+    for crate::api::ltc::LtcTxStatusDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcTxStatusDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ltc::LtcUnlockDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.network_display.into_into_dart().into_dart(),
+            self.server_url.into_into_dart().into_dart(),
+            self.server_version.into_into_dart().into_dart(),
+            self.protocol_min.into_into_dart().into_dart(),
+            self.protocol_max.into_into_dart().into_dart(),
+            self.genesis_hash_hex.into_into_dart().into_dart(),
+            self.tip_height.into_into_dart().into_dart(),
+            self.account_xpub.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ltc::LtcUnlockDto {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ltc::LtcUnlockDto>
+    for crate::api::ltc::LtcUnlockDto
+{
+    fn into_into_dart(self) -> crate::api::ltc::LtcUnlockDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::wallet::WalletInfoDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1846,6 +2447,16 @@ impl SseEncode for i64 {
     }
 }
 
+impl SseEncode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::backup::BackupWalletRequest> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1872,6 +2483,26 @@ impl SseEncode for Vec<crate::api::btc::BtcHistoryItemDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::btc::BtcHistoryItemDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::ltc::LtcAddressDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::ltc::LtcAddressDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::ltc::LtcHistoryItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::ltc::LtcHistoryItemDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -1906,6 +2537,77 @@ impl SseEncode for Vec<crate::api::storage::WalletRowDto> {
     }
 }
 
+impl SseEncode for crate::api::ltc::LtcAddressDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.address, serializer);
+        <u32>::sse_encode(self.branch, serializer);
+        <u32>::sse_encode(self.index, serializer);
+        <String>::sse_encode(self.path, serializer);
+        <bool>::sse_encode(self.used, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ltc::LtcHistoryItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.txid, serializer);
+        <i64>::sse_encode(self.height, serializer);
+        <String>::sse_encode(self.direction, serializer);
+        <u64>::sse_encode(self.received_sat, serializer);
+        <u64>::sse_encode(self.sent_net_sat, serializer);
+        <Option<u64>>::sse_encode(self.fee_sat, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ltc::LtcSessionStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.network_display, serializer);
+        <String>::sse_encode(self.server_url, serializer);
+        <u32>::sse_encode(self.account, serializer);
+        <String>::sse_encode(self.account_xpub, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ltc::LtcSyncDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.confirmed_sat, serializer);
+        <i64>::sse_encode(self.unconfirmed_delta_sat, serializer);
+        <u32>::sse_encode(self.utxo_count, serializer);
+        <Vec<crate::api::ltc::LtcAddressDto>>::sse_encode(self.used_addresses, serializer);
+        <crate::api::ltc::LtcAddressDto>::sse_encode(self.next_receive, serializer);
+        <crate::api::ltc::LtcAddressDto>::sse_encode(self.next_change, serializer);
+        <u32>::sse_encode(self.tip_height, serializer);
+        <String>::sse_encode(self.server_url, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ltc::LtcTxStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.state, serializer);
+        <Option<u32>>::sse_encode(self.height, serializer);
+        <Option<u32>>::sse_encode(self.confirmations, serializer);
+        <String>::sse_encode(self.txid, serializer);
+    }
+}
+
+impl SseEncode for crate::api::ltc::LtcUnlockDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.network_display, serializer);
+        <String>::sse_encode(self.server_url, serializer);
+        <String>::sse_encode(self.server_version, serializer);
+        <String>::sse_encode(self.protocol_min, serializer);
+        <String>::sse_encode(self.protocol_max, serializer);
+        <String>::sse_encode(self.genesis_hash_hex, serializer);
+        <u32>::sse_encode(self.tip_height, serializer);
+        <String>::sse_encode(self.account_xpub, serializer);
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1922,6 +2624,16 @@ impl SseEncode for Option<crate::api::session::BtcSessionStateDto> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::session::BtcSessionStateDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::ltc::LtcSessionStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::ltc::LtcSessionStateDto>::sse_encode(value, serializer);
         }
     }
 }
