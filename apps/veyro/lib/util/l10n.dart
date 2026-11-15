@@ -558,6 +558,10 @@ const Map<String, Map<String, String>> _strings = {
   'amount_card': {'ru': 'Сумма', 'en': 'Amount'},
   'amount_field': {'ru': 'Сумма, BTC', 'en': 'Amount, BTC'},
   'available_row': {'ru': 'Доступно: {value} BTC', 'en': 'Available: {value} BTC'},
+  'available_row_ltc': {
+    'ru': 'Доступно: {value} LTC',
+    'en': 'Available: {value} LTC',
+  },
   'fee_card': {'ru': 'Комиссия и скорость', 'en': 'Fee and speed'},
   'fee_fast': {'ru': 'Быстро — {rate} sat/vB', 'en': 'Fast — {rate} sat/vB'},
   'fee_normal': {

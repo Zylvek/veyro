@@ -19,6 +19,7 @@ import 'package:veyro/util/ui_helpers.dart';
 
 import 'history_screen.dart';
 import 'receive_screen.dart';
+import 'send_screen.dart';
 
 class LtcScreen extends StatefulWidget {
   final WalletInfoDto info;
@@ -362,8 +363,8 @@ class _LtcScreenState extends State<LtcScreen> {
     );
   }
 
-  /// Receive-only: Send-плитки НЕТ (честно — подпись LTC отдельный этап);
-  /// только приём и история.
+  /// Три плитки: приём, отправка, история (полный цикл после send
+  /// milestone).
   Widget _buildActionsRow() {
     return Row(
       children: [
@@ -376,6 +377,13 @@ class _LtcScreenState extends State<LtcScreen> {
         ),
         Expanded(
           child: _ActionTileLite(
+            icon: Icons.north_east,
+            label: t('send_btn'),
+            onTap: _state == null ? null : _openSend,
+          ),
+        ),
+        Expanded(
+          child: _ActionTileLite(
             icon: Icons.history,
             label: t('history_btn'),
             onTap: _openHistory,
@@ -383,6 +391,31 @@ class _LtcScreenState extends State<LtcScreen> {
         ),
       ],
     );
+  }
+
+  /// Реальный доступный баланс на момент последней синхронизации:
+  /// confirmed + отрицательный mempool-delta. Нет синхронизации — нет
+  /// данных (null, кнопка Max на SendScreen честно скрыта).
+  int? _availableLit() {
+    final sync = _sync;
+    if (sync == null) return null;
+    final confirmed = sync.confirmedSat.toInt();
+    final delta = sync.unconfirmedDeltaSat.toInt();
+    return delta < 0 ? confirmed + delta : confirmed;
+  }
+
+  Future<void> _openSend() async {
+    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
+      builder: (_) => SendScreen(
+        coin: WalletCoin.ltc,
+        availableSat: _availableLit(),
+      ),
+    ));
+    if (sent == true && mounted) {
+      // После успешной отправки Rust очистил набор UTXO — синхронизируем.
+      await _refresh(autosyncIfUnlocked: false);
+      await _doSync();
+    }
   }
 
   Future<void> _openReceive() async {

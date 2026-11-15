@@ -114,7 +114,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LtcAddressDto dco_decode_ltc_address_dto(dynamic raw);
 
   @protected
+  LtcFeeRatesDto dco_decode_ltc_fee_rates_dto(dynamic raw);
+
+  @protected
   LtcHistoryItemDto dco_decode_ltc_history_item_dto(dynamic raw);
+
+  @protected
+  LtcSendResultDto dco_decode_ltc_send_result_dto(dynamic raw);
 
   @protected
   LtcSessionStateDto dco_decode_ltc_session_state_dto(dynamic raw);
@@ -279,9 +285,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LtcAddressDto sse_decode_ltc_address_dto(SseDeserializer deserializer);
 
   @protected
+  LtcFeeRatesDto sse_decode_ltc_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
   LtcHistoryItemDto sse_decode_ltc_history_item_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LtcSendResultDto sse_decode_ltc_send_result_dto(SseDeserializer deserializer);
 
   @protected
   LtcSessionStateDto sse_decode_ltc_session_state_dto(
@@ -482,8 +494,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_ltc_address_dto(LtcAddressDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ltc_fee_rates_dto(
+    LtcFeeRatesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_ltc_history_item_dto(
     LtcHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ltc_send_result_dto(
+    LtcSendResultDto self,
     SseSerializer serializer,
   );
 

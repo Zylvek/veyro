@@ -342,10 +342,11 @@ const List<VeyroAsset> kAssetRegistry = [
     lifecycle: AssetLifecycle.receiveSupported,
     implemented: true,
     passport: 'docs/coins/LTC.md',
-    note: 'Реализовано в ядре (receive-only): ltc1 bech32, m/84\'/2\', '
-        'genesis-чек, live-серверы electrum-ltc (petrkr/stackwallet). '
-        'Отправка — отдельный этап. Без MWEB: обязательное предупреждение '
-        'о MWEB-слепоте (баланс может быть неполным).',
+    note: 'Ядро + UI полностью: ltc1 bech32, m/84\'/2\', genesis-чек, '
+        'живые серверы electrum-ltc; приём/баланс/история live, отправка '
+        'через общую tx-машину (живой цикл не заявлен). Без MWEB: '
+        'обязательное предупреждение о MWEB-слепоте (баланс может быть '
+        'неполным ).',
   ),
   VeyroAsset(
     row: 26,

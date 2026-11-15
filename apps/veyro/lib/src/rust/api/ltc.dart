@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `scanned_scripts`, `transient_sync_error`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `ltc_scanned_scripts`, `scanned_scripts`, `transient_sync_error`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The candidate Electrum-LTC servers (core-owned list, order = liveness).
 Future<List<String>> ltcServers() =>
@@ -53,6 +53,27 @@ Future<LtcTxStatusDto> ltcTxStatus({required String txid}) =>
 Future<List<LtcHistoryItemDto>> ltcHistory() =>
     RustLib.instance.api.crateApiLtcLtcHistory();
 
+/// Fee presets for the 1/3/6-block depth. The Electrum protocol unit is
+/// "coin per kilobyte" and 1 LTC = 1e8 lits — the same integers as BTC.
+Future<LtcFeeRatesDto> ltcFees() => RustLib.instance.api.crateApiLtcLtcFees();
+
+/// Plan, sign (locally, BIP143 — the same sighash model; Litecoin Core is
+/// a Bitcoin Core fork) and broadcast an LTC transfer.
+///
+/// Requires a successful `ltc_sync` first (sends are built from the exact
+/// spendable set discovered then; after a success the set is invalidated —
+/// a stale set would double-spend). Recipient: `ltc1…` (v0), `L…` (P2PKH),
+/// `M…` (P2SH); MWEB addresses are refused (transparent wallet only).
+Future<LtcSendResultDto> ltcSend({
+  required String recipient,
+  required BigInt amountLit,
+  required BigInt feeLitPerVb,
+}) => RustLib.instance.api.crateApiLtcLtcSend(
+  recipient: recipient,
+  amountLit: amountLit,
+  feeLitPerVb: feeLitPerVb,
+);
+
 /// One derived address (public data only).
 class LtcAddressDto {
   final String address;
@@ -93,6 +114,40 @@ class LtcAddressDto {
           index == other.index &&
           path == other.path &&
           used == other.used;
+}
+
+/// Fee presets in lit/vB (integers). `fallback == true` means the server
+/// had no fee estimate and the conservative presets are used — surfaced
+/// so the UI never presents a guess as a server measurement.
+class LtcFeeRatesDto {
+  final BigInt fastLitVb;
+  final BigInt normalLitVb;
+  final BigInt slowLitVb;
+  final bool fallback;
+
+  const LtcFeeRatesDto({
+    required this.fastLitVb,
+    required this.normalLitVb,
+    required this.slowLitVb,
+    required this.fallback,
+  });
+
+  @override
+  int get hashCode =>
+      fastLitVb.hashCode ^
+      normalLitVb.hashCode ^
+      slowLitVb.hashCode ^
+      fallback.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LtcFeeRatesDto &&
+          runtimeType == other.runtimeType &&
+          fastLitVb == other.fastLitVb &&
+          normalLitVb == other.normalLitVb &&
+          slowLitVb == other.slowLitVb &&
+          fallback == other.fallback;
 }
 
 /// One wallet transaction with its amounts (litoshi amounts).
@@ -141,6 +196,70 @@ class LtcHistoryItemDto {
           receivedSat == other.receivedSat &&
           sentNetSat == other.sentNetSat &&
           feeSat == other.feeSat;
+}
+
+/// Result of `ltc_send`: everything the confirmation screen shows.
+class LtcSendResultDto {
+  final String txid;
+
+  /// Consensus hex of the signed transaction (display/record only).
+  final String rawHex;
+  final bool alreadyKnown;
+  final String recipient;
+  final BigInt amountLit;
+  final BigInt feeLit;
+  final BigInt vsize;
+  final BigInt feeLitPerVb;
+  final String? changeAddress;
+  final BigInt? changeLit;
+
+  /// Status snapshot right after the broadcast ("mempool" or "unknown").
+  final String status;
+
+  const LtcSendResultDto({
+    required this.txid,
+    required this.rawHex,
+    required this.alreadyKnown,
+    required this.recipient,
+    required this.amountLit,
+    required this.feeLit,
+    required this.vsize,
+    required this.feeLitPerVb,
+    this.changeAddress,
+    this.changeLit,
+    required this.status,
+  });
+
+  @override
+  int get hashCode =>
+      txid.hashCode ^
+      rawHex.hashCode ^
+      alreadyKnown.hashCode ^
+      recipient.hashCode ^
+      amountLit.hashCode ^
+      feeLit.hashCode ^
+      vsize.hashCode ^
+      feeLitPerVb.hashCode ^
+      changeAddress.hashCode ^
+      changeLit.hashCode ^
+      status.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LtcSendResultDto &&
+          runtimeType == other.runtimeType &&
+          txid == other.txid &&
+          rawHex == other.rawHex &&
+          alreadyKnown == other.alreadyKnown &&
+          recipient == other.recipient &&
+          amountLit == other.amountLit &&
+          feeLit == other.feeLit &&
+          vsize == other.vsize &&
+          feeLitPerVb == other.feeLitPerVb &&
+          changeAddress == other.changeAddress &&
+          changeLit == other.changeLit &&
+          status == other.status;
 }
 
 /// Non-secret session state for the UI; `None` when locked.

@@ -72,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -338604761;
+  int get rustContentHash => 848957284;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -156,11 +156,19 @@ abstract class RustLibApi extends BaseApi {
     required String walletsDir,
   });
 
+  Future<LtcFeeRatesDto> crateApiLtcLtcFees();
+
   Future<List<LtcHistoryItemDto>> crateApiLtcLtcHistory();
 
   Future<void> crateApiLtcLtcLock();
 
   Future<LtcAddressDto> crateApiLtcLtcReceiveAddress();
+
+  Future<LtcSendResultDto> crateApiLtcLtcSend({
+    required String recipient,
+    required BigInt amountLit,
+    required BigInt feeLitPerVb,
+  });
 
   Future<List<String>> crateApiLtcLtcServers();
 
@@ -857,7 +865,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_wallets", argNames: ["walletsDir"]);
 
   @override
-  Future<List<LtcHistoryItemDto>> crateApiLtcLtcHistory() {
+  Future<LtcFeeRatesDto> crateApiLtcLtcFees() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -866,6 +874,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_fee_rates_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcFeesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcFeesConstMeta =>
+      const TaskConstMeta(debugName: "ltc_fees", argNames: []);
+
+  @override
+  Future<List<LtcHistoryItemDto>> crateApiLtcLtcHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
             port: port_,
           );
         },
@@ -892,7 +927,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -919,7 +954,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -938,6 +973,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "ltc_receive_address", argNames: []);
 
   @override
+  Future<LtcSendResultDto> crateApiLtcLtcSend({
+    required String recipient,
+    required BigInt amountLit,
+    required BigInt feeLitPerVb,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(recipient, serializer);
+          sse_encode_u_64(amountLit, serializer);
+          sse_encode_u_64(feeLitPerVb, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ltc_send_result_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiLtcLtcSendConstMeta,
+        argValues: [recipient, amountLit, feeLitPerVb],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLtcLtcSendConstMeta => const TaskConstMeta(
+    debugName: "ltc_send",
+    argNames: ["recipient", "amountLit", "feeLitPerVb"],
+  );
+
+  @override
   Future<List<String>> crateApiLtcLtcServers() {
     return handler.executeNormal(
       NormalTask(
@@ -946,7 +1017,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 27,
             port: port_,
           );
         },
@@ -973,7 +1044,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1001,7 +1072,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1029,7 +1100,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1065,7 +1136,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1105,7 +1176,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1142,7 +1213,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1179,7 +1250,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1483,6 +1554,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LtcFeeRatesDto dco_decode_ltc_fee_rates_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LtcFeeRatesDto(
+      fastLitVb: dco_decode_u_64(arr[0]),
+      normalLitVb: dco_decode_u_64(arr[1]),
+      slowLitVb: dco_decode_u_64(arr[2]),
+      fallback: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
   LtcHistoryItemDto dco_decode_ltc_history_item_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1495,6 +1580,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       receivedSat: dco_decode_u_64(arr[3]),
       sentNetSat: dco_decode_u_64(arr[4]),
       feeSat: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  LtcSendResultDto dco_decode_ltc_send_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return LtcSendResultDto(
+      txid: dco_decode_String(arr[0]),
+      rawHex: dco_decode_String(arr[1]),
+      alreadyKnown: dco_decode_bool(arr[2]),
+      recipient: dco_decode_String(arr[3]),
+      amountLit: dco_decode_u_64(arr[4]),
+      feeLit: dco_decode_u_64(arr[5]),
+      vsize: dco_decode_u_64(arr[6]),
+      feeLitPerVb: dco_decode_u_64(arr[7]),
+      changeAddress: dco_decode_opt_String(arr[8]),
+      changeLit: dco_decode_opt_box_autoadd_u_64(arr[9]),
+      status: dco_decode_String(arr[10]),
     );
   }
 
@@ -2036,6 +2142,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LtcFeeRatesDto sse_decode_ltc_fee_rates_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fastLitVb = sse_decode_u_64(deserializer);
+    var var_normalLitVb = sse_decode_u_64(deserializer);
+    var var_slowLitVb = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    return LtcFeeRatesDto(
+      fastLitVb: var_fastLitVb,
+      normalLitVb: var_normalLitVb,
+      slowLitVb: var_slowLitVb,
+      fallback: var_fallback,
+    );
+  }
+
+  @protected
   LtcHistoryItemDto sse_decode_ltc_history_item_dto(
     SseDeserializer deserializer,
   ) {
@@ -2053,6 +2174,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       receivedSat: var_receivedSat,
       sentNetSat: var_sentNetSat,
       feeSat: var_feeSat,
+    );
+  }
+
+  @protected
+  LtcSendResultDto sse_decode_ltc_send_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_rawHex = sse_decode_String(deserializer);
+    var var_alreadyKnown = sse_decode_bool(deserializer);
+    var var_recipient = sse_decode_String(deserializer);
+    var var_amountLit = sse_decode_u_64(deserializer);
+    var var_feeLit = sse_decode_u_64(deserializer);
+    var var_vsize = sse_decode_u_64(deserializer);
+    var var_feeLitPerVb = sse_decode_u_64(deserializer);
+    var var_changeAddress = sse_decode_opt_String(deserializer);
+    var var_changeLit = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return LtcSendResultDto(
+      txid: var_txid,
+      rawHex: var_rawHex,
+      alreadyKnown: var_alreadyKnown,
+      recipient: var_recipient,
+      amountLit: var_amountLit,
+      feeLit: var_feeLit,
+      vsize: var_vsize,
+      feeLitPerVb: var_feeLitPerVb,
+      changeAddress: var_changeAddress,
+      changeLit: var_changeLit,
+      status: var_status,
     );
   }
 
@@ -2565,6 +2717,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_ltc_fee_rates_dto(
+    LtcFeeRatesDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.fastLitVb, serializer);
+    sse_encode_u_64(self.normalLitVb, serializer);
+    sse_encode_u_64(self.slowLitVb, serializer);
+    sse_encode_bool(self.fallback, serializer);
+  }
+
+  @protected
   void sse_encode_ltc_history_item_dto(
     LtcHistoryItemDto self,
     SseSerializer serializer,
@@ -2576,6 +2740,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_64(self.receivedSat, serializer);
     sse_encode_u_64(self.sentNetSat, serializer);
     sse_encode_opt_box_autoadd_u_64(self.feeSat, serializer);
+  }
+
+  @protected
+  void sse_encode_ltc_send_result_dto(
+    LtcSendResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_String(self.rawHex, serializer);
+    sse_encode_bool(self.alreadyKnown, serializer);
+    sse_encode_String(self.recipient, serializer);
+    sse_encode_u_64(self.amountLit, serializer);
+    sse_encode_u_64(self.feeLit, serializer);
+    sse_encode_u_64(self.vsize, serializer);
+    sse_encode_u_64(self.feeLitPerVb, serializer);
+    sse_encode_opt_String(self.changeAddress, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.changeLit, serializer);
+    sse_encode_String(self.status, serializer);
   }
 
   @protected

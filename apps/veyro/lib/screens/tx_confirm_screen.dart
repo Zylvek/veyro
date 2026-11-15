@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
@@ -25,6 +26,9 @@ class TxConfirmScreen extends StatelessWidget {
   /// Скорость: ставка, выбранная пользователем, sat/vB.
   final int rateSatVb;
 
+  /// Монета отправки (BTC дефолт — исторический контракт тестов).
+  final WalletCoin coin;
+
   /// Название сети активной сессии ядра (null — «—», честное отсутствие).
   final String? networkDisplay;
 
@@ -33,6 +37,7 @@ class TxConfirmScreen extends StatelessWidget {
     required this.recipient,
     required this.amountSat,
     required this.rateSatVb,
+    this.coin = WalletCoin.btc,
     this.networkDisplay,
   });
 
@@ -50,7 +55,11 @@ class TxConfirmScreen extends StatelessWidget {
                 title: t('tx_asset_network'),
                 icon: Icons.language_outlined,
                 children: [
-                  _row(context, t('asset_label'), 'Bitcoin (BTC)'),
+                  _row(
+                    context,
+                    t('asset_label'),
+                    coin == WalletCoin.ltc ? 'Litecoin (LTC)' : 'Bitcoin (BTC)',
+                  ),
                   _row(
                     context,
                     t('network_label'),
@@ -73,10 +82,14 @@ class TxConfirmScreen extends StatelessWidget {
                 children: [
                   VMonoCopyRow(label: t('recipient_card'), value: recipient),
                   const SizedBox(height: 12),
-                  VAmount(satToBtcString(amountSat), suffix: 'BTC'),
+                  VAmount(
+                    satToBtcString(amountSat),
+                    suffix: coin == WalletCoin.ltc ? 'LTC' : 'BTC',
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    '${groupDigits(amountSat)} ${t('sats')}',
+                    '${groupDigits(amountSat)} '
+                    '${coin == WalletCoin.ltc ? t('ltc_unit') : t('sats')}',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall!
@@ -89,7 +102,13 @@ class TxConfirmScreen extends StatelessWidget {
                 title: t('fee_card'),
                 icon: Icons.speed_outlined,
                 children: [
-                  _row(context, t('speed_label'), '$rateSatVb sat/vB'),
+                  _row(
+                    context,
+                    t('speed_label'),
+                    coin == WalletCoin.ltc
+                        ? '$rateSatVb lit/vB'
+                        : '$rateSatVb sat/vB',
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     t('fee_final_note'),

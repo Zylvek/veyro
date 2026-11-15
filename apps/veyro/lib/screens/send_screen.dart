@@ -1,17 +1,21 @@
-//! Экран 14 спеки (asset-поток Send, BTC): адрес получателя + сумма (BTC →
-//! сатоши целочисленно) + комиссия (пресеты btc_fees или ручная sat/vB) →
-//! полноэкранное подтверждение (TxConfirmScreen, пункт 15) → btcSend
-//! (локальная подпись BIP143, идемпотентный broadcast в Rust). Кнопка Max
-//! подставляет реальный доступный баланс из последней синхронизации
-//! (availableSat от центра управления); если данных нет — кнопки Max нет.
-//! После успеха — TXID/фактическая комиссия/статус и возврат с
-//! пересинхронизацией (Rust очистил набор UTXO от повторной отправки).
+//! Экран 14 спеки (asset-поток Send, BTC/LTC): адрес получателя + сумма
+//! (coin → сатоши целочисленно) + комиссия (пресеты btc_fees/ltc_fees или
+//! ручная sat/vB) → полноэкранное подтверждение (TxConfirmScreen, пункт
+//! 15) → btcSend/ltcSend (локальная подпись BIP143, идемпотентный
+//! broadcast в Rust). Кнопка Max подставляет реальный доступный баланс из
+//! последней синхронизации (availableSat от центра управления); если
+//! данных нет — кнопки Max нет. После успеха — TXID/фактическая
+//! комиссия/статус и возврат с пересинхронизацией (Rust очистил набор
+//! UTXO от повторной отправки). LTC: честное предупреждение, что
+//! MWEB-адреса ядро отказывает (transparent-only); сумма в литоши.
 
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
+import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -24,10 +28,19 @@ class SendScreen extends StatefulWidget {
   /// данных нет: кнопка Max честно скрыта.
   final int? availableSat;
 
-  /// Точка замены для виджет-тестов (без RustLib): пресеты комиссии.
+  /// Монета отправки (BTC дефолт — исторический контракт тестов).
+  final WalletCoin coin;
+
+  /// Точка замены для виджет-тестов (без RustLib): пресеты комиссии
+  /// (BTC-шные типы; поля структурно одинаковы для LTC).
   final Future<BtcFeeRatesDto> Function()? feesLoader;
 
-  const SendScreen({super.key, this.availableSat, this.feesLoader});
+  const SendScreen({
+    super.key,
+    this.availableSat,
+    this.coin = WalletCoin.btc,
+    this.feesLoader,
+  });
 
   @override
   State<SendScreen> createState() => _SendScreenState();
@@ -67,8 +80,22 @@ class _SendScreenState extends State<SendScreen> {
       _feesError = null;
     });
     try {
-      final loader = widget.feesLoader;
-      final fees = loader != null ? await loader() : await btcFees();
+      Future<BtcFeeRatesDto> feesFuture;
+      if (widget.feesLoader != null) {
+        feesFuture = widget.feesLoader!();
+      } else if (widget.coin == WalletCoin.ltc) {
+        // LtcFeeRatesDto структурно одинаков с BtcFeeRatesDto — приводим
+        // к общему типу экрана (исторический контракт тестов).
+        feesFuture = ltcFees().then((f) => BtcFeeRatesDto(
+              fastSatVb: f.fastLitVb,
+              normalSatVb: f.normalLitVb,
+              slowSatVb: f.slowLitVb,
+              fallback: f.fallback,
+            ));
+      } else {
+        feesFuture = btcFees();
+      }
+      final fees = await feesFuture;
       if (!mounted) return;
       setState(() {
         _fees = fees;
@@ -136,6 +163,7 @@ class _SendScreenState extends State<SendScreen> {
           recipient: recipient,
           amountSat: amountSat,
           rateSatVb: rate,
+          coin: widget.coin,
         ),
       ),
     );
@@ -146,11 +174,7 @@ class _SendScreenState extends State<SendScreen> {
       _formError = null;
     });
     try {
-      final result = await btcSend(
-        recipient: recipient,
-        amountSat: BigInt.from(amountSat),
-        feeSatVb: BigInt.from(rate),
-      );
+      final result = await _dispatchSend(recipient, amountSat, rate);
       if (!mounted) return;
       await _showResult(result);
       if (!mounted) return;
@@ -165,6 +189,39 @@ class _SendScreenState extends State<SendScreen> {
         );
       });
     }
+  }
+
+  Future<BtcSendResultDto> _dispatchSend(
+    String recipient,
+    int amountSat,
+    int rate,
+  ) {
+    if (widget.coin == WalletCoin.ltc) {
+      // LtcSendResultDto структурно одинаков с BtcSendResultDto —
+      // приводим к общему типу диалога результата (контракт тестов).
+      return ltcSend(
+        recipient: recipient,
+        amountLit: BigInt.from(amountSat),
+        feeLitPerVb: BigInt.from(rate),
+      ).then((r) => BtcSendResultDto(
+            txid: r.txid,
+            rawHex: r.rawHex,
+            alreadyKnown: r.alreadyKnown,
+            recipient: r.recipient,
+            amountSat: r.amountLit,
+            feeSat: r.feeLit,
+            vsize: r.vsize,
+            feeSatPerVb: r.feeLitPerVb,
+            changeAddress: r.changeAddress,
+            changeSat: r.changeLit,
+            status: r.status,
+          ));
+    }
+    return btcSend(
+      recipient: recipient,
+      amountSat: BigInt.from(amountSat),
+      feeSatVb: BigInt.from(rate),
+    );
   }
 
   Future<void> _showResult(BtcSendResultDto result) {
@@ -210,22 +267,33 @@ class _SendScreenState extends State<SendScreen> {
               Text(
                 tf(
                   'tx_to_recipient',
-                  {'value': '${satToBtcString(result.amountSat.toInt())} BTC'},
+                  {
+                    'value':
+                        '${satToBtcString(result.amountSat.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'}'
+                  },
                 ),
                 style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontFeatures: [FontFeature.tabularFigures()]),
               ),
               Text(
-                tf(
-                  'tx_fee_row',
-                  {
-                    'btc': satToBtcString(result.feeSat.toInt()),
-                    'sats': groupDigits(result.feeSat.toInt()),
-                    'vsize': '${result.vsize.toInt()}',
-                    'rate': '${result.feeSatPerVb.toInt()}',
-                  },
-                ),
+                widget.coin == WalletCoin.ltc
+                    ? tf(
+                        'tx_fee_row_ltc',
+                        {
+                          'ltc': satToBtcString(result.feeSat.toInt()),
+                          'sats': groupDigits(result.feeSat.toInt()),
+                        },
+                      )
+                    : tf(
+                        'tx_fee_row',
+                        {
+                          'btc': satToBtcString(result.feeSat.toInt()),
+                          'sats': groupDigits(result.feeSat.toInt()),
+                          'vsize': '${result.vsize.toInt()}',
+                          'rate': '${result.feeSatPerVb.toInt()}',
+                        },
+                      ),
                 style: const TextStyle(
                     fontFeatures: [FontFeature.tabularFigures()]),
               ),
@@ -235,7 +303,8 @@ class _SendScreenState extends State<SendScreen> {
                   padding: const EdgeInsets.only(top: 4),
                   child: VMonoCopyRow(
                     label: t('change_label'),
-                    value: '${satToBtcString(result.changeSat!.toInt())} BTC → '
+                    value:
+                        '${satToBtcString(result.changeSat!.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'} → '
                         '${result.changeAddress}',
                   ),
                 ),
@@ -279,7 +348,9 @@ class _SendScreenState extends State<SendScreen> {
                     enableIMEPersonalizedLearning: false,
                     decoration: InputDecoration(
                       labelText: t('address_field'),
-                      hintText: t('address_hint'),
+                      hintText: widget.coin == WalletCoin.ltc
+                          ? 'ltc1…'
+                          : t('address_hint'),
                     ),
                   ),
                 ],
@@ -306,13 +377,27 @@ class _SendScreenState extends State<SendScreen> {
                   const SizedBox(height: 6),
                   if (available != null)
                     Text(
-                      tf(
-                        'available_row',
-                        {'value': satToBtcString(available)},
-                      ),
+                      widget.coin == WalletCoin.ltc
+                          ? tf(
+                              'available_row_ltc',
+                              {'value': satToBtcString(available)},
+                            )
+                          : tf(
+                              'available_row',
+                              {'value': satToBtcString(available)},
+                            ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-
+                  if (widget.coin == WalletCoin.ltc) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      t('ltc_mweb_warning'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall!
+                          .copyWith(color: VColors.warning),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
