@@ -56,6 +56,11 @@ pub fn with_lock() -> Result<MutexGuard<'static, Option<LtcSession>>> {
         .map_err(|_| anyhow!("LTC session mutex poisoned by a previous panic"))
 }
 
+/// Is there an open LTC session right now (no ownership taken).
+pub fn has_session() -> Result<bool> {
+    Ok(with_lock()?.is_some())
+}
+
 /// Run `f` with the open session (read-only use).
 pub fn with_session<T>(f: impl FnOnce(&LtcSession) -> Result<T>) -> Result<T> {
     let guard = with_lock()?;

@@ -72,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 848957284;
+  int get rustContentHash => 1769607484;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -198,6 +198,8 @@ abstract class RustLibApi extends BaseApi {
     required String id,
     required String password,
   });
+
+  Future<bool> crateApiSessionSessionPasswordCached();
 
   Future<WalletInfoDto> crateApiWalletUnlockWallet({
     required String walletsDir,
@@ -1235,6 +1237,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiSessionSessionPasswordCached() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 34,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSessionSessionPasswordCachedConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionSessionPasswordCachedConstMeta =>
+      const TaskConstMeta(debugName: "session_password_cached", argNames: []);
+
+  @override
   Future<WalletInfoDto> crateApiWalletUnlockWallet({
     required String walletsDir,
     required String id,
@@ -1250,7 +1279,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 35,
             port: port_,
           );
         },

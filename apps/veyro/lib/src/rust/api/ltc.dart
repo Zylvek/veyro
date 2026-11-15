@@ -15,8 +15,12 @@ Future<List<String>> ltcServers() =>
     RustLib.instance.api.crateApiLtcLtcServers();
 
 /// Unlock a wallet for LTC operations (must be re-done per app run;
-/// `ltc_lock` wipes the in-Rust seed). The genesis check is the fund-safety
-/// gate: a server that does not serve the LTC mainnet genesis is refused.
+/// `ltc_lock` wipes the in-Rust seed).
+///
+/// Unified app session (owner decision 15.11.2026): an EMPTY password means
+/// «reuse the cached one» — the password cache lives inside Rust (zeroized,
+/// never crosses FFI) and is wiped when the last coin session locks. A
+/// successful unlock (re)populates the cache.
 Future<LtcUnlockDto> ltcUnlock({
   required String walletsDir,
   required String walletId,
@@ -29,7 +33,8 @@ Future<LtcUnlockDto> ltcUnlock({
   serverUrl: serverUrl,
 );
 
-/// Lock the session: the seed is zeroized and dropped.
+/// Lock the session: the seed is zeroized and dropped. Last locked coin
+/// session ⇒ password cache is wiped too (full logout).
 Future<void> ltcLock() => RustLib.instance.api.crateApiLtcLtcLock();
 
 /// Non-secret session state for the UI; `None` when locked.

@@ -53,17 +53,29 @@ pub fn ltc_servers() -> Vec<String> {
 }
 
 /// Unlock a wallet for LTC operations (must be re-done per app run;
-/// `ltc_lock` wipes the in-Rust seed). The genesis check is the fund-safety
-/// gate: a server that does not serve the LTC mainnet genesis is refused.
+/// `ltc_lock` wipes the in-Rust seed).
+///
+/// Unified app session (owner decision 15.11.2026): an EMPTY password means
+/// «reuse the cached one» — the password cache lives inside Rust (zeroized,
+/// never crosses FFI) and is wiped when the last coin session locks. A
+/// successful unlock (re)populates the cache.
 pub fn ltc_unlock(
     wallets_dir: String,
     wallet_id: String,
     password: String,
     server_url: String,
 ) -> Result<LtcUnlockDto> {
+    let effective: Zeroizing<String> = if password.trim().is_empty() {
+        crate::session_password::get()?.ok_or_else(|| {
+            anyhow!("no cached password — prompt the user for the wallet password")
+        })?
+    } else {
+        Zeroizing::new(password)
+    };
+
     // 1. Decrypt inside Rust; only the derived seed stays (zeroized).
     let manager = WalletManager::open(&wallets_dir, production_kdf())?;
-    let secrets = manager.reveal_secrets(&wallet_id, &password)?;
+    let secrets = manager.reveal_secrets(&wallet_id, &effective)?;
     let mnemonic = from_phrase(&secrets.phrase)?;
     let seed = mnemonic.to_seed(&secrets.passphrase);
 
@@ -82,6 +94,9 @@ pub fn ltc_unlock(
     //    and the private keys are dropped inside `from_seed`.
     let account_pub = LtcAccount::from_seed(seed.as_bytes(), 0).map_err(|e| anyhow!("{e}"))?;
     let account_xpub = account_pub.account_xpub().to_string();
+
+    // Full success → other coins reuse this password without a prompt.
+    crate::session_password::store(&effective)?;
 
     let mut guard = with_lock()?;
     *guard = Some(crate::ltc_session::LtcSession {
@@ -106,10 +121,13 @@ pub fn ltc_unlock(
     })
 }
 
-/// Lock the session: the seed is zeroized and dropped.
+/// Lock the session: the seed is zeroized and dropped. Last locked coin
+/// session ⇒ password cache is wiped too (full logout).
 pub fn ltc_lock() -> Result<()> {
     let mut guard = with_lock()?;
     *guard = None; // LtcSession drops → Zeroizing wipes the seed
+    drop(guard);
+    crate::session_password::erase_if_all_locked()?;
     Ok(())
 }
 

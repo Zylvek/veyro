@@ -109,19 +109,42 @@ class _BtcScreenState extends State<BtcScreen> {
     final settings = await loadSettings();
     if (!mounted) return;
 
-    final password = await promptPassword(
-      context,
-      title: tf(
-        'btc_unlock_title',
-        {'name': widget.info.name},
-      ),
-      confirmLabel: t('connect_btn'),
-    );
-    if (password == null || !mounted) {
-      debugPrint('veyro-flow: password dialog cancelled');
-      return;
+    // Единый вход (решение владельца): пароль, кэшированный ядром после
+    // первой разблокировки, не задаётся повторно.
+    String password;
+    try {
+      final cached = await sessionPasswordCached();
+      if (!mounted) return;
+      if (cached) {
+        password = '';
+      } else {
+        password = await promptPassword(
+              context,
+              title: tf('btc_unlock_title', {'name': widget.info.name}),
+              confirmLabel: t('connect_btn'),
+            ) ??
+            '';
+        if (!mounted) return;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      password = '';
     }
-    debugPrint('veyro-flow: password entered, unlocking…');
+    if (password.isEmpty) {
+      // Пустая строка допустима только при живом кэше; иначе это отмена
+      // диалога — ничего не делаем.
+      try {
+        final cached = await sessionPasswordCached();
+        if (!cached) {
+          debugPrint('veyro-flow: password dialog cancelled');
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    }
+    if (!mounted) return;
+    debugPrint('veyro-flow: unlocking…');
     setState(() {
       _busy = true;
       _busyLabel = t('unlocking_now');

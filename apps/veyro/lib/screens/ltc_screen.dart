@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:veyro/src/rust/api/ltc.dart';
+import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -84,70 +85,133 @@ class _LtcScreenState extends State<LtcScreen> {
 
  Future<void> _unlock() async {
     if (!mounted) return;
-    final password = await promptPassword(
-      context,
-      title: tf(
-        'ltc_unlock_title',
-        {'name': widget.info.name},
-      ),
-      confirmLabel: t('connect_btn'),
-    );
-    if (password == null || !mounted) return;
+    // Единый вход (решение владельца): если пароль уже кэширован ядром
+    // после первой разблокировки — монета подключается без диалога.
+    String password;
+    try {
+      final cached = await sessionPasswordCached();
+      if (!mounted) return;
+      if (cached) {
+        password = '';
+      } else {
+        password = await promptPassword(
+              context,
+              title: tf('ltc_unlock_title', {'name': widget.info.name}),
+              confirmLabel: t('connect_btn'),
+            ) ??
+            '';
+        if (!mounted) return;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      password = '';
+    }
+    if (password.isEmpty) {
+      // Двойная проверка: пустая строка допустима только при живом кэше
+      // (иначе — это отмена диалога или нет кэша: честный запрос).
+      try {
+        final cached = await sessionPasswordCached();
+        if (!cached) return; // диалог отменён — ничего не делаем
+      } catch (_) {
+        return;
+      }
+    }
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _busyLabel = t('unlocking_now');
       _error = null;
     });
     try {
-      // Автоподбор (решение владельца, «никакой ручной настройки»):
-      // кандидаты приходят из ядра; перебираются последовательно, только
-      // по transient-ошибкам; содержательные ошибки (пароль/сеть) —
-      // сразу наружу.
-      final candidates = await ltcServers();
-      Object? unlockError;
-      var unlocked = false;
-      for (final server in candidates.take(3)) {
-        try {
-          debugPrint('veyro-flow: ltc unlock via $server');
-          await ltcUnlock(
-            walletsDir: walletsDir(),
-            walletId: widget.info.id,
-            password: password,
-            serverUrl: server,
+      try {
+        await _unlockViaCandidates(password);
+      } catch (e) {
+        // Тихая попытка (кэшированный пароль) не прошла ИЗ-ЗА НЕПОДХОДЯЩЕГО
+        // пароля? Тогда один честный диалог — никакого бесконечного цикла
+        // ошибок. Transport-неудачи (flaky EOF) здесь уже переборены
+        // кандидатами; наружу их отдаёт повторная тихая попытка ниже.
+        final raw = e.toString();
+        final isTransient = raw.contains('electrum') ||
+            raw.contains('unexpected end of file') ||
+            raw.contains('all errored') ||
+            raw.contains('timed out') ||
+            raw.contains('connection') ||
+            raw.contains('EOF');
+        final cachedUsed = password.isEmpty;
+        if (cachedUsed && !isTransient) {
+          if (!mounted) return;
+          final manual = await promptPassword(
+            context,
+            title: tf('ltc_unlock_title', {'name': widget.info.name}),
+            confirmLabel: t('connect_btn'),
           );
-          unlocked = true;
-          break;
-        } catch (e) {
-          unlockError = e;
-          final raw = e.toString();
-          final transient = raw.contains('electrum') ||
-              raw.contains('unexpected end of file') ||
-              raw.contains('all errored') ||
-              raw.contains('timed out') ||
-              raw.contains('connection') ||
-              raw.contains('EOF');
-          if (!transient) break;
-          // Вежливая пауза — честный шанс следующему кандидату.
-          await Future.delayed(const Duration(milliseconds: 1200));
+          if (manual == null || manual.isEmpty || !mounted) {
+            if (mounted) {
+              setState(() {
+                _error = _cleanError(e);
+                _busy = false;
+              });
+            }
+            return;
+          }
+          await _unlockViaCandidates(manual);
+        } else {
+          rethrow;
         }
-      }
-      if (!unlocked) {
-        throw (unlockError ?? StateError('no electrum-ltc candidate'));
       }
       if (!mounted) return;
       await _doSync();
     } catch (e) {
       if (!mounted) return;
-      final raw = e.toString();
-      // vault даёт generic-ошибку расшифровки: честная подсказка
-      // (частый случай — пароль другого из нескольких кошельков).
-      final hint = raw.contains('decryption failed')
-          ? '$e\n\n${tf('password_mismatch_hint', {'name': widget.info.name})}'
-          : e.toString();
       setState(() {
-        _error = hint;
+        _error = _cleanError(e);
         _busy = false;
       });
+    }
+  }
+
+  /// Ссылки rustls в транспортных ошибках — шум; честен текст без них.
+  String _cleanError(Object e) {
+    final raw = e.toString();
+    final base = raw.contains('decryption failed')
+        ? '$raw\n\n${tf('password_mismatch_hint', {'name': widget.info.name})}'
+        : raw;
+    return base.replaceAll(RegExp(r'https?://\S+'), '');
+  }
+
+  /// Full unlock attempt: candidates loop (transient → next server,
+  /// polite pauses) then the auto-sync.
+  Future<void> _unlockViaCandidates(String password) async {
+    final candidates = await ltcServers();
+    Object? unlockError;
+    var unlocked = false;
+    for (final server in candidates) {
+      try {
+        debugPrint('veyro-flow: ltc unlock via $server');
+        await ltcUnlock(
+          walletsDir: walletsDir(),
+          walletId: widget.info.id,
+          password: password,
+          serverUrl: server,
+        );
+        unlocked = true;
+        break;
+      } catch (e) {
+        unlockError = e;
+        final raw = e.toString();
+        final transient = raw.contains('electrum') ||
+            raw.contains('unexpected end of file') ||
+            raw.contains('all errored') ||
+            raw.contains('timed out') ||
+            raw.contains('connection') ||
+            raw.contains('EOF');
+        if (!transient) break;
+        // Вежливая пауза — честный шанс следующему кандидату.
+        await Future.delayed(const Duration(milliseconds: 1200));
+      }
+    }
+    if (!unlocked) {
+      throw (unlockError ?? StateError('no electrum-ltc candidate'));
     }
   }
 

@@ -32,3 +32,11 @@ pub fn btc_session_state() -> Result<Option<BtcSessionStateDto>> {
         has_spendables: s.utxos.as_ref().is_some_and(|u| !u.is_empty()),
     }))
 }
+
+/// Unified app session: is a reusable password cached inside Rust right
+/// now? (No secret crosses FFI — just the boolean.) When `true`, coin
+/// unlock flows may retry silently (empty password) instead of prompting;
+/// when the last coin session locks, the cache is wiped.
+pub fn session_password_cached() -> Result<bool> {
+    crate::session_password::cached()
+}
