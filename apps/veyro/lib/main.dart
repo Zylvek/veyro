@@ -7,6 +7,7 @@ import 'package:veyro/design/v_theme.dart';
 import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/frb_generated.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/price_source.dart';
 
 import 'screens/lock_screen.dart';
 
@@ -23,6 +24,12 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('veyro: db_open failed, settings unavailable: $e');
   }
+
+  // Дисковый кэш фиатных цен (решение владельца: «сохранять тот же
+  // самый курс, чтобы меньше тратилось данных»): свежий курс и линия
+  // графика переживают перезапуск, при сбое сети держится последний
+  // известный курс.
+  PriceSource.enablePersistence();
 
   runApp(const VeyroApp());
 }

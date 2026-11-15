@@ -1,14 +1,20 @@
 //! Источник фиатных цен — прямой клиент CoinGecko (мастер-план §13:
 //! «Price requests must go directly from the client to the selected
 //! provider», никакого своего бэкенда). Цены BTC и ETH в выбранной
-//! валюте отображения тем же запросом; кэш в памяти с ограничением
-//! свежести. Ошибка/нет сети → null (честное отсутствие курса, UI
-//! скрывает фиатные строки).
+//! валюте отображения тем же запросом; кэш в памяти С ДИСКОВЫМ
+//! ДОЖИВАНИЕМ: свежие курс и линия графика переживают перезапуск,
+//! а при сбое сети держится последний известный курс — решение
+//! владельца («сохранять тот же самый курс, чтобы меньше тратилось
+//! данных»). Ошибка/нет сети → null только если данных нет вообще
+//! (честное отсутствие курса, UI скрывает фиатные строки).
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import 'package:veyro/util/app_dirs.dart';
 
 /// Курс BTC и ETH по валютам отображения — ответ провайдера одним
 /// запросом (ids=bitcoin,ethereum).
@@ -32,6 +38,120 @@ class PriceSource {
   static Future<FiatRates?> Function()? loader;
 
   static const Duration _maxAge = Duration(minutes: 5);
+
+  // ------------------------------------------------------------------
+  // Дисковый кэш цен: курс и серия переживают перезапуск приложения
+  // (решение владельца: «сохранять тот же самый курс, чтобы меньше
+  // тратилось данных»). В проде включается из main; в тестах выключен.
+  // ------------------------------------------------------------------
+
+  static bool _persistenceEnabled = false;
+
+  /// Включить сохранение кэша цен на диск (вызывается из main).
+  static void enablePersistence() => _persistenceEnabled = true;
+
+  bool _loaded = false;
+  Future<void>? _loadFuture;
+
+  Future<void> _ensureLoaded() async {
+    if (_loaded || !_persistenceEnabled) return;
+    _loadFuture ??= _loadFromDisk();
+    await _loadFuture;
+    _loaded = true;
+  }
+
+  Future<void> _loadFromDisk() async {
+    try {
+      final file = File(priceCachePath());
+      if (!await file.exists()) return;
+      final json =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final ratesJson = json['rates'];
+      final ratesAt = json['ratesAt'];
+      if (ratesJson is Map<String, dynamic> && ratesAt is num) {
+        final btc = _decodePriceMap(ratesJson['btc']);
+        final eth = _decodePriceMap(ratesJson['eth']);
+        if (btc.isNotEmpty || eth.isNotEmpty) {
+          _rates = FiatRates(btc: btc, eth: eth);
+          _at = DateTime.fromMillisecondsSinceEpoch(ratesAt.toInt());
+        }
+      }
+      final seriesJson = json['series'];
+      if (seriesJson is Map<String, dynamic>) {
+        seriesJson.forEach((key, raw) {
+          if (raw is! Map<String, dynamic>) return;
+          final values = _decodePoints(raw['values']);
+          final at = raw['at'];
+          if (values != null && values.isNotEmpty && at is num) {
+            _seriesCache[key] = _SeriesEntry(
+              values,
+              DateTime.fromMillisecondsSinceEpoch(at.toInt()),
+            );
+          }
+        });
+      }
+      debugPrint('veyro: price cache restored from disk');
+    } catch (e) {
+      // Битый файл/нет прав — живём с кэшем в памяти, перезапись
+      // обновит файл следующим успешным запросом.
+      debugPrint('veyro: price cache load skipped: $e');
+    }
+  }
+
+  Map<String, double> _decodePriceMap(Object? raw) {
+    if (raw is! Map<String, dynamic>) return const {};
+    return {
+      for (final entry in raw.entries)
+        if (entry.value is num) entry.key: (entry.value as num).toDouble(),
+    };
+  }
+
+  List<MarketPoint>? _decodePoints(Object? raw) {
+    if (raw is! List) return null;
+    final points = <MarketPoint>[];
+    for (final point in raw) {
+      if (point is List &&
+          point.length == 2 &&
+          point[0] is num &&
+          point[1] is num) {
+        points.add(MarketPoint(
+          DateTime.fromMillisecondsSinceEpoch((point[0] as num).toInt()),
+          (point[1] as num).toDouble(),
+        ));
+      }
+    }
+    return points;
+  }
+
+  /// Бесшумная запись кэша на диск после успешной загрузки.
+  Future<void> _persist() async {
+    if (!_persistenceEnabled) return;
+    try {
+      final file = File(priceCachePath());
+      await file.parent.create(recursive: true);
+      final rates = _rates;
+      final at = _at;
+      final payload = <String, dynamic>{
+        if (rates != null && at != null) ...{
+          'rates': {'btc': rates.btc, 'eth': rates.eth},
+          'ratesAt': at.millisecondsSinceEpoch,
+        },
+        'series': {
+          for (final entry in _seriesCache.entries)
+            entry.key: {
+              'values': [
+                for (final point in entry.value.values)
+                  [point.time.millisecondsSinceEpoch, point.price],
+              ],
+              'at': entry.value.at.millisecondsSinceEpoch,
+            },
+        },
+      };
+      await file.writeAsString(jsonEncode(payload), flush: true);
+    } catch (e) {
+      debugPrint('veyro: price cache save skipped: $e');
+    }
+  }
 
   /// Реальный сетевой загрузчик: один запрос на все валюты и обе монеты.
   static Future<FiatRates?> httpLoader() async {
@@ -80,18 +200,24 @@ class PriceSource {
   Future<FiatRates?> _freshRates(String fiat) async {
     final code = fiat.toLowerCase();
     if (!_supported.contains(code)) return null;
+    await _ensureLoaded();
     final at = _at;
     final cached = _rates;
     if (cached != null &&
         at != null &&
         DateTime.now().difference(at) <= _maxAge) {
-      return cached;
+      return cached; // Свежий курс: ноль сетевых запросов.
     }
     final load = loader ?? httpLoader;
     final rates = await load();
-    if (rates == null) return null;
+    if (rates == null) {
+      // Нет сети/сброс лимита: держим последний известный курс
+      // (решение владельца), честная пустота — только если его нет.
+      return cached;
+    }
     _rates = rates;
     _at = DateTime.now();
+    unawaited(_persist());
     return rates;
   }
 
@@ -117,7 +243,10 @@ class PriceSource {
           String coinId, String fiat, int days)?
       marketLoader;
 
-  /// Кэш серий по ключу «валюта:монета:окно».
+  /// Кэш серий по ключу «валюта:монета:окно». Линия истории меняется
+  /// редко (для окна от 30 дней — вообще по суткам провайдера), поэтому
+  /// живёт заметно дольше мгновенного курса — меньше тратится данных.
+  static const Duration _seriesMaxAge = Duration(minutes: 30);
   final Map<String, _SeriesEntry> _seriesCache = {};
 
   /// Реальный сетевой загрузчик исторической линии курса.
@@ -173,15 +302,21 @@ class PriceSource {
     final code = fiat.toLowerCase();
     if (!_supported.contains(code)) return null;
     final key = '$code:$coinId:$days';
+    await _ensureLoaded();
     final entry = _seriesCache[key];
     if (entry != null &&
-        DateTime.now().difference(entry.at) <= _maxAge) {
-      return entry.values;
+        DateTime.now().difference(entry.at) <= _seriesMaxAge) {
+      return entry.values; // Свежая линия: ноль сетевых запросов.
     }
     final load = marketLoader ?? httpMarketLoader;
     final values = await load(coinId, code, days);
-    if (values == null) return null;
+    if (values == null) {
+      // Нет сети: держим последнюю известную линию, честная пустота —
+      // только если её никогда не было.
+      return entry?.values;
+    }
     _seriesCache[key] = _SeriesEntry(values, DateTime.now());
+    unawaited(_persist());
     return values;
   }
 }

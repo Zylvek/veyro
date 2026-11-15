@@ -31,6 +31,11 @@ String backupsDir() => _join(_join(_appDataDir(), 'veyro'), 'backups');
 /// рисуется без сети при следующих запусках.
 String iconCacheDir() => _join(_join(_appDataDir(), 'veyro'), 'icon-cache');
 
+/// Дисковый кэш фиатных цен (CoinGecko): свежий курс и линия графика
+/// переживают перезапуск — повторные пуски не тратят данных.
+String priceCachePath() =>
+    _join(_join(_appDataDir(), 'veyro'), 'price_cache.json');
+
 /// Дефолтный путь нового файла резервной копии — каталог приложения с
 /// меткой времени: `%APPDATA%\veyro\backups\veyro-backup-ГГГГММДД-ЧЧММСС`
 /// `.veybackup`. Пользователь может заменить путь в диалоге экспорта.
