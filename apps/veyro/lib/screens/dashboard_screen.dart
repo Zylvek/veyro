@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
@@ -244,7 +245,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: RefreshIndicator(
             onRefresh: _refresh,
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    // Фирменная загрузка знака (система владельца) —
+                    // никакого дефолтного спиннера на Обзоре.
+                    child: LogoLoader(
+                      mode: LogoLoaderMode.loading,
+                      size: 220,
+                    ),
+                  )
                 : _error != null
                     ? Padding(
                         padding: const EdgeInsets.all(16),

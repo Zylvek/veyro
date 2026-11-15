@@ -228,7 +228,9 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
     switch (_phase) {
       case _LockPhase.checking:
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: LogoLoader(mode: LogoLoaderMode.loading, size: 220),
+          ),
         );
       case _LockPhase.unlocking:
         // Анимация 03: неподвижный фоновый знак сразу начинает
@@ -243,8 +245,12 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           ),
         );
       case _LockPhase.enter:
-        // Мгновение до replace-навигации — экран входа уже не нужен.
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        // Мгновение до replace-навигации — фирменная загрузка.
+        return const Scaffold(
+          body: Center(
+            child: LogoLoader(mode: LogoLoaderMode.loading, size: 220),
+          ),
+        );
       case _LockPhase.noWallets:
         WidgetsBinding.instance.addPostFrameCallback((_) => _enterWelcome());
         return const Scaffold(body: SizedBox.shrink());
