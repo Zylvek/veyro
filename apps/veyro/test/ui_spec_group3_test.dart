@@ -376,16 +376,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Честный статус BTC: сессия закрыта, путь разблокировки назван.
-      expect(find.textContaining('Сессия закрыта — разблокировать'),
-          findsOneWidget);
-      // Нереализованные активы — отключённые плитки со статусами матрицы
-      // (XMR — строка 13: в пределах вьюпорта; LTC row 25 лениво за краем).
+      // Статус-пометки убраны с плиток (решение владельца: «убери эти
+      // зелёные пометки»); честный статус живёт в центре BTC.
       Finder tileTitle(String plain) => find.byWidgetPredicate(
             (w) => w is RichText && w.text.toPlainText().contains(plain),
           );
+      expect(tileTitle('Bitcoin'), findsWidgets);
       expect(tileTitle('Monero'), findsOneWidget);
-      expect(find.text('Исследовано'), findsWidgets);
+      expect(find.text('Исследовано'), findsNothing);
       expect(find.textContaining('Разблокировать: Основной'), findsNothing);
     });
 
@@ -400,12 +398,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Сессия: Bitcoin · тестовая сеть'),
-          findsOneWidget);
-      // Плитка BTC активна (InkWell onTap не null) — тап откроет ReceiveScreen,
-      // который в тестах без ядра требует injectables; здесь не тапаем,
-      // только честный текст.
-      expect(find.textContaining('форма открыта'), findsOneWidget);
+      // Плитки без зелёных пометок (решение владельца); навигация по
+      // сессии осталась честной (проверяется логикой _openBtc).
+      Finder tileTitle(String plain) => find.byWidgetPredicate(
+            (w) => w is RichText && w.text.toPlainText().contains(plain),
+          );
+      expect(tileTitle('Bitcoin'), findsOneWidget);
+      expect(find.textContaining('— форма открыта'), findsNothing);
+      expect(find.textContaining('Researched'), findsNothing);
     });
   });
 

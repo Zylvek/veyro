@@ -9,7 +9,6 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
-import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
@@ -175,21 +174,6 @@ class _BtcScreenState extends State<BtcScreen> {
     }
   }
 
-  Future<void> _lock() async {
-    try {
-      await btcLock();
-      if (!mounted) return;
-      BtcStateCache.instance.clear();
-      setState(() {
-        _state = null;
-        _sync = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      showError(context, e);
-    }
-  }
-
   /// Реальный доступный баланс на момент последней синхронизации:
   /// confirmed + отрицательный mempool-delta (в mempool-расходе сумма
   /// уже ушла из подтверждённых). Нет синхронизации — нет данных (null).
@@ -269,8 +253,6 @@ class _BtcScreenState extends State<BtcScreen> {
                     ],
                   )
                 else ...[
-                  _buildSessionCard(context, state),
-                  const SizedBox(height: 16),
                   _buildBalanceCard(context),
                   const SizedBox(height: 16),
                   _buildActionsGrid(context),
@@ -280,31 +262,6 @@ class _BtcScreenState extends State<BtcScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSessionCard(BuildContext context, BtcSessionStateDto state) {
-    return SectionCard(
-      title: t('connection_section'),
-      icon: Icons.dns_outlined,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      children: [
-        kvRow(t('network_label'), ruNetworkText(state.networkDisplay) ?? '—'),
-        kvRow(t('server_label'), state.serverUrl),
-        SelectableText(
-          '${t('xpub_note')}${state.accountXpub}',
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.white54),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: _busy ? null : _lock,
-            icon: const Icon(Icons.lock_outline),
-            label: Text(t('lock_btn')),
-          ),
-        ),
-      ],
     );
   }
 

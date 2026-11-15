@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 
 /// Полноэкранное подтверждение отправки. Возвращает `true` через
@@ -38,7 +39,7 @@ class TxConfirmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Подтверждение отправки')),
+      appBar: AppBar(title: Text(t('tx_confirm_title'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -46,38 +47,36 @@ class TxConfirmScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               VCard(
-                title: 'Актив и сеть',
+                title: t('tx_asset_network'),
                 icon: Icons.language_outlined,
                 children: [
-                  _row(context, 'Актив', 'Bitcoin (BTC)'),
+                  _row(context, t('asset_label'), 'Bitcoin (BTC)'),
                   _row(
                     context,
-                    'Сеть',
+                    t('network_label'),
                     networkDisplay == null
-                        ? '— (сессия ядра не активна)'
+                        ? t('no_active_session')
                         : (ruNetworkText(networkDisplay) ?? networkDisplay!),
                     mono: networkDisplay != null ? false : true,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Подпись выполняется в Rust-ядре для сети активной '
-                    'сессии; транзакция уйдёт только на выбранный '
-                    'Electrum-сервер.',
+                    t('confirm_network_desc'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               VCard(
-                title: 'Получатель и сумма',
+                title: t('recipient_amount_card'),
                 icon: Icons.person_outline,
                 children: [
-                  VMonoCopyRow(label: 'Получатель', value: recipient),
+                  VMonoCopyRow(label: t('recipient_card'), value: recipient),
                   const SizedBox(height: 12),
                   VAmount(satToBtcString(amountSat), suffix: 'BTC'),
                   const SizedBox(height: 4),
                   Text(
-                    '${groupDigits(amountSat)} сат',
+                    '${groupDigits(amountSat)} ${t('sats')}',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall!
@@ -87,14 +86,13 @@ class TxConfirmScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               VCard(
-                title: 'Комиссия и скорость',
+                title: t('fee_card'),
                 icon: Icons.speed_outlined,
                 children: [
-                  _row(context, 'Скорость', '$rateSatVb sat/vB'),
+                  _row(context, t('speed_label'), '$rateSatVb sat/vB'),
                   const SizedBox(height: 8),
                   Text(
-                    'Финальная комиссия считается ядром при подписи '
-                    'и показывается в результате отправки.',
+                    t('fee_final_note'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -117,9 +115,7 @@ class TxConfirmScreen extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Отправка необратима. Перепроверьте адрес: '
-                        'транзакцию нельзя отменить после broadcast. '
-                        'Подпись локальная (BIP143): ключи не покидают ядро.',
+                        t('send_irreversible'),
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall!
@@ -134,14 +130,14 @@ class TxConfirmScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: VButton.secondary(
-                      'Отмена',
+                      t('cancel'),
                       onPressed: () => Navigator.of(context).pop(false),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: VButton.primary(
-                      'Подписать и отправить',
+                      t('sign_send_btn'),
                       icon: Icons.north_east,
                       onPressed: () => Navigator.of(context).pop(true),
                     ),

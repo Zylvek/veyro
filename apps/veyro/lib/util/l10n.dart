@@ -250,7 +250,205 @@ const Map<String, Map<String, String>> _strings = {
   'also_extra': {'ru': '\n(также: {error})', 'en': '\n(also: {error})'},
   'address_unavailable': {'ru': 'Адрес недоступен.', 'en': 'Address is unavailable.'},
   'copied_snackbar': {'ru': '{label} скопировано', 'en': '{label} copied'},
-  // Каталог: фильтры и честная поясняющая строка.
+  // Выбор актива (плитки без статус-пометок — решение владельца).
+  'implemented_tag': {'ru': '· реализован', 'en': '· implemented'},
+  // Отправка BTC.
+  'send_title': {'ru': 'Отправить BTC', 'en': 'Send BTC'},
+  'recipient_card': {'ru': 'Получатель', 'en': 'Recipient'},
+  'address_field': {
+    'ru': 'Адрес (P2WPKH / P2SH / P2PKH / P2TR)',
+    'en': 'Address (P2WPKH / P2SH / P2PKH / P2TR)',
+  },
+  'address_hint': {
+    'ru': 'tb1q… для testnet, bc1q… для mainnet',
+    'en': 'tb1q… for testnet, bc1q… for mainnet',
+  },
+  'amount_card': {'ru': 'Сумма', 'en': 'Amount'},
+  'amount_field': {'ru': 'Сумма, BTC', 'en': 'Amount, BTC'},
+  'available_row': {'ru': 'Доступно: {value} BTC', 'en': 'Available: {value} BTC'},
+  'fee_card': {'ru': 'Комиссия и скорость', 'en': 'Fee and speed'},
+  'fee_fast': {'ru': 'Быстро — {rate} sat/vB', 'en': 'Fast — {rate} sat/vB'},
+  'fee_normal': {
+    'ru': 'Обычно — {rate} sat/vB',
+    'en': 'Normal — {rate} sat/vB',
+  },
+  'fee_slow': {'ru': 'Медленно — {rate} sat/vB', 'en': 'Slow — {rate} sat/vB'},
+  'fee_manual_field': {
+    'ru': 'Своя ставка, sat/vB',
+    'en': 'Custom rate, sat/vB',
+  },
+  'fees_fallback_note': {
+    'ru': 'Сервер не дал оценку комиссии — показаны консервативные '
+        'дефолты, а не измерение. Ставку можно ввести вручную.',
+    'en': 'The server returned no fee estimate — conservative defaults '
+        'are shown, not a measurement. The rate can be set manually.',
+  },
+  'fees_error_note': {
+    'ru': 'Пресеты сервера недоступны: {error}\nВведите ставку вручную (sat/vB).',
+    'en': 'Server fee presets unavailable: {error}\nSet the rate manually (sat/vB).',
+  },
+  'send_submit_btn': {'ru': 'Отправить', 'en': 'Send'},
+  'sending_now': {
+    'ru': 'Подписание и broadcast…',
+    'en': 'Signing and broadcasting…',
+  },
+  'sign_local_note': {
+    'ru': 'Подпись выполняется локально в Rust (BIP143). Seed и '
+        'приватные ключи не покидают ядро и не отправляются на сервер.',
+    'en': 'Signing happens locally in Rust (BIP143). The seed and private '
+        'keys never leave the core and are not sent to any server.',
+  },
+  'err_recipient': {
+    'ru': 'Введите адрес получателя.',
+    'en': 'Enter the recipient address.',
+  },
+  'err_amount': {
+    'ru': 'Сумма задана некорректно: цифры и точка, до 8 знаков.',
+    'en': 'Incorrect amount: digits and a dot, up to 8 decimals.',
+  },
+  'err_amount_positive': {
+    'ru': 'Сумма должна быть больше нуля.',
+    'en': 'The amount must be greater than zero.',
+  },
+  'err_fee_rate': {
+    'ru': 'Ставка комиссии: целое sat/vB больше нуля.',
+    'en': 'Fee rate: an integer sat/vB greater than zero.',
+  },
+  'err_send_rejected': {
+    'ru': 'Ядро отклонило отправку: {error}',
+    'en': 'The core rejected the send: {error}',
+  },
+  // Результат отправки.
+  'tx_sent_title': {
+    'ru': 'Транзакция отправлена',
+    'en': 'Transaction sent',
+  },
+  'tx_already_known': {
+    'ru': 'Эта транзакция уже была известна сети — повторная '
+        'отправка не выполнялась (идемпотентный broadcast).',
+    'en': 'This transaction was already known to the network — it was '
+        'not broadcast again (idempotent broadcast).',
+  },
+  'tx_broadcast_chip': {
+    'ru': 'Отправлено в сеть',
+    'en': 'Broadcast to the network',
+  },
+  'tx_status_chip': {'ru': 'Статус: {status}', 'en': 'Status: {status}'},
+  'tx_to_recipient': {
+    'ru': '{value} получателю',
+    'en': '{value} to the recipient',
+  },
+  'tx_fee_row': {
+    'ru': 'Комиссия: {btc} BTC ({sats} сат, {vsize} vSize, {rate} sat/vB)',
+    'en': 'Fee: {btc} BTC ({sats} sat, {vsize} vSize, {rate} sat/vB)',
+  },
+  'change_label': {'ru': 'Сдача', 'en': 'Change'},
+  'copy_txid': {'ru': 'Копировать TXID', 'en': 'Copy TXID'},
+  'done_btn': {'ru': 'Готово', 'en': 'Done'},
+  'error_prefix': {'ru': 'Ошибка: {error}', 'en': 'Error: {error}'},
+  // Подтверждение отправки.
+  'tx_confirm_title': {
+    'ru': 'Подтверждение отправки',
+    'en': 'Confirm the send',
+  },
+  'tx_asset_network': {'ru': 'Актив и сеть', 'en': 'Asset and network'},
+  'asset_label': {'ru': 'Актив', 'en': 'Asset'},
+  'confirm_network_desc': {
+    'ru': 'Подпись выполняется в Rust-ядре для сети активной '
+        'сессии; транзакция уйдёт только на выбранный '
+        'Electrum-сервер.',
+    'en': 'Signing happens in the Rust core for the active session '
+        'network; the transaction goes only to the selected '
+        'Electrum server.',
+  },
+  'recipient_amount_card': {
+    'ru': 'Получатель и сумма',
+    'en': 'Recipient and amount',
+  },
+  'no_active_session': {
+    'ru': '— (сессия ядра не активна)',
+    'en': '— (no core session)',
+  },
+  'speed_label': {'ru': 'Скорость', 'en': 'Speed'},
+  'fee_final_note': {
+    'ru': 'Финальная комиссия считается ядром при подписи '
+        'и показывается в результате отправки.',
+    'en': 'The final fee is computed by the core at signing time and is '
+        'shown in the send result.',
+  },
+  'send_irreversible': {
+    'ru': 'Отправка необратима. Перепроверьте адрес: '
+        'транзакцию нельзя отменить после broadcast. '
+        'Подпись локальная (BIP143): ключи не покидают ядро.',
+    'en': 'The send is irreversible. Re-check the address: the '
+        'transaction cannot be undone after broadcast. Signing is '
+        'local (BIP143): keys never leave the core.',
+  },
+  'sign_send_btn': {
+    'ru': 'Подписать и отправить',
+    'en': 'Sign and send',
+  },
+  // История.
+  'history_title': {'ru': 'История BTC', 'en': 'BTC history'},
+  'sync_refresh_tooltip': {
+    'ru': 'Синхронизировать и обновить (сетевая операция)',
+    'en': 'Sync and refresh (a network operation)',
+  },
+  'sync_error_snackbar': {
+    'ru': 'Ошибка синхронизации: {error}',
+    'en': 'Sync failed: {error}',
+  },
+  'history_need_sync': {
+    'ru': 'История собирается при синхронизации адресов. Выполните '
+        'синхронизацию на экране BTC (или ниже).',
+    'en': 'History is built while syncing addresses. Sync on the BTC '
+        'screen (or below).',
+  },
+  'history_sync_btn': {
+    'ru': 'Синхронизировать и обновить',
+    'en': 'Sync and refresh',
+  },
+  'history_empty': {
+    'ru': 'История пуста: ни один адрес кошелька ещё не получал средств '
+        '(или не выполнена синхронизация).',
+    'en': 'History is empty: no wallet address has received funds yet '
+        '(or no sync has been run).',
+  },
+  'search_txid': {'ru': 'Поиск по TXID', 'en': 'Search by TXID'},
+  'filter_incoming': {'ru': 'Входящие', 'en': 'Incoming'},
+  'filter_outgoing': {'ru': 'Исходящие', 'en': 'Outgoing'},
+  'filter_pending': {'ru': 'Ожидающие', 'en': 'Pending'},
+  'filter_confirmed': {'ru': 'Подтверждённые', 'en': 'Confirmed'},
+  'filter_failed': {'ru': 'Неудачные', 'en': 'Failed'},
+  'failed_chip_tooltip': {
+    'ru': 'Ядро не отдаёт неуспешные транзакции: их нет в истории. '
+        'Фильтр оставлен отключённым, чтобы не имитировать работу.',
+    'en': 'The core returns no failed transactions: they are absent from '
+        'history. The filter stays disabled so nothing is imitated.',
+  },
+  'nothing_found_msg': {
+    'ru': 'По текущему фильтру и поиску транзакций нет. '
+        'Измените фильтр или очистите поиск.',
+    'en': 'No transactions match the current filter and search. '
+        'Change the filter or clear the search.',
+  },
+  'reset_filters': {
+    'ru': 'Сбросить фильтр и поиск',
+    'en': 'Reset filter and search',
+  },
+  'height_n': {'ru': 'высота {height}', 'en': 'height {height}'},
+  'in_mempool': {'ru': 'в мемпуле', 'en': 'in mempool'},
+  'unknown_direction': {
+    'ru': 'Направление не определено',
+    'en': 'Direction unknown',
+  },
+  'dir_incoming': {'ru': 'Получение', 'en': 'Incoming'},
+  'dir_outgoing': {'ru': 'Отправка', 'en': 'Outgoing'},
+  'dir_internal': {
+    'ru': 'Смена адреса (внутри кошелька)',
+    'en': 'Address change (within the wallet)',
+  },
+  'fee_prefix': {'ru': ' · комиссия {value}', 'en': ' · fee {value}'},
   'filter_all': {'ru': 'Все', 'en': 'All'},
   'filter_implemented': {'ru': 'Реализованные', 'en': 'Implemented'},
   'filter_researched': {'ru': 'Исследованные', 'en': 'Researched'},

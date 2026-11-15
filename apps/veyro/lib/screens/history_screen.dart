@@ -9,9 +9,11 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/l10n.dart';
 
 import 'tx_details_screen.dart';
 
@@ -110,7 +112,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!mounted) return;
       setState(() => _syncing = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Ошибка синхронизации: $e'),
+        content: Text(
+            tf(
+              'sync_error_snackbar',
+              {'error': '$e'},
+            ),
+        ),
       ));
     }
   }
@@ -144,9 +151,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('История BTC'), actions: [
+      appBar: AppBar(title: Text(t('history_title')), actions: [
         IconButton(
-          tooltip: 'Синхронизировать и обновить (сетевая операция)',
+          tooltip: t('sync_refresh_tooltip'),
           onPressed: _syncing ? null : _syncThenLoad,
           icon: const Icon(Icons.sync),
         ),
@@ -162,7 +169,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_loading || _syncing || _items == null && !_hasError) {
-      return const Center(child: CircularProgressIndicator());
+      // Фирменная загрузка знака (система владельца), мини-версия.
+      return const Center(
+        child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+      );
     }
     if (_hasError) {
       final needsSync = _error!.contains('btc_sync first') ||
@@ -177,15 +187,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 12),
             Text(
               needsSync
-                  ? 'История собирается при синхронизации адресов. Выполните '
-                      'синхронизацию на экране BTC (или ниже).'
-                  : 'Ошибка: $_error',
+                  ? t('history_need_sync')
+                  : tf(
+                      'error_prefix',
+                      {'error': '$_error'},
+                    ),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             VButton.primary(
-              'Синхронизировать и обновить',
+              t('history_sync_btn'),
               icon: Icons.sync,
               onPressed: _syncThenLoad,
             ),
@@ -204,13 +216,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 size: 44, color: VColors.textSecondary),
             const SizedBox(height: 12),
             Text(
-              'История пуста: ни один адрес кошелька ещё не получал средств '
-              '(или не выполнена синхронизация).',
+              t('history_empty'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
-            VButton.secondary('Синхронизировать',
+            VButton.secondary(t('sync_btn'),
                 icon: Icons.sync, onPressed: _syncThenLoad),
           ],
         ),
@@ -226,7 +237,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             focusNode: _searchFocus,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search_outlined),
-              labelText: 'Поиск по TXID',
+              labelText: t('search_txid'),
               suffixIcon: _searchController.text.isEmpty
                   ? null
                   : IconButton(
@@ -243,11 +254,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _filterChip(context, 'Все', HistoryFilter.all),
-              _filterChip(context, 'Входящие', HistoryFilter.incoming),
-              _filterChip(context, 'Исходящие', HistoryFilter.outgoing),
-              _filterChip(context, 'Ожидающие', HistoryFilter.pending),
-              _filterChip(context, 'Подтверждённые', HistoryFilter.confirmed),
+              _filterChip(context, t('filter_all'), HistoryFilter.all),
+              _filterChip(context, t('filter_incoming'), HistoryFilter.incoming),
+              _filterChip(context, t('filter_outgoing'), HistoryFilter.outgoing),
+              _filterChip(context, t('filter_pending'), HistoryFilter.pending),
+              _filterChip(
+                  context, t('filter_confirmed'), HistoryFilter.confirmed),
               _failedChip(context),
             ],
           ),
@@ -262,10 +274,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       const SizedBox(height: 48),
                       VEmptyState(
                         icon: Icons.search_off,
-                        title: 'Ничего не найдено',
-                        message:
-                            'По текущему фильтру и поиску транзакций нет. '
-                            'Измените фильтр или очистите поиск.',
+                        title: t('nothing_found'),
+                        message: t('nothing_found_msg'),
                       ),
                       Center(
                         child: TextButton(
@@ -273,7 +283,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             _searchController.clear();
                             setState(() => _filter = HistoryFilter.all);
                           },
-                          child: const Text('Сбросить фильтр и поиск'),
+                          child: Text(t('reset_filters')),
                         ),
                       ),
                     ],
@@ -354,14 +364,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// неуспешные в истории, включать его как «рабочий» нельзя.
   Widget _failedChip(BuildContext context) {
     return Tooltip(
-      message: 'Ядро не отдаёт неуспешные транзакции: их нет в истории. '
-          'Фильтр оставлен отключённым, чтобы не имитировать работу.',
+      message: t('failed_chip_tooltip'),
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.45,
           child: FilterChip(
             selected: false,
-            label: Text('Неудачные',
+            label: Text(t('filter_failed'),
                 style: TextStyle(
                     fontSize: 12.5, color: VColors.textSecondary)),
             showCheckmark: false,
@@ -374,8 +383,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  String _heightText(int height) =>
-      height >= 1 ? 'высота $height' : 'в мемпуле';
+  String _heightText(int height) => height >= 1
+      ? tf(
+          'height_n',
+          {'height': '$height'},
+        )
+      : t('in_mempool');
 
   ({IconData icon, Color color, String amountText, String directionText, String feeText})
       _buildTileData(BtcHistoryItemDto item) {
@@ -383,31 +396,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
       icon: Icons.help_outline,
       color: VColors.textSecondary,
       amountText: '—',
-      directionText: 'Направление не определено',
+      directionText: '',
     );
     final data = switch (item.direction) {
       'incoming' => (
           icon: Icons.south_west,
           color: VColors.success,
           amountText: '+${satToBtcString(item.receivedSat.toInt())} BTC',
-          directionText: 'Получение',
+          directionText: t('dir_incoming'),
         ),
       'outgoing' => (
           icon: Icons.north_east,
           color: VColors.error,
           amountText: '-${satToBtcString(item.sentNetSat.toInt())} BTC',
-          directionText: 'Отправка',
+          directionText: t('dir_outgoing'),
         ),
       'internal' => (
           icon: Icons.swap_horiz,
           color: VColors.secondary,
           amountText: '0 BTC',
-          directionText: 'Смена адреса (внутри кошелька)',
+          directionText: t('dir_internal'),
         ),
-      _ => unknown,
+      _ => (icon: unknown.icon, color: unknown.color,
+          amountText: unknown.amountText, directionText: t('unknown_direction')),
     };
     final feeText = item.feeSat != null && item.direction == 'outgoing'
-        ? ' · комиссия ${satToBtcString(item.feeSat!.toInt())}'
+        ? tf(
+            'fee_prefix',
+            {'value': satToBtcString(item.feeSat!.toInt())},
+          )
         : '';
     return (
       icon: data.icon,

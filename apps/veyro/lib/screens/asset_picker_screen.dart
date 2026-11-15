@@ -7,12 +7,10 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
-import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
-import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 
 import 'asset_catalog_screen.dart' show CoinIcon;
@@ -44,9 +42,6 @@ class AssetPickerScreen extends StatefulWidget {
 
 class _AssetPickerScreenState extends State<AssetPickerScreen> {
   BtcSessionStateDto? _session;
-  bool _sessionChecked = false;
-  String? _sessionError;
-  List<WalletInfoDto>? _wallets;
   WalletInfoDto? _chosenWallet;
 
   @override
@@ -68,35 +63,23 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
         if (w.id == preferredId) chosen = w;
       }
       if (chosen == null && wallets.length == 1) chosen = wallets.first;
-      setState(() => _wallets = wallets);
       setState(() => _chosenWallet = chosen);
-    } catch (e) {
+    } catch (_) {
+      // Кошельки не прочитать — переход в центр BTC всё равно честный:
+      // там будет настоящая ошибка разблокировки.
       if (!mounted) return;
-      setState(() {
-        // Кошельки не прочитать — BTC-переход всё равно честно честный:
-        // без списка кошельков разблокировка невозможна.
-        _wallets = null;
-        _chosenWallet = null;
-        _sessionError ??= 'Кошельки не прочитаны: $e';
-      });
+      setState(() => _chosenWallet = null);
     }
     try {
-      final session = widget.sessionLoader != null
-          ? await widget.sessionLoader!()
-          : await btcSessionState();
+      final loader = widget.sessionLoader;
+      final session =
+          loader != null ? await loader() : await btcSessionState();
       if (!mounted) return;
-      setState(() {
-        _session = session;
-        _sessionChecked = true;
-        _sessionError = null;
-      });
-    } catch (e) {
+      setState(() => _session = session);
+    } catch (_) {
+      // Ошибку сессии честно показывает центр BTC.
       if (!mounted) return;
-      setState(() {
-        _session = null;
-        _sessionChecked = true;
-        _sessionError = 'Состояние сессии не прочитано: $e';
-      });
+      setState(() => _session = null);
     }
   }
 
@@ -147,11 +130,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
             children: [
               _BtcTile(
                 asset: btc,
-                session: _session,
-                sessionChecked: _sessionChecked,
-                sessionError: _sessionError,
-                walletName: _chosenWallet?.name,
-                hasWallets: _wallets == null || _wallets!.isNotEmpty,
                 onTap: _openBtc,
               ),
               const SizedBox(height: 10),
@@ -169,26 +147,12 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 /// разблокировку через центр управления.
 class _BtcTile extends StatelessWidget {
   final VeyroAsset asset;
-  final BtcSessionStateDto? session;
-  final bool sessionChecked;
-  final String? sessionError;
-  final String? walletName;
-  final bool hasWallets;
   final VoidCallback onTap;
 
-  const _BtcTile({
-    required this.asset,
-    required this.session,
-    required this.sessionChecked,
-    required this.sessionError,
-    required this.walletName,
-    required this.hasWallets,
-    required this.onTap,
-  });
+  const _BtcTile({required this.asset, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final unlocked = session != null;
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -207,7 +171,7 @@ class _BtcTile extends StatelessWidget {
               ),
               const WidgetSpan(child: SizedBox(width: 6)),
               TextSpan(
-                text: 'Bitcoin · реализован',
+                text: '${asset.name} ${t('implemented_tag')}',
                 style: TextStyle(
                   fontSize: 13,
                   color: VColors.textSecondary,
@@ -216,46 +180,8 @@ class _BtcTile extends StatelessWidget {
             ],
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              VStatusChip(
-                asset.lifecycle.labelLocalized,
-                kind: asset.lifecycle.chipKind,
-              ),
-              if (!sessionChecked)
-                VStatusChip(t('session_pending_chip'), kind: VChipKind.neutral)
-              else if (sessionError != null)
-                VStatusChip(t('core_unavailable'), kind: VChipKind.warning)
-              else if (unlocked)
-                VStatusChip(
-                    tf(
-                      'session_open_chip',
-                      {
-                        'network':
-                            ruNetworkText(session!.networkDisplay) ?? 'BTC'
-                      },
-                    ),
-                    kind: VChipKind.success)
-              else if (!hasWallets)
-                VStatusChip(t('no_wallets_chip'), kind: VChipKind.warning)
-              else
-                VStatusChip(
-                    tf(
-                      'session_closed_chip',
-                      {
-                        'wallet': walletName ?? t('wallet_not_chosen'),
-                      },
-                    ),
-                    kind: VChipKind.info),
-            ],
-          ),
-        ),
-        isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right, size: 18, color: VColors.textSecondary),
+        trailing:
+            const Icon(Icons.chevron_right, size: 18, color: VColors.textSecondary),
         onTap: onTap,
       ),
     );
@@ -307,18 +233,6 @@ class _DisabledAssetTile extends StatelessWidget {
                 ],
               ),
             ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  VStatusChip(asset.lifecycle.labelLocalized,
-                      kind: asset.lifecycle.chipKind),
-                ],
-              ),
-            ),
-            isThreeLine: true,
             trailing: Icon(Icons.block_outlined,
                 size: 18, color: VColors.textSecondary.withValues(alpha: 0.6)),
           ),
