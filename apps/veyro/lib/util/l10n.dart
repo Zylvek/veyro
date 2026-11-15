@@ -738,6 +738,13 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Wrong password for "{name}". If the wallets have different '
         'passwords — switch the wallet below.',
   },
+  'err_lock_connection': {
+    'ru': 'Не удалось подключиться к серверу. Проверьте '
+        'интернет-подключение и попробуйте ещё раз.',
+    'en': 'Could not reach the server. Check your internet connection '
+        'and try again.',
+  },
+  'error_detail_prefix': {'ru': 'подробности: ', 'en': 'details: '},
   'lock_registry_error': {
     'ru': 'Реестр кошельков недоступен: {error}',
     'en': 'The wallet registry is unavailable: {error}',

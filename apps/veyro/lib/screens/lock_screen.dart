@@ -45,6 +45,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
   WalletInfoDto? _wallet;
   BtcSessionStateDto? _session;
   String? _error;
+  String? _errorRaw;
   final _passwordController = TextEditingController();
 
   /// Интро «вход в приложение» (система лого-анимаций, референс 02)
@@ -192,15 +193,31 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       _enterShell();
     } catch (e) {
       if (!mounted) return;
+      final raw = e.toString();
+      final connectionLike = raw.contains('electrum') ||
+          raw.contains('unexpected end of file') ||
+          raw.contains('all errored') ||
+          raw.contains('timed out') ||
+          raw.contains('connection');
+      if (connectionLike) {
+        // TCP прошёл, но протокол/соединение упали: кэш подбора сбрасываем —
+        // следующая попытка прониует кандидатов и возьмёт живой сервер.
+        invalidateProbe();
+      }
+      if (!mounted) return;
       setState(() {
         _phase = _LockPhase.needsPassword;
-        final raw = e.toString();
+        _errorRaw = connectionLike || raw.contains('decryption failed')
+            ? raw
+            : null;
         _error = raw.contains('decryption failed')
             ? tf(
                 'lock_wrong_password',
                 {'name': _wallet!.name},
               )
-            : raw;
+            : connectionLike
+                ? t('err_lock_connection')
+                : raw;
       });
     }
   }
@@ -326,9 +343,24 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                               const SizedBox(height: 12),
                               Text(
                                 _error!,
-                                style: TextStyle(
-                                    color: VColors.error, fontSize: 13),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: VColors.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
+                              if (_errorRaw != null) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${t('error_detail_prefix')}$_errorRaw',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: VColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ],
                             if (_wallets.length > 1) ...[
                               const SizedBox(height: 10),
