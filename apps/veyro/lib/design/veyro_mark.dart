@@ -29,19 +29,18 @@ import 'package:veyro/design/app_colors.dart';
 // Геометрия и константы системы (числа владельца).
 // ---------------------------------------------------------------------------
 
-Path _circlePath(double cx, double cy, double r) {
-  return Path()
-    ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
-}
-
-/// Знак: два круга, пересечение вырезано (evenodd — как SVG fill-rule).
+/// Знак: ОДИН путь с двумя кругами и fill-type evenodd — прямой
+/// аналог SVG-референса (`logoD = circleD + circleD`,
+/// `fill-rule="evenodd"`): залиты оба круга, а их пересечение (линза)
+/// прозрачное. Важно: Path.combine(difference) здесь не годится — он
+/// вычитает один круг из другого и оставляет один полумесяц вместо
+/// двух кругов.
 Path _markPath(double ax, double ay, double ar, double bx, double by,
     double br) {
-  return Path.combine(
-    PathOperation.difference,
-    _circlePath(ax, ay, ar),
-    _circlePath(bx, by, br),
-  );
+  return Path()
+    ..fillType = PathFillType.evenOdd
+    ..addOval(Rect.fromCircle(center: Offset(ax, ay), radius: ar))
+    ..addOval(Rect.fromCircle(center: Offset(bx, by), radius: br));
 }
 
 /// Пропорции статичного знака (референс STATIC_D).
