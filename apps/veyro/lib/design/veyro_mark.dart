@@ -9,11 +9,13 @@
 //!   loading / appEntry / backgroundToLoading;
 //! - [VeyroMarkSpinner] — анимация 01, бесконечная загрузка;
 //! - [VeyroMarkIntro] — анимация 02, вход в приложение (2600 мс):
-//!   круги докручиваются в противоположную сторону, сходятся в фон;
-//! - [VeyroMarkBackgroundToLoading] — анимация 03, из приглушённого
-//!   фона (0.18) в живую загрузку (1800 мс) без остановки вращения;
-//! - [VeyroMarkBackdrop] — приглушённый живой знак-фон экрана пароля;
-//! - [VeyroMark] — статичный знак.
+//!   круги вылетают из-за краёв, один оборот, уменьшаются и застывают
+//!   неподвижным фоном экрана пароля;
+//! - [VeyroMarkBackgroundToLoading] — анимация 03: неподвижный
+//!   приглушённый фон сразу начинает вращаться, набирает яркость и
+//!   размер — без остановок переходит в загрузку (1800 мс);
+//! - [VeyroMark] — статичный знак; с приглушёнными параметрами он же
+//!   — фоновый рисунок экрана пароля.
 //!
 //! Технические требования ТЗ: никаких drop-shadow-фильтров (лаги),
 //! только AnimationController/Ticker; вырез пересечения — evenodd.
@@ -56,19 +58,14 @@ const double kBackdropOpacity = 0.18;
 /// Длина перехода «фон → загрузка», мс (референс anim3).
 const int kBgToLoadingMs = 1800;
 
-/// Общая эпоха системы лого-анимаций — аналог `performance.now() − tStart`
-/// в HTML-референсе: все живые знаки (фон, загрузка) крутятся и дышат
-/// в одной фазе, поэтому смена виджетов «фон → загрузка» не рвёт вращение.
-final Stopwatch _systemClock = Stopwatch()..start();
-
-/// Миллисекунды общего хода времени системы (однократное интро живёт
-/// по своему собственному таймеру — как в референсе).
-double _systemMs() => _systemClock.elapsedMicroseconds / 1000.0;
+/// Скорость вращения живой загрузки, рад/мс (референс LOAD:
+/// ang = t·0.0018).
+const double kLoadAngleSpeed = 0.0018;
 
 /// Живая загрузка: угол орбиты, радиус и дистанция дышат синусоидами
 /// (числа владельца из LOAD; d < r всегда — вырез не исчезает).
 MarkOrbitState _loadingState(double elapsedMs) {
-  const angSpeed = 0.0018;
+  const angSpeed = kLoadAngleSpeed;
   const rBase = 72.0, rAmp = 10.0, rSpeed = 0.0009, rPhase = 1.2;
   const dBase = 42.0, dAmp = 3.0, dSpeed = 0.0006;
   return MarkOrbitState(
@@ -146,12 +143,26 @@ class _MarkPainter extends CustomPainter {
 // Статичный знак.
 // ---------------------------------------------------------------------------
 
-/// Бренд-знак в статике (пропорции референса STATIC_D), поворот +45°.
+/// Бренд-знак в статике, поворот +45°. Неподвижен: по решению
+/// владельца застывший после интро знак и есть фоновый рисунок экрана
+/// пароля (с приглушёнными параметрами — см. kBackdrop*).
 class VeyroMark extends StatelessWidget {
   final double size;
   final double opacity;
 
-  const VeyroMark({super.key, this.size = 88, this.opacity = 1});
+  /// Дистанция центров кругов (по умолчанию — пропорции референса).
+  final double distance;
+
+  /// Радиус кругов.
+  final double radius;
+
+  const VeyroMark({
+    super.key,
+    this.size = 88,
+    this.opacity = 1,
+    this.distance = kMarkDistance,
+    this.radius = kMarkRadius,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,9 +171,9 @@ class VeyroMark extends StatelessWidget {
       height: size,
       child: CustomPaint(
         painter: _MarkPainter(
-          ax: kMarkDistance,
+          ax: distance,
           ay: 0,
-          ar: kMarkRadius,
+          ar: radius,
           opacity: opacity,
         ),
       ),
@@ -175,8 +186,7 @@ class VeyroMark extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// Бесконечная орбитальная загрузка: круги ходят по орбите, дышат
-/// радиусом и дистанцией (числа владельца из LOAD). Время берётся из
-/// общего хода системы — как performance.now() в референсе.
+/// радиусом и дистанцией (числа владельца из LOAD).
 class VeyroMarkSpinner extends StatefulWidget {
   final double size;
 
@@ -196,7 +206,8 @@ class _VeyroMarkSpinnerState extends State<VeyroMarkSpinner>
   void initState() {
     super.initState();
     _ticker = createTicker((elapsed) {
-      setState(() => _state = _loadingState(_systemMs()));
+      setState(() =>
+          _state = _loadingState(elapsed.inMicroseconds / 1000.0));
     });
     _ticker.start();
   }
@@ -233,17 +244,26 @@ double _easeInOutCubic(double x) =>
     x < 0.5 ? 4 * x * x * x : 1 - math.pow(-2 * x + 2, 3) / 2;
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
+/// Угол анимации 03 — плавный разгон «из покоя в загрузку»: при
+/// t < T — монотонный разгон ω·T·(2p²−p³); при t ≥ T — чистая
+/// загрузка ω·t. Стык без скачка: в конце скорость равна скорости
+/// загрузки (производная 2p²−p³ даёт 0 в нуле и 1 в p=1).
+double _spinUpAngle(double localMs) {
+  if (localMs >= kBgToLoadingMs) return kLoadAngleSpeed * localMs;
+  final p = localMs / kBgToLoadingMs;
+  return kLoadAngleSpeed * kBgToLoadingMs * (2 * p * p - p * p * p);
+}
+
 // ---------------------------------------------------------------------------
 // Анимация 02: вход в приложение (режим app-entry).
 // ---------------------------------------------------------------------------
 
-/// Интро (референс anim2, 2600 мс, app-entry) — решение владельца
-/// «становятся как фон на экране пароля»: большие круги выезжают
-/// из-за края экрана, делают один полный оборот ПРОТИВ хода живой
-/// орбиты (в референсе у интро направление «противоположное») и
-/// уменьшаются, сходясь ТОЧНО в состояние живого фона
-/// (r 88, d 46, 0.18, поза по общим часам) — по завершении знак
-/// становится фоном формы без единого перескока.
+/// Интро (референс anim2, 2600 мс, app-entry) — решение владельца:
+/// большие круги выезжают из-за краёв экрана (d 820, r 330), делают
+/// один полный оборот, уменьшаются и ЗАСТЫВАЮТ неподвижным фоновым
+/// знаком экрана пароля: последний кадр интро — точное состояние
+/// фона (r 88, d 46, 0.18, поза 0), переход в статичный [VeyroMark]
+/// без единого перескока.
 /// После 62% прогресса тает знак и [withReveal]-подложка — под ними
 /// проявляется UI экрана (референс anim2). По завершении — [onDone].
 class VeyroMarkIntro extends StatefulWidget {
@@ -297,11 +317,10 @@ class _VeyroMarkIntroState extends State<VeyroMarkIntro>
         final p = math.min(_controller.value, 1.0);
         final eRot = _easeInOutCubic(p);
         final eSz = _easeOutCubic(p);
-        // Круги крутятся НА живой орбите системы, но делают один
-        // полный оборот против её хода; в конце поза совпадает с позой
-        // фона в этот же момент (−2π ≡ 0) — переход без перескока.
-        // Старт из-за края экрана: d 820, r 330 (референс anim2).
-        final ang = _loadingState(_systemMs()).angle - eRot * math.pi * 2;
+        // Один полный оборот (референс anim2), завершающийся ровно на
+        // позе неподвижного фона (2π ≡ 0): крутились — и застыли.
+        // Старт из-за краёв экрана: d 820, r 330.
+        final ang = eRot * math.pi * 2;
         final d = _lerp(820, kBackdropDistance, eSz);
         final r = _lerp(330, kBackdropRadius, eSz);
         // После 62% знак тает до фона (0.18) — референс anim2.
@@ -342,68 +361,16 @@ class _VeyroMarkIntroState extends State<VeyroMarkIntro>
 }
 
 // ---------------------------------------------------------------------------
-// Приглушённый знак-фон экрана пароля.
+// Анимация 03: из неподвижного фона в загрузку.
 // ---------------------------------------------------------------------------
 
-/// Живой приглушённый знак (r 88, d 46, opacity 0.18): ходит по той же
-/// орбите в общей фазе системы — при переходе в загрузку вращение не
-/// заметит смены виджета.
-class VeyroMarkBackdrop extends StatefulWidget {
-  final double size;
-
-  const VeyroMarkBackdrop({super.key, this.size = 300});
-
-  @override
-  State<VeyroMarkBackdrop> createState() => _VeyroMarkBackdropState();
-}
-
-class _VeyroMarkBackdropState extends State<VeyroMarkBackdrop>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  double _angle = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker((elapsed) {
-      setState(() => _angle = _loadingState(_systemMs()).angle);
-    });
-    _ticker.start();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: CustomPaint(
-        painter: _MarkPainter(
-          ax: math.cos(_angle) * kBackdropDistance,
-          ay: math.sin(_angle) * kBackdropDistance,
-          ar: kBackdropRadius,
-          opacity: kBackdropOpacity,
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Анимация 03: из приглушённого фона в живую загрузку.
-// ---------------------------------------------------------------------------
-
-/// Переход «фон → загрузка» (референс anim3, 1800 мс) без единой
-/// остановки: угол ВСЕГДА берётся из живой загрузки и не
-/// интерполируется; первые 1800 мс через easeOutQuad плавно едут
-/// только радиус, дистанция и прозрачность
-/// (r: 88→liveR, d: 46→liveD, opacity: 0.18→1). Дальше — чистая
-/// загрузка, тот же Ticker продолжается без перезапуска.
+/// Переход «фон → загрузка» (решение владельца, 1800 мс): фоновый
+/// знак неподвижен и приглушён — он СРАЗУ НАЧИНАЕТ ВРАЩАТЬСЯ из
+/// состояния покоя, плавно набирает яркость и размер
+/// (r: 88→liveR, d: 46→liveD, opacity: 0.18→1 по easeOutQuad), и без
+/// остановок переходит в орбитальную загрузку: скорость монотонно
+/// растёт от нуля до скорости загрузки, в конце кадр совпадает с
+/// чистой загрузкой и Ticker продолжается без перезапуска.
 class VeyroMarkBackgroundToLoading extends StatefulWidget {
   final double size;
 
@@ -433,11 +400,11 @@ class _VeyroMarkBackgroundToLoadingState
       final localMs = elapsed.inMicroseconds / 1000.0;
       final p = math.min(localMs / kBgToLoadingMs, 1.0);
       final e = _easeOutQuad(p);
-      // Живое состояние загрузки — общий ход времени системы.
-      final live = _loadingState(_systemMs());
+      // Живое состояние загрузки на собственном ходе виджета.
+      final live = _loadingState(localMs);
       setState(() {
         _state = MarkOrbitState(
-          angle: live.angle, // Вращение НЕ интерполируется.
+          angle: _spinUpAngle(localMs), // Разгон из покоя.
           radius: _lerp(kBackdropRadius, live.radius, e),
           distance: _lerp(kBackdropDistance, live.distance, e),
         );
@@ -479,13 +446,14 @@ enum LogoLoaderMode {
   /// Анимация 01 — бесконечная орбитальная загрузка.
   loading,
 
-  /// Анимация 02 — вход в приложение: 2600 мс, круги докручиваются в
-  /// противоположную от загрузки сторону и сходятся в живой фон;
-  /// по завершении вызывается [LogoLoader.onDone].
+  /// Анимация 02 — вход в приложение: 2600 мс, круги вылетают из-за
+  /// краёв, делают один оборот и застывают неподвижным фоном; по
+  /// завершении вызывается [LogoLoader.onDone].
   appEntry,
 
-  /// Анимация 03 — из приглушённого знака-фона (0.18) в живую загрузку
-  /// (1800 мс) без остановки вращения.
+  /// Анимация 03 — неподвижный приглушённый знак-фон (0.18) сразу
+  /// начинает вращаться и плавно, без остановок, переходит в загрузку
+  /// (1800 мс).
   backgroundToLoading,
 }
 

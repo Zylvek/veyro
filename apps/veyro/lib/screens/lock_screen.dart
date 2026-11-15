@@ -231,9 +231,9 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           body: Center(child: CircularProgressIndicator()),
         );
       case _LockPhase.unlocking:
-        // Анимация 03: приглушённый знак, который был фоном формы, где
-        // только что ввели пароль, за 1800 мс плавно оживает в живую
-        // загрузку — вращение не прерывается ни на кадр.
+        // Анимация 03: неподвижный фоновый знак сразу начинает
+        // вращаться, плавно набирает яркость и размер — и без остановок
+        // переходит в орбитальную загрузку (1800 мс, разгон из покоя).
         return const Scaffold(
           body: Center(
             child: LogoLoader(
@@ -260,11 +260,19 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       body: AmbienceSurface(
         child: Stack(
           children: [
-            // Фон формы — приглушённый вращающийся знак (система 03);
-            // он же — стартовое состояние анимации 03 при входе.
+            // Фон формы — НЕподвижный приглушённый знак (решение
+            // владельца: круги сходились в интро и застыли); при входе
+            // он станет стартом анимации 03 (разгон в загрузку).
             if (withBackdrop)
               const Positioned.fill(
-                child: Center(child: VeyroMarkBackdrop(size: 300)),
+                child: Center(
+                  child: VeyroMark(
+                    size: 300,
+                    distance: kBackdropDistance,
+                    radius: kBackdropRadius,
+                    opacity: kBackdropOpacity,
+                  ),
+                ),
               ),
             SafeArea(
               child: Center(
