@@ -4,10 +4,21 @@
 //! экраны и честные статусы сетей добираются по ходу обновлений.
 //! Использование: t('total_balance').
 
+import 'package:flutter/foundation.dart';
+
 import 'package:veyro/util/display_prefs.dart';
 
+/// Событие смены языка: `t()` — просто функции от строки, экраны сами
+/// перевод не перечитывают; MaterialApp.builder перестраивает весь
+/// навигатор на это событие — язык применяется мгновенно на всех
+/// экранах (решение владельца: «язык должен меняться везде»).
+final ValueNotifier<int> languageRevision = ValueNotifier<int>(0);
+
+/// Вызвать после DisplayPrefs.setLanguage (настройки «Общие»).
+void bumpLanguageRevision() => languageRevision.value++;
+
 const Map<String, Map<String, String>> _strings = {
-  // Обзор.
+// Обзор.
   'total_balance': {'ru': 'Общий баланс', 'en': 'Total balance'},
   'synced_funds': {
     'ru': 'Есть синхронизированные средства',
@@ -449,6 +460,41 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Address change (within the wallet)',
   },
   'fee_prefix': {'ru': ' · комиссия {value}', 'en': ' · fee {value}'},
+  // Welcome и вход.
+  'welcome_create': {'ru': 'Создать кошелёк', 'en': 'Create a wallet'},
+  'welcome_import_phrase': {
+    'ru': 'Импорт кошелька из фразы',
+    'en': 'Import from a seed phrase',
+  },
+  'welcome_note': {
+    'ru': 'Адреса и балансы отображаются только на сетях с '
+        'реализованными адаптерами. Остальные активы — справочно, '
+        'после своих обновлений.\nСекреты не покидают устройство.',
+    'en': 'Addresses and balances appear only for networks with '
+        'implemented adapters. The other assets are reference-only '
+        'until their updates.\nSecrets never leave the device.',
+  },
+  'lock_password_field': {'ru': 'Пароль кошелька', 'en': 'Wallet password'},
+  'lock_submit': {'ru': 'Войти', 'en': 'Sign in'},
+  'lock_switch_wallet': {'ru': 'Другой кошелёк', 'en': 'Another wallet'},
+  'lock_empty_password': {
+    'ru': 'Введите пароль кошелька.',
+    'en': 'Enter the wallet password.',
+  },
+  'lock_wrong_password': {
+    'ru': 'Неверный пароль для «{name}». '
+        'Если у кошельков разные пароли — смените кошелёк ниже.',
+    'en': 'Wrong password for "{name}". If the wallets have different '
+        'passwords — switch the wallet below.',
+  },
+  'lock_registry_error': {
+    'ru': 'Реестр кошельков недоступен: {error}',
+    'en': 'The wallet registry is unavailable: {error}',
+  },
+  'lock_wallet_label': {
+    'ru': 'Кошелёк «{name}»',
+    'en': 'Wallet "{name}"',
+  },
   'filter_all': {'ru': 'Все', 'en': 'All'},
   'filter_implemented': {'ru': 'Реализованные', 'en': 'Implemented'},
   'filter_researched': {'ru': 'Исследованные', 'en': 'Researched'},
@@ -516,4 +562,23 @@ String t(String key) {
   final entry = _strings[key];
   if (entry == null) return key;
   return entry[DisplayPrefs.language] ?? entry['ru'] ?? key;
+}
+
+/// Локализованная краткая характеристика сети актива (реестр): EN —
+/// по карте точных совпадений; что не переведено — строка как есть.
+String networkLabel(String network) {
+  if (DisplayPrefs.language != 'en') return network;
+  const en = <String, String>{
+    'L1 · PoUW (AI-вычисления)': 'L1 · PoUW (AI computing)',
+    'L1 · Substrate · постквантовая': 'L1 · Substrate · post-quantum',
+    'L1 · Mimblewimble · гибридный PoW': 'L1 · Mimblewimble · hybrid PoW',
+    'L1 · EVM-форк (GPU-рынок)': 'L1 · EVM fork (GPU market)',
+    'L1 · форк Monero': 'L1 · Monero fork',
+    'L1 · PoW (5 алгоритмов)': 'L1 · PoW (5 algorithms)',
+    'L1 · PoW (форк BCH)': 'L1 · PoW (BCH fork)',
+    'L1 · PoW SHA-256d (форк BTC)': 'L1 · PoW SHA-256d (BTC fork)',
+    'L1 · BlockFlow (16 цепей)': 'L1 · BlockFlow (16 chains)',
+    'L1 · Merge-mined SHA256d': 'L1 · merge-mined SHA256d',
+  };
+  return en[network] ?? network;
 }

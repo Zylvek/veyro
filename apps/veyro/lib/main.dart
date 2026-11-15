@@ -8,6 +8,7 @@ import 'package:veyro/design/ambience.dart';
 import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/frb_generated.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/price_source.dart';
 
 import 'screens/lock_screen.dart';
@@ -53,10 +54,16 @@ class VeyroApp extends StatelessWidget {
       // Бренд-фон под всеми экранами (решение владельца: дизайн-элементы
       // экрана пароля — амбьент-свечения и приглушённый знак — везде):
       // тема делает Scaffold прозрачным, а этот слой рисует под ним.
-      builder: (context, child) => AmbienceSurface(
-        withMark: true,
-        child: child ?? const SizedBox.shrink(),
-      ),
+      // AnimatedBuilder — пересборка всего навигатора при смене языка:
+      // словарные экраны мгновенно перерисовываются на новый язык.
+      builder: (context, child) => AnimatedBuilder(
+            animation: languageRevision,
+            builder: (context, kid) => AmbienceSurface(
+              withMark: true,
+              child: kid ?? const SizedBox.shrink(),
+            ),
+            child: child,
+          ),
       home: const LockScreen(),
     );
   }

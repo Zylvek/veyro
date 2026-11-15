@@ -16,6 +16,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/server_probe.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/network_config.dart';
@@ -94,7 +95,10 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _phase = _LockPhase.enter;
-        _error = 'Реестр кошельков недоступен: $e';
+        _error = tf(
+          'lock_registry_error',
+          {'error': '$e'},
+        );
         _wallets = const [];
       });
       return;
@@ -142,7 +146,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         'passLen=${_passwordController.text.length}');
     final password = _passwordController.text;
     if (password.isEmpty) {
-      setState(() => _error = 'Введите пароль кошелька.');
+      setState(() => _error = t('lock_empty_password'));
       return;
     }
     if (_wallet == null || _phase == _LockPhase.unlocking) {
@@ -192,8 +196,10 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         _phase = _LockPhase.needsPassword;
         final raw = e.toString();
         _error = raw.contains('decryption failed')
-            ? 'Неверный пароль для «${_wallet!.name}». '
-                'Если у кошельков разные пароли — смените кошелёк ниже.'
+            ? tf(
+                'lock_wrong_password',
+                {'name': _wallet!.name},
+              )
             : raw;
       });
     }
@@ -306,13 +312,13 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                               autofillHints: const [AutofillHints.password],
                               onChanged: (_) => setState(() {}),
                               onSubmitted: (_) => _submit(),
-                              decoration: const InputDecoration(
-                                labelText: 'Пароль кошелька',
+                              decoration: InputDecoration(
+                                labelText: t('lock_password_field'),
                               ),
                             ),
                             const SizedBox(height: 14),
                             VButton.primary(
-                              'Войти',
+                              t('lock_submit'),
                               icon: Icons.login,
                               onPressed: _submit,
                             ),
@@ -331,7 +337,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                                   onPressed: () => _chooseWallet(context),
                                   icon:
                                       const Icon(Icons.swap_horiz, size: 18),
-                                  label: const Text('Другой кошелёк'),
+                                  label: Text(t('lock_switch_wallet')),
                                 ),
                               ),
                             ],

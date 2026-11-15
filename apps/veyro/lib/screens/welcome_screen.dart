@@ -10,6 +10,7 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 
 import 'create_wallet_flow.dart';
 import 'import_wallet_screen.dart';
@@ -109,13 +110,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           // кошельков Welcome сразу перебрасывает в каркас
                           // (решение владельца).
                           VButton.primary(
-                            'Создать кошелёк',
+                            t('welcome_create'),
                             icon: Icons.add_circle_outline,
                             onPressed: () => _push(const CreateWalletFlow()),
                           ),
                           const SizedBox(height: 10),
                           VButton.secondary(
-                            'Импорт кошелька из фразы',
+                            t('welcome_import_phrase'),
                             icon: Icons.restore_outlined,
                             onPressed: () => _push(const ImportWalletScreen()),
                           ),
@@ -123,10 +124,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     const SizedBox(height: 30),
                     Text(
-                      'Адреса и балансы отображаются только на сетях с '
-                      'реализованными адаптерами. Остальные активы — '
-                      'справочно, после своих обновлений.\n'
-                      'Секреты не покидают устройство.',
+                      t('welcome_note'),
                       textAlign: TextAlign.center,
                       style: Theme.of(context)
                           .textTheme

@@ -297,6 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (code) {
                       if (code == null) return;
                       DisplayPrefs.setLanguage(code);
+                      bumpLanguageRevision();
                       setState(() {});
                     },
                   ),

@@ -172,7 +172,7 @@ class _BtcTile extends StatelessWidget {
               const WidgetSpan(child: SizedBox(width: 6)),
               TextSpan(
                 text: '${asset.name} ${t('implemented_tag')}',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
                   color: VColors.textSecondary,
                 ),

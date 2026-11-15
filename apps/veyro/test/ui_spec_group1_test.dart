@@ -36,7 +36,6 @@ void main() {
       // Scaffold прозрачный: под каждым экраном — глобальный бренд-фон
       // (амбьент + приглушённый знак) из builder'а MaterialApp.
       expect(theme.scaffoldBackgroundColor, Colors.transparent);
-      // Карточки — стекло: тема прозрачна, заливку/blur рисует VCard.
       expect(theme.cardTheme.color, Colors.transparent);
       expect(theme.colorScheme.primary, VColors.primary);
       expect(theme.textTheme.bodyLarge?.fontFamily, kInterFont);

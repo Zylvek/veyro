@@ -451,7 +451,7 @@ class _AssetTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(asset.network, style: const TextStyle(fontSize: 12)),
+          child: Text(networkLabel(asset.network), style: const TextStyle(fontSize: 12)),
         ),
         isThreeLine: false,
         trailing: IconButton(
