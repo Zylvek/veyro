@@ -66,7 +66,7 @@ pub fn ltc_unlock(
     server_url: String,
 ) -> Result<LtcUnlockDto> {
     let effective: Zeroizing<String> = if password.trim().is_empty() {
-        crate::session_password::get()?.ok_or_else(|| {
+        crate::session_password::get_for(&wallet_id)?.ok_or_else(|| {
             anyhow!("no cached password — prompt the user for the wallet password")
         })?
     } else {
@@ -95,8 +95,8 @@ pub fn ltc_unlock(
     let account_pub = LtcAccount::from_seed(seed.as_bytes(), 0).map_err(|e| anyhow!("{e}"))?;
     let account_xpub = account_pub.account_xpub().to_string();
 
-    // Full success → other coins reuse this password without a prompt.
-    crate::session_password::store(&effective)?;
+    // Full success → THIS wallet now unlocks silently on other coins too.
+    crate::session_password::store_for(&wallet_id, &effective)?;
 
     let mut guard = with_lock()?;
     *guard = Some(crate::ltc_session::LtcSession {

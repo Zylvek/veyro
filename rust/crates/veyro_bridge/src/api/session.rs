@@ -33,10 +33,11 @@ pub fn btc_session_state() -> Result<Option<BtcSessionStateDto>> {
     }))
 }
 
-/// Unified app session: is a reusable password cached inside Rust right
-/// now? (No secret crosses FFI — just the boolean.) When `true`, coin
-/// unlock flows may retry silently (empty password) instead of prompting;
-/// when the last coin session locks, the cache is wiped.
-pub fn session_password_cached() -> Result<bool> {
-    crate::session_password::cached()
+/// Unified app session: is a reusable password cached for THIS wallet
+/// inside Rust right now? (No secret crosses FFI — just the boolean.)
+/// When `true`, coin unlock flows may retry silently (empty password)
+/// instead of prompting; the whole map is wiped when the last coin
+/// session locks.
+pub fn session_password_cached(wallet_id: String) -> Result<bool> {
+    crate::session_password::cached_for(&wallet_id)
 }

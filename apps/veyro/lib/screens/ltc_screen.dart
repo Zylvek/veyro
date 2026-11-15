@@ -44,7 +44,6 @@ class _LtcScreenState extends State<LtcScreen> {
   /// Что сейчас происходит («Подключение…» без деталей выглядит как
   /// зависание — жалоба владельца).
   String _busyLabel = t('btc_connecting');
-
   /// Дисциплина повторов (решение владельца «не долбить серверы»):
   /// после неудачной серии пауза удваивается (15 c → … → 4 мин max),
   /// успех сброс.
@@ -106,7 +105,7 @@ class _LtcScreenState extends State<LtcScreen> {
     // после первой разблокировки — монета подключается без диалога.
     String password;
     try {
-      final cached = await sessionPasswordCached();
+      final cached = await sessionPasswordCached(walletId: widget.info.id);
       if (!mounted) return;
       if (cached) {
         password = '';
@@ -137,7 +136,7 @@ class _LtcScreenState extends State<LtcScreen> {
       // диалога: ничего не делаем.
       var cacheKnown = true;
       try {
-        final cached = await sessionPasswordCached();
+        final cached = await sessionPasswordCached(walletId: widget.info.id);
         cacheKnown = cached;
       } catch (_) {
         // Проверка недоступна: идём разблокироваться в ядро — там честная
@@ -152,6 +151,7 @@ class _LtcScreenState extends State<LtcScreen> {
       _busyLabel = t('unlocking_now');
       _error = null;
     });
+    LtcConnectState.instance.setBusy(true);
     try {
       // Экспоненциальная пауза после неудачной серии: не долбим серверы
       // (rate-limits копятся именно от частых попыток). Честная пауза с
@@ -197,6 +197,7 @@ class _LtcScreenState extends State<LtcScreen> {
           );
           if (manual == null || manual.isEmpty || !mounted) {
             if (mounted) {
+              LtcConnectState.instance.setBusy(false);
               setState(() {
                 _error = _cleanError(e);
                 _busy = false;
@@ -223,6 +224,7 @@ class _LtcScreenState extends State<LtcScreen> {
       if (!mounted) return;
       _failureStreak += 1;
       _lastSeriesFailedAt = DateTime.now();
+      LtcConnectState.instance.setBusy(false);
       setState(() {
         _error = _cleanError(e);
         _busy = false;
@@ -319,6 +321,7 @@ class _LtcScreenState extends State<LtcScreen> {
       final sync = await ltcSync(gapLimit: 20);
       if (!mounted) return;
       LtcStateCache.instance.store(sync);
+      LtcConnectState.instance.setBusy(false);
       setState(() {
         _sync = sync;
         _busy = false;
@@ -339,12 +342,14 @@ class _LtcScreenState extends State<LtcScreen> {
           final sync2 = await ltcSync(gapLimit: 20);
           if (!mounted) return;
           LtcStateCache.instance.store(sync2);
+          LtcConnectState.instance.setBusy(false);
           setState(() {
             _sync = sync2;
             _busy = false;
           });
           return;
         } catch (e2) {
+          LtcConnectState.instance.setBusy(false);
           setState(() {
             _error = _cleanError(e2);
             _busy = false;
@@ -353,6 +358,7 @@ class _LtcScreenState extends State<LtcScreen> {
         }
       }
       if (!mounted) return;
+      LtcConnectState.instance.setBusy(false);
       setState(() {
         _error = _cleanError(e);
         _busy = false;

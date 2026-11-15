@@ -1,58 +1,61 @@
-//! In-process password cache («app entry IS the session»): the owner
-//! unlocks the FIRST wallet explicitly; other coins' unlock flows reuse
-//! the cached password without re-prompting (owner decision 15.11.2026:
-//! «ya уже вошёл в сессию — зачем спрашивать пароль заново»).
-//!
-//! Secrets contract: the password NEVER crosses the FFI boundary — it
-//! lives here (Zeroizing, wiped on drop) and is erased as soon as the
-//! LAST coin session of the process locks (BTC and LTC both closed =
-//! full logout). A fresh app start starts with an empty cache.
+//! In-process password cache keyed BY WALLET («app entry IS the session»,
+//! multi-wallet honest variant): the owner may have several wallets with
+//! DIFFERENT passwords (e.g. «my» and «mu») — a single session-wide
+//! password kept prompting for the other wallet and looked broken.
+//! Map: wallet_id → password. Secrets stay INSIDE Rust (Zeroizing, never
+//! cross FFI); the whole map is wiped when the LAST coin session locks
+//! and on process exit. Fresh app start = empty map.
+
+use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard};
 
 use anyhow::{anyhow, Result};
 use zeroize::Zeroizing;
 
 use crate::{btc_session, ltc_session};
 
-static PASSWORD_CACHE: Mutex<Option<Zeroizing<String>>> = Mutex::new(None);
+/// wallet_id → password (Zeroizing wipes on drop; the whole map drops at
+/// the last lock or process exit).
+type PasswordMap = HashMap<String, Zeroizing<String>>;
 
-use std::sync::Mutex;
+static PASSWORDS: Mutex<Option<PasswordMap>> = Mutex::new(None);
 
-/// Is a reusable password cached right now.
-pub fn cached() -> Result<bool> {
-    let guard = PASSWORD_CACHE
+fn with_lock() -> Result<MutexGuard<'static, Option<PasswordMap>>> {
+    PASSWORDS
         .lock()
-        .map_err(|_| anyhow!("password cache mutex poisoned by a previous panic"))?;
-    Ok(guard.is_some())
+        .map_err(|_| anyhow!("password cache mutex poisoned by a previous panic"))
 }
 
-/// Copy the cached password into a new Zeroizing (the cache itself stays
-/// for further coins).
-pub fn get() -> Result<Option<Zeroizing<String>>> {
-    let guard = PASSWORD_CACHE
-        .lock()
-        .map_err(|_| anyhow!("password cache mutex poisoned by a previous panic"))?;
-    Ok(guard.clone())
+/// Is a reusable password cached for this wallet right now.
+pub fn cached_for(wallet_id: &str) -> Result<bool> {
+    let guard = with_lock()?;
+    Ok(guard
+        .as_ref()
+        .is_some_and(|map| map.contains_key(wallet_id)))
 }
 
-/// Cache after a successful unlock (overwrites the previous one — the last
-/// successful unlock wins, which also matches multi-wallet switching).
-pub fn store(password: &Zeroizing<String>) -> Result<()> {
-    let mut guard = PASSWORD_CACHE
-        .lock()
-        .map_err(|_| anyhow!("password cache mutex poisoned by a previous panic"))?;
-    *guard = Some(password.clone());
+/// Copy the cached password for this wallet (the cache stays).
+pub fn get_for(wallet_id: &str) -> Result<Option<Zeroizing<String>>> {
+    let guard = with_lock()?;
+    Ok(guard.as_ref().and_then(|map| map.get(wallet_id)).cloned())
+}
+
+/// Cache after a successful unlock (per wallet; overwrites on wallet
+/// password change — the last successful unlock wins).
+pub fn store_for(wallet_id: &str, password: &Zeroizing<String>) -> Result<()> {
+    let mut guard = with_lock()?;
+    let map = guard.get_or_insert_with(HashMap::new);
+    map.insert(wallet_id.to_string(), password.clone());
     Ok(())
 }
 
-/// Wipe when the last coin session locks (both BTC and LTC closed).
+/// Wipe everything when the last coin session locks (both BTC and LTC
+/// closed = full logout).
 pub fn erase_if_all_locked() -> Result<()> {
     let btc_open = btc_session::has_session()?;
     let ltc_open = ltc_session::has_session()?;
     if !btc_open && !ltc_open {
-        let mut guard = PASSWORD_CACHE
-            .lock()
-            .map_err(|_| anyhow!("password cache mutex poisoned by a previous panic"))?;
-        *guard = None; // Zeroizing wipes both copies
+        *with_lock()? = None; // Zeroizing wipes every stored copy
     }
     Ok(())
 }

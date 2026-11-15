@@ -13,12 +13,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<BtcSessionStateDto?> btcSessionState() =>
     RustLib.instance.api.crateApiSessionBtcSessionState();
 
-/// Unified app session: is a reusable password cached inside Rust right
-/// now? (No secret crosses FFI — just the boolean.) When `true`, coin
-/// unlock flows may retry silently (empty password) instead of prompting;
-/// when the last coin session locks, the cache is wiped.
-Future<bool> sessionPasswordCached() =>
-    RustLib.instance.api.crateApiSessionSessionPasswordCached();
+/// Unified app session: is a reusable password cached for THIS wallet
+/// inside Rust right now? (No secret crosses FFI — just the boolean.)
+/// When `true`, coin unlock flows may retry silently (empty password)
+/// instead of prompting; the whole map is wiped when the last coin
+/// session locks.
+Future<bool> sessionPasswordCached({required String walletId}) => RustLib
+    .instance
+    .api
+    .crateApiSessionSessionPasswordCached(walletId: walletId);
 
 /// Non-secret session state for the UI; `None` when locked.
 class BtcSessionStateDto {

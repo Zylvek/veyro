@@ -1280,11 +1280,13 @@ fn wire__crate__api__session__session_password_cached_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_wallet_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::session::session_password_cached()?;
+                        let output_ok =
+                            crate::api::session::session_password_cached(api_wallet_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )

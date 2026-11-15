@@ -114,7 +114,7 @@ class _BtcScreenState extends State<BtcScreen> {
     // первой разблокировки, не задаётся повторно.
     String password;
     try {
-      final cached = await sessionPasswordCached();
+      final cached = await sessionPasswordCached(walletId: widget.info.id);
       if (!mounted) return;
       if (cached) {
         password = '';
@@ -144,7 +144,7 @@ class _BtcScreenState extends State<BtcScreen> {
       // диалога — ничего не делаем.
       var cacheKnown = true;
       try {
-        final cached = await sessionPasswordCached();
+        final cached = await sessionPasswordCached(walletId: widget.info.id);
         cacheKnown = cached;
       } catch (_) {
         // Проверка недоступна — идём в ядро за честной ошибкой.

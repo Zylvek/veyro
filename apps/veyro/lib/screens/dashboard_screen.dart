@@ -705,19 +705,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 : () => _push(BtcScreen(info: wallet)),
           ),
         ),
-        Card(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: _AssetAvatar(ltc),
-            title: const Text('Litecoin'),
-            subtitle: Text(
-              '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
-              style: const TextStyle(
-                fontFamily: kMonoFont,
-                fontSize: 11.5,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
+        AnimatedBuilder(
+          animation: LtcConnectState.instance,
+          builder: (context, _) => Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: _AssetAvatar(ltc),
+              title: const Text('Litecoin'),
+              subtitle: LtcConnectState.instance.busy
+                  ? Text(
+                      t('ltc_connecting_badge'),
+                      style: TextStyle(
+                        fontFamily: kMonoFont,
+                        fontSize: 11.5,
+                        color: VColors.warning,
+                      ),
+                    )
+                  : Text(
+                      '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
+                      style: const TextStyle(
+                        fontFamily: kMonoFont,
+                        fontSize: 11.5,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -759,6 +770,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? null
                 : () => _push(LtcScreen(info: wallet)),
           ),
+        ),
         ),
         const SizedBox(height: 6),
         Align(

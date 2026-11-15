@@ -69,11 +69,13 @@ pub fn btc_unlock(
 ) -> Result<BtcUnlockDto> {
     let network = network_from_code(network_code)?;
 
-    // Unified app session (owner decision 15.11.2026): an EMPTY password
-    // means «reuse the cached one»; a successful unlock populates the
-    // cache for other coins. The password never leaves Rust either way.
+    // Unified app session (owner decision): an EMPTY password means
+    // «reuse the cached one FOR THIS WALLET» (multi-wallet honest variant:
+    // different wallets may have different passwords — no cross-wallet
+    // prompts). A successful unlock populates the per-wallet cache. The
+    // password never leaves Rust either way.
     let effective: Zeroizing<String> = if password.trim().is_empty() {
-        crate::session_password::get()?.ok_or_else(|| {
+        crate::session_password::get_for(&wallet_id)?.ok_or_else(|| {
             anyhow!("no cached password — prompt the user for the wallet password")
         })?
     } else {
@@ -107,8 +109,8 @@ pub fn btc_unlock(
         AccountPubkeys::from_seed(seed.as_bytes(), network, 0).map_err(|e| anyhow!("{e}"))?;
     let account_xpub = account_pub.account_xpub().to_string();
 
-    // Full success → other coins reuse this password without a prompt.
-    crate::session_password::store(&effective)?;
+    // Full success → THIS wallet now unlocks silently on other coins too.
+    crate::session_password::store_for(&wallet_id, &effective)?;
 
     let mut guard = with_lock()?;
     *guard = Some(BtcSession {

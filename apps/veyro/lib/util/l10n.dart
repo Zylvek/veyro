@@ -416,6 +416,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
   },
   'server_status_row': {'ru': 'Сервер: {value}', 'en': 'Server: {value}'},
+  'ltc_connecting_badge': {
+    'ru': 'Подключается…',
+    'en': 'Connecting…',
+  },
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).
