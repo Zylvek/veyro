@@ -81,12 +81,9 @@ impl BtcNetwork {
     /// serves the network the user configured: a mismatch means the server
     /// must not be used (fund-safety).
     pub fn genesis_hash(self) -> [u8; 32] {
-        const MAINNET: &str =
-            "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
-        const TESTNET3: &str =
-            "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943";
-        const TESTNET4: &str =
-            "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043";
+        const MAINNET: &str = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+        const TESTNET3: &str = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943";
+        const TESTNET4: &str = "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043";
         let hex64 = match self {
             BtcNetwork::Mainnet => MAINNET,
             BtcNetwork::Testnet => TESTNET3,
@@ -185,8 +182,7 @@ pub trait Gateway {
 
     /// Convenience: everything the "network info" screen shows at once.
     fn network_info(&self) -> Result<GatewayNetworkInfo, ChainError> {
-        let (server_version, protocol_min, protocol_max, genesis_hash) =
-            self.server_features()?;
+        let (server_version, protocol_min, protocol_max, genesis_hash) = self.server_features()?;
         let tip_height = self.tip_height()?;
         Ok(GatewayNetworkInfo {
             server_version,
@@ -251,16 +247,39 @@ impl ElectrumGateway {
         // работает» — зависание на Client::new без таймаута). Одна
         // попытка без ретраев: сервер можно сменить в настройках сети.
         let config = electrum_client::ConfigBuilder::new()
-            .retry(1)
+            .retry(0)
             .timeout(Some(6))
             .build();
-        let client = electrum_client::Client::from_config(url, config)
-            .map_err(|e| ChainError::Transport(format!("{url}: {e}")))?;
-        Ok(Self {
-            client: std::sync::Arc::new(client),
+        let client = std::sync::Arc::new(
+            electrum_client::Client::from_config(url, config)
+                .map_err(|e| ChainError::Transport(format!("{url}: {e}")))?,
+        );
+        let gateway = Self {
+            client,
             network,
             url: url.to_string(),
-        })
+        };
+
+        // Живой хэндшейк с прогрессивным бэкоффом: публичные серверы
+        // отрезают часть соединений (flaky «unexpected end of file»/
+        // «EOF while parsing» — замечено на Fulcrum/electrs 15.11),
+        // поэтому первый же сбой соединения не ломает вход: до трёх
+        // попыток с паузами 0.7/1.4с, и только если все — честная
+        // транспортная ошибка наружу.
+        let mut wait = 700u64;
+        for attempt in 0..3 {
+            match gateway.server_features() {
+                Ok(_) => return Ok(gateway),
+                Err(e) => {
+                    if attempt == 2 {
+                        return Err(ChainError::Transport(format!("{url}: {e}")));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(wait));
+                    wait *= 2;
+                }
+            }
+        }
+        unreachable!("handshake loop returns on the last attempt");
     }
 
     pub fn url(&self) -> &str {

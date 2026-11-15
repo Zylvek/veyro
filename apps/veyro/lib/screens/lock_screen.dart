@@ -182,7 +182,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         Object? unlockError;
         var unlocked = false;
         for (var attempt = 0;
-            attempt < candidates.length && attempt < 5;
+            attempt < candidates.length && attempt < 3;
             attempt++) {
           final server = candidates[attempt];
           try {
