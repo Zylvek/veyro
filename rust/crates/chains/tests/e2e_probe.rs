@@ -25,9 +25,7 @@ fn derive_receive_address() {
         let generated =
             Mnemonic::generate(bip39::WordCount::Words12).expect("random mnemonic generation");
         phrase_string = generated.to_string();
-        println!(
-            "GENERATED PHRASE (write it down, it is printed once):\n{phrase_string}"
-        );
+        println!("GENERATED PHRASE (write it down, it is printed once):\n{phrase_string}");
         Mnemonic::parse_normalized(&phrase_string).expect("generated phrase is valid")
     } else {
         Mnemonic::parse_normalized(&phrase).expect("valid BIP39 phrase")
@@ -35,7 +33,10 @@ fn derive_receive_address() {
     let seed = mnemonic.to_seed_normalized("");
     let account = AccountPubkeys::from_seed(&seed, network, 0).expect("account derivation");
     let address = account.derive_address(BRANCH_EXTERNAL, 0).expect("address");
-    println!("TESTNET RECEIVE ADDRESS (m/84'/1'/0'/0/0): {}", address.address);
+    println!(
+        "TESTNET RECEIVE ADDRESS (m/84'/1'/0'/0/0): {}",
+        address.address
+    );
     println!("path: {}", address.path);
 }
 

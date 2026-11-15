@@ -26,8 +26,8 @@ use veyro_bridge::api::btc;
 use veyro_bridge::api::wallet;
 
 fn tmp_dir() -> String {
-    let base = std::env::var("VEYRO_TEST_TMP")
-        .unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
+    let base =
+        std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
     let dir = std::path::Path::new(&base).join(format!("e2e-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -35,7 +35,10 @@ fn tmp_dir() -> String {
 }
 
 fn network_code() -> u32 {
-    match std::env::var("VEYRO_E2E_NETWORK").unwrap_or_default().as_str() {
+    match std::env::var("VEYRO_E2E_NETWORK")
+        .unwrap_or_default()
+        .as_str()
+    {
         "mainnet" => 0,
         "testnet" => 1,
         // Default testnet4: it is today the only bitcoin testnet with a
@@ -61,8 +64,8 @@ fn full_cycle_testnet() {
     }
     let phrase = std::env::var("VEYRO_E2E_PHRASE").expect("set VEYRO_E2E_PHRASE");
     let network_code = network_code();
-    let server =
-        std::env::var("VEYRO_E2E_SERVER").unwrap_or_else(|_| default_server(network_code).to_string());
+    let server = std::env::var("VEYRO_E2E_SERVER")
+        .unwrap_or_else(|_| default_server(network_code).to_string());
     let send_sat: u64 = std::env::var("VEYRO_E2E_SEND_SAT")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -88,7 +91,7 @@ fn full_cycle_testnet() {
 
     // 2. Unlock — the genesis fund-safety check runs inside.
     let unlock = btc::btc_unlock(dir, created.id, password.into(), network_code, server)
-            .expect("btc_unlock (server genesis must match the network)");
+        .expect("btc_unlock (server genesis must match the network)");
     println!(
         "[2] {} server={} version={} tip={}",
         unlock.network_display, unlock.server_url, unlock.server_version, unlock.tip_height
@@ -123,31 +126,48 @@ fn full_cycle_testnet() {
     let recv = btc::btc_receive_address().expect("receive address");
     let amount = std::cmp::min(send_sat, sync.confirmed_sat / 2);
     println!("[5] sending {amount} sat -> {}", recv.address);
-    let result = btc::btc_send(recv.address.clone(), amount, rate)
-        .expect("btc_send");
+    let result = btc::btc_send(recv.address.clone(), amount, rate).expect("btc_send");
     println!(
         "[5] txid={} fee={} sat ({} vsize, {} sat/vB) change={} sat status={} already_known={}",
-        result.txid, result.fee_sat, result.vsize, result.fee_sat_per_vb,
-        result.change_sat.unwrap_or(0), result.status, result.already_known
+        result.txid,
+        result.fee_sat,
+        result.vsize,
+        result.fee_sat_per_vb,
+        result.change_sat.unwrap_or(0),
+        result.status,
+        result.already_known
     );
-    assert!(!result.already_known, "the first send must be new to the network");
+    assert!(
+        !result.already_known,
+        "the first send must be new to the network"
+    );
     assert_eq!(result.recipient, recv.address);
     assert_eq!(result.amount_sat, amount);
-    assert!(result.fee_sat > 0 && result.fee_sat < amount, "sane miner fee");
+    assert!(
+        result.fee_sat > 0 && result.fee_sat < amount,
+        "sane miner fee"
+    );
 
     // 6. Status right after the broadcast: the tx must be visible under the
     //    scanned funding script.
     let status = btc::btc_tx_status(result.txid.clone()).expect("tx status");
-    println!("[6] status={} height={:?} confirmations={:?}",
-        status.state, status.height, status.confirmations);
-    assert_ne!(status.state, "unknown", "our own tx must be found by the scan");
+    println!(
+        "[6] status={} height={:?} confirmations={:?}",
+        status.state, status.height, status.confirmations
+    );
+    assert_ne!(
+        status.state, "unknown",
+        "our own tx must be found by the scan"
+    );
 
     // 7. Re-sync — Rust kept the pre-send UTXO set invalidated; the fresh
     //    discovery must succeed even while the spend is in the mempool.
     let sync2 = btc::btc_sync(20).expect("re-sync after send");
     println!(
         "[7] after spend: confirmed={} unconfirmed={} utxos={} used_addresses={}",
-        sync2.confirmed_sat, sync2.unconfirmed_delta_sat, sync2.utxo_count,
+        sync2.confirmed_sat,
+        sync2.unconfirmed_delta_sat,
+        sync2.utxo_count,
         sync2.used_addresses.len()
     );
 
@@ -171,8 +191,11 @@ fn full_cycle_testnet() {
         loop {
             let st = btc::btc_tx_status(result.txid.clone()).expect("poll status");
             if st.state == "confirmed" {
-                println!("[9] confirmed at height {:?} (+{} conf)",
-                    st.height, st.confirmations.unwrap_or(0));
+                println!(
+                    "[9] confirmed at height {:?} (+{} conf)",
+                    st.height,
+                    st.confirmations.unwrap_or(0)
+                );
                 break;
             }
             if std::time::Instant::now() >= deadline {
@@ -196,8 +219,8 @@ fn check_funding_only() {
     }
     let phrase = std::env::var("VEYRO_E2E_PHRASE").expect("set VEYRO_E2E_PHRASE");
     let network_code = network_code();
-    let server =
-        std::env::var("VEYRO_E2E_SERVER").unwrap_or_else(|_| default_server(network_code).to_string());
+    let server = std::env::var("VEYRO_E2E_SERVER")
+        .unwrap_or_else(|_| default_server(network_code).to_string());
 
     let dir = tmp_dir();
     let created = wallet::restore_wallet(
@@ -208,8 +231,14 @@ fn check_funding_only() {
         "".into(),
     )
     .expect("restore from phrase");
-    let unlock = btc::btc_unlock(dir, created.id, "e2e password 123".into(), network_code, server)
-        .expect("btc_unlock");
+    let unlock = btc::btc_unlock(
+        dir,
+        created.id,
+        "e2e password 123".into(),
+        network_code,
+        server,
+    )
+    .expect("btc_unlock");
     let sync = btc::btc_sync(20).expect("btc_sync");
     println!(
         "confirmed={} unconfirmed={} utxos={} next_receive={}",

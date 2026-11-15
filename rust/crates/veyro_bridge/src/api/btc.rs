@@ -31,10 +31,10 @@ use zeroize::Zeroizing;
 use key_manager::from_phrase;
 use wallet_core::WalletManager;
 
-use crate::production_kdf;
 use crate::btc_session::{
     invalidate_utxos, network_from_code, snapshot, store_sync, with_lock, with_session, BtcSession,
 };
+use crate::production_kdf;
 
 /// Server identity shown on the network-info screen. All public data.
 #[derive(Debug)]
@@ -149,7 +149,12 @@ fn address_dto(address: &chains::bitcoin::keys::DerivedAddress, used: bool) -> B
     }
 }
 
-fn derive_dto(account: &AccountPubkeys, branch: u32, index: u32, used: bool) -> Result<BtcAddressDto> {
+fn derive_dto(
+    account: &AccountPubkeys,
+    branch: u32,
+    index: u32,
+    used: bool,
+) -> Result<BtcAddressDto> {
     let address = account
         .derive_address(branch, index)
         .map_err(|e| anyhow!("{e}"))?;
@@ -195,8 +200,18 @@ pub fn btc_sync(gap_limit: u32) -> Result<BtcSyncDto> {
         })
         .collect();
 
-    let next_receive = derive_dto(&account_pub, BRANCH_EXTERNAL, discovery.external.next_index(), false)?;
-    let next_change = derive_dto(&account_pub, BRANCH_INTERNAL, discovery.internal.next_index(), false)?;
+    let next_receive = derive_dto(
+        &account_pub,
+        BRANCH_EXTERNAL,
+        discovery.external.next_index(),
+        false,
+    )?;
+    let next_change = derive_dto(
+        &account_pub,
+        BRANCH_INTERNAL,
+        discovery.internal.next_index(),
+        false,
+    )?;
 
     store_sync(discovery, utxos)?;
 
@@ -313,9 +328,10 @@ pub fn btc_send(recipient: String, amount_sat: u64, fee_sat_vb: u64) -> Result<B
             .account_pub
             .derive_address(BRANCH_INTERNAL, change_index)
             .map_err(|e| anyhow!("{e}"))?;
-        let plan =
-            plan_transfer(s.network, &recipient, amount_sat, fee_sat_vb, utxos, &change)
-                .map_err(|e| anyhow!("{e}"))?;
+        let plan = plan_transfer(
+            s.network, &recipient, amount_sat, fee_sat_vb, utxos, &change,
+        )
+        .map_err(|e| anyhow!("{e}"))?;
         let builder = SignedTransferBuilder {
             seed: &s.seed,
             network: s.network,

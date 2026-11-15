@@ -20,7 +20,7 @@ pub mod electrum;
 pub use crate::bitcoin::tx::SignedTransfer;
 pub use crate::bitcoin::{DEFAULT_GAP_LIMIT, P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};
 pub use crate::electrum::{
-    BtcNetwork, BroadcastOutcome, Gateway, GatewayNetworkInfo, HistoryEntry, ScriptBalance, Utxo,
+    BroadcastOutcome, BtcNetwork, Gateway, GatewayNetworkInfo, HistoryEntry, ScriptBalance, Utxo,
 };
 
 use thiserror::Error;
@@ -52,7 +52,10 @@ pub enum ChainError {
     #[error(
         "insufficient funds: need {required_sat} sat, available {available_sat} sat spendable"
     )]
-    InsufficientFunds { required_sat: u64, available_sat: u64 },
+    InsufficientFunds {
+        required_sat: u64,
+        available_sat: u64,
+    },
     #[error("no spendable outputs (balance may be unconfirmed or below dust)")]
     NoSpendableOutputs,
     #[error("key derivation failure: {0}")]

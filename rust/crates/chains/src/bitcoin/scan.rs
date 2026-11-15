@@ -9,10 +9,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use bitcoin::Txid;
 
-use crate::electrum::{Gateway, HistoryEntry, ScriptBalance, Utxo};
-use crate::bitcoin::keys::{AccountPubkeys, BRANCH_EXTERNAL, BRANCH_INTERNAL};
-use crate::{electrum_scripthash_hex, ChainError};
 use crate::bitcoin::keys::DerivedAddress;
+use crate::bitcoin::keys::{AccountPubkeys, BRANCH_EXTERNAL, BRANCH_INTERNAL};
+use crate::electrum::{Gateway, HistoryEntry, ScriptBalance, Utxo};
+use crate::{electrum_scripthash_hex, ChainError};
 
 /// Discovery result for one branch: all *scanned* slots plus the highest used
 /// index found (needed to persist `addresses` rows and to pick the next fresh
@@ -31,9 +31,7 @@ impl BranchDiscovery {
     /// The next fresh (never used) receive/change index: `last_used + 1`, or 0
     /// when the branch has no history.
     pub fn next_index(&self) -> u32 {
-        self.last_used
-            .map(|i| i + 1)
-            .unwrap_or(0)
+        self.last_used.map(|i| i + 1).unwrap_or(0)
     }
 }
 
@@ -156,7 +154,9 @@ pub fn wallet_balance<G: Gateway + ?Sized>(
     for slot in discovery.slots() {
         let s: ScriptBalance = gateway.script_balance(&slot.script_pubkey)?;
         total.confirmed_sat = total.confirmed_sat.saturating_add(s.confirmed_sat);
-        total.unconfirmed_delta_sat = total.unconfirmed_delta_sat.saturating_add(s.unconfirmed_sat);
+        total.unconfirmed_delta_sat = total
+            .unconfirmed_delta_sat
+            .saturating_add(s.unconfirmed_sat);
     }
     Ok(total)
 }
@@ -357,11 +357,12 @@ fn prevout<G: Gateway + ?Sized>(
             .ok_or_else(|| ChainError::TxNotFound(outpoint.0.to_string()))?;
         entry.insert(tx);
     }
-    let tx = tx_cache
-        .get(&outpoint.0)
-        .expect("just inserted or present");
+    let tx = tx_cache.get(&outpoint.0).expect("just inserted or present");
     let out = tx.output.get(outpoint.1 as usize).ok_or_else(|| {
-        ChainError::Internal(format!("prevout {}:{} out of range", outpoint.0, outpoint.1))
+        ChainError::Internal(format!(
+            "prevout {}:{} out of range",
+            outpoint.0, outpoint.1
+        ))
     })?;
     let res = (txout_script_bytes(out), txout_value_sat(out));
     prevout_cache.insert(outpoint, res.clone());

@@ -13,8 +13,7 @@ fn tmp_base() -> String {
 }
 
 fn unique_dir(tag: &str) -> String {
-    let dir =
-        std::path::Path::new(&tmp_base()).join(format!("btc-{}-{}", std::process::id(), tag));
+    let dir = std::path::Path::new(&tmp_base()).join(format!("btc-{}-{}", std::process::id(), tag));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir.to_string_lossy().into_owned()
@@ -23,8 +22,7 @@ fn unique_dir(tag: &str) -> String {
 #[test]
 fn btc_unlock_failure_paths_leave_no_session() {
     let dir = unique_dir("paths");
-    let created =
-        wallet::create_wallet(dir.clone(), "Btc".into(), "pw 456".into(), 12).unwrap();
+    let created = wallet::create_wallet(dir.clone(), "Btc".into(), "pw 456".into(), 12).unwrap();
 
     // Preconditions: no session, and locking without a session is a no-op.
     assert!(session::btc_session_state().unwrap().is_none());

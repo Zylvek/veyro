@@ -11,19 +11,19 @@
 //! - broadcast is idempotent: a first probe (`tx_by_id`) prevents double
 //!   submission, and any "already known" rejection maps to `AlreadyKnown`.
 
-use bitcoin_hashes::Hash as _;
 use bitcoin::absolute::LockTime;
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::secp256k1::{Message, SecretKey};
 use bitcoin::sighash::SighashCache;
 use bitcoin::{Amount, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
+use bitcoin_hashes::Hash as _;
 
 use crate::bitcoin::keys::{derive_secret_key, DerivedAddress, BRANCH_INTERNAL};
 use crate::bitcoin::scan::tx_status as scan_tx_status;
+pub use crate::bitcoin::scan::TxStatus;
 use crate::bitcoin::scan::WalletUtxo;
 use crate::bitcoin::{P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};
-use crate::{BtcNetwork, BroadcastOutcome, Gateway, ChainError};
-pub use crate::bitcoin::scan::TxStatus;
+use crate::{BroadcastOutcome, BtcNetwork, ChainError, Gateway};
 
 /// Fee rates in sat/vbyte (integers; floats never represent fees either).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -251,7 +251,11 @@ pub struct SignedTransferBuilder<'a> {
 
 impl<'a> SignedTransferBuilder<'a> {
     /// Build the transaction from the plan and sign every input locally.
-    pub fn sign(&self, plan: &PlannedTransfer, tip_height: u32) -> Result<SignedTransfer, ChainError> {
+    pub fn sign(
+        &self,
+        plan: &PlannedTransfer,
+        tip_height: u32,
+    ) -> Result<SignedTransfer, ChainError> {
         let mut inputs: Vec<TxIn> = Vec::with_capacity(plan.inputs.len());
         for u in &plan.inputs {
             inputs.push(TxIn {
@@ -287,13 +291,7 @@ impl<'a> SignedTransferBuilder<'a> {
 
         for (i, u) in plan.inputs.iter().enumerate() {
             // Zeroizes on drop — the key bytes do not outlive this iteration.
-            let sk = derive_secret_key(
-                self.seed,
-                self.network,
-                self.account,
-                u.branch,
-                u.index,
-            )?;
+            let sk = derive_secret_key(self.seed, self.network, self.account, u.branch, u.index)?;
             sign_p2wpkh_input(&mut tx, i, u.value_sat, &sk)?;
         }
 

@@ -124,10 +124,9 @@ impl AccountPubkeys {
             .account_xpub
             .derive_pub(&secp, &path)
             .map_err(|e| ChainError::key(format!("xpub child: {e}")))?;
-        let compressed = bitcoin::key::CompressedPublicKey::from_slice(
-            child.public_key.serialize().as_ref(),
-        )
-        .map_err(|e| ChainError::key(format!("compressed pubkey: {e}")))?;
+        let compressed =
+            bitcoin::key::CompressedPublicKey::from_slice(child.public_key.serialize().as_ref())
+                .map_err(|e| ChainError::key(format!("compressed pubkey: {e}")))?;
         let address = Address::p2wpkh(&compressed, self.network.bitcoin_network());
 
         let script_pubkey = address.script_pubkey();

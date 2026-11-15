@@ -7,17 +7,17 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 
+use bitcoin::absolute::LockTime;
 use bitcoin::consensus::Decodable;
 use bitcoin::{Amount, ScriptBuf, Transaction, TxOut};
-use bitcoin::absolute::LockTime;
 use chains::bitcoin::keys::AccountPubkeys;
 use chains::bitcoin::scan::{
     collect_utxos, discover, history_with_amounts, tx_status, HistoryDirection, TxStatus,
 };
 use chains::bitcoin::tx::{
-    estimate_fee_rates, estimate_fee_rates_with_fallback, sat_per_vb_from_btc_per_kb,
-    estimate_vsize, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
-    FALLBACK_FAST_SAT_VB, FALLBACK_NORMAL_SAT_VB, FALLBACK_SLOW_SAT_VB,
+    estimate_fee_rates, estimate_fee_rates_with_fallback, estimate_vsize, idempotent_broadcast,
+    plan_transfer, sat_per_vb_from_btc_per_kb, SignedTransferBuilder, FALLBACK_FAST_SAT_VB,
+    FALLBACK_NORMAL_SAT_VB, FALLBACK_SLOW_SAT_VB,
 };
 use chains::electrum::{BtcNetwork, Gateway, HistoryEntry, ScriptBalance, Utxo};
 use chains::ChainError;
@@ -25,7 +25,8 @@ use hex::FromHex as _;
 
 use bip39::Mnemonic;
 
-const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const MNEMONIC: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 fn vector_seed() -> [u8; 64] {
     Mnemonic::parse_normalized(MNEMONIC)
@@ -102,7 +103,13 @@ impl FakeGateway {
     /// Confirm a spend: consume the input, credit the change output and add
     /// history entries at `height` (use -1 while in the mempool). Idempotent:
     /// re-applying the same tx only updates the height.
-    fn apply_spend(&mut self, spend: &Transaction, funding_script: &[u8], change_script: &[u8], spend_height: i64) {
+    fn apply_spend(
+        &mut self,
+        spend: &Transaction,
+        funding_script: &[u8],
+        change_script: &[u8],
+        spend_height: i64,
+    ) {
         let txid = spend.compute_txid();
         // consume the funding output
         if let Some(list) = self.utxos.get_mut(funding_script) {
@@ -259,7 +266,10 @@ fn full_cycle_on_fake_testnet_gateway() {
     .expect("plan");
     assert_eq!(plan.recipient, recv9.address);
     assert_eq!(plan.recipient_amount_sat, 60_000);
-    assert_eq!(plan.vsize, 141, "1 P2WPKH in + 2 outs: 113*4+2+108=562 → 141");
+    assert_eq!(
+        plan.vsize, 141,
+        "1 P2WPKH in + 2 outs: 113*4+2+108=562 → 141"
+    );
     assert_eq!(plan.fee_sat, 1410);
     let change = plan.change.as_ref().expect("change output exists");
     assert_eq!(change.2, 100_000 - 60_000 - 1410);
@@ -289,7 +299,11 @@ fn full_cycle_on_fake_testnet_gateway() {
     // the witness was actually produced (68–72-byte DER + 33-byte pubkey)
     let wit = spend.input[0].witness.to_vec();
     assert_eq!(wit.len(), 2);
-    assert_eq!(wit[1], recv0_pubkey_of(&seed), "witness pubkey = key of (0,0)");
+    assert_eq!(
+        wit[1],
+        recv0_pubkey_of(&seed),
+        "witness pubkey = key of (0,0)"
+    );
     assert!(wit[0].len() >= 68 && wit[0].len() <= 72, "DER sig + \\x01");
     assert_eq!(*wit[0].last().unwrap(), 0x01, "SIGHASH_ALL");
 
@@ -303,7 +317,10 @@ fn full_cycle_on_fake_testnet_gateway() {
     assert_eq!(gw.broadcasts.borrow().len(), 1);
     // replay: the network already knows this tx — nothing is re-submitted
     let replay = idempotent_broadcast(&gw, &signed).expect("replay");
-    assert_eq!(replay, chains::electrum::BroadcastOutcome::AlreadyKnown(txid));
+    assert_eq!(
+        replay,
+        chains::electrum::BroadcastOutcome::AlreadyKnown(txid)
+    );
     assert_eq!(gw.broadcasts.borrow().len(), 1, "NO second submission");
 
     // 7) pre-inserted "already in mempool" race: a fresh server copy knows it
@@ -331,11 +348,17 @@ fn full_cycle_on_fake_testnet_gateway() {
     assert_eq!(funding.direction, Some(HistoryDirection::Incoming));
     assert_eq!(funding.received_sat, 100_000);
     assert_eq!(funding.fee_sat, None, "coinbase-like funding has no fee");
-    let spend_item = items.iter().find(|i| i.txid == txid).expect("spend in history");
+    let spend_item = items
+        .iter()
+        .find(|i| i.txid == txid)
+        .expect("spend in history");
     assert_eq!(spend_item.direction, Some(HistoryDirection::Outgoing));
     assert_eq!(spend_item.sent_net_sat, 60_000);
     assert_eq!(spend_item.fee_sat, Some(1410));
-    assert_eq!(spend_item.received_sat, 38_590, "change lands in the wallet");
+    assert_eq!(
+        spend_item.received_sat, 38_590,
+        "change lands in the wallet"
+    );
 
     let status = tx_status(&gw, &[spk_recv0, spk_change], txid).expect("status");
     assert_eq!(
@@ -466,7 +489,13 @@ fn zero_fee_rate_and_dust_amount_rejected() {
     )
     .unwrap_err();
     assert!(
-        matches!(err, ChainError::Dust { amount_sat: 100, .. }),
+        matches!(
+            err,
+            ChainError::Dust {
+                amount_sat: 100,
+                ..
+            }
+        ),
         "got {err}"
     );
 }
@@ -540,7 +569,10 @@ fn no_change_output_when_leftover_is_dust() {
     .expect("plan");
     assert!(plan.change.is_none());
     assert_eq!(plan.fee_sat, 1100);
-    assert_eq!(plan.recipient_amount_sat, 60_000, "recipient is never underpaid");
+    assert_eq!(
+        plan.recipient_amount_sat, 60_000,
+        "recipient is never underpaid"
+    );
     assert_eq!(plan.vsize, 110);
 }
 
@@ -575,10 +607,7 @@ fn largest_first_selection_across_two_utxos() {
     // vsize for 2 in + 2 out: (10+82+62)*4 + 2 + 216 = 834 → 209
     assert_eq!(plan.vsize, 209);
     assert_eq!(plan.fee_sat, 2090);
-    assert_eq!(
-        plan.change.as_ref().unwrap().2,
-        70_000 - 60_000 - 2090
-    );
+    assert_eq!(plan.change.as_ref().unwrap().2, 70_000 - 60_000 - 2090);
 }
 
 // ------------------------------------------------------------ units ---
@@ -587,7 +616,11 @@ fn largest_first_selection_across_two_utxos() {
 fn fee_unit_conversion_and_vsize_math() {
     assert_eq!(sat_per_vb_from_btc_per_kb(0.0001).unwrap(), 10);
     assert_eq!(sat_per_vb_from_btc_per_kb(0.0).unwrap(), 1);
-    assert_eq!(sat_per_vb_from_btc_per_kb(0.0000123).unwrap(), 2, "rounds up");
+    assert_eq!(
+        sat_per_vb_from_btc_per_kb(0.0000123).unwrap(),
+        2,
+        "rounds up"
+    );
     assert!(matches!(
         sat_per_vb_from_btc_per_kb(-1.0).unwrap_err(),
         ChainError::FeeEstimateUnavailable(-1.0)

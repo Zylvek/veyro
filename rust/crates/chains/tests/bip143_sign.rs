@@ -31,8 +31,10 @@ const UNSIGNED_TX_HEX: &str = "0100000002fff7f7881a8099afa6940d42d1e7f6362bec381
 /// Vector data for input 1 (P2WPKH): value 6 BTC, key hash witness program
 /// 00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1.
 const INPUT_1_VALUE_SAT: u64 = 600_000_000;
-const INPUT_1_PRIVKEY_HEX: &str = "619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9";
-const INPUT_1_PUBKEY_HEX: &str = "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357";
+const INPUT_1_PRIVKEY_HEX: &str =
+    "619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9";
+const INPUT_1_PUBKEY_HEX: &str =
+    "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357";
 const INPUT_1_SIGHASH_HEX: &str =
     "c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670";
 
@@ -74,18 +76,24 @@ fn local_signing_reproduces_the_bip143_vector() {
         .iter()
         .map(hex::encode)
         .collect::<Vec<_>>();
-    assert_eq!(witness_before, INPUT_1_WITNESS_OFFICIAL, "official witness parses");
-
-    sign_p2wpkh_input(&mut tx, 1, INPUT_1_VALUE_SAT, sk.as_slice().try_into().unwrap())
-        .expect("signing succeeds");
-
-    let re_signed = hex::encode(
-        {
-            let mut buf = Vec::new();
-            bitcoin::consensus::Encodable::consensus_encode(&tx, &mut buf).unwrap();
-            buf
-        }
+    assert_eq!(
+        witness_before, INPUT_1_WITNESS_OFFICIAL,
+        "official witness parses"
     );
+
+    sign_p2wpkh_input(
+        &mut tx,
+        1,
+        INPUT_1_VALUE_SAT,
+        sk.as_slice().try_into().unwrap(),
+    )
+    .expect("signing succeeds");
+
+    let re_signed = hex::encode({
+        let mut buf = Vec::new();
+        bitcoin::consensus::Encodable::consensus_encode(&tx, &mut buf).unwrap();
+        buf
+    });
     assert_eq!(
         re_signed, SIGNED_TX_HEX,
         "local BIP143 signing must reproduce the official vector byte-for-byte"
@@ -97,10 +105,22 @@ fn signed_tx_witness_and_id_structure() {
     // Independent structural checks: witness items and the input set.
     let tx = decode_tx(SIGNED_TX_HEX);
     assert_eq!(tx.input.len(), 2);
-    assert_eq!(tx.input[0].witness.to_vec().len(), 0, "legacy input has no witness");
-    assert_eq!(tx.input[1].witness.to_vec().len(), 2, "P2WPKH witness = sig+pk");
+    assert_eq!(
+        tx.input[0].witness.to_vec().len(),
+        0,
+        "legacy input has no witness"
+    );
+    assert_eq!(
+        tx.input[1].witness.to_vec().len(),
+        2,
+        "P2WPKH witness = sig+pk"
+    );
     let wit = tx.input[1].witness.to_vec();
     assert_eq!(hex::encode(&wit[0]), INPUT_1_WITNESS_OFFICIAL[0]);
     assert_eq!(hex::encode(&wit[1]), INPUT_1_WITNESS_OFFICIAL[1]);
-    assert_eq!(hex::encode(&wit[0]), INPUT_1_WITNESS_OFFICIAL[0], "sighash byte 0x01 included");
+    assert_eq!(
+        hex::encode(&wit[0]),
+        INPUT_1_WITNESS_OFFICIAL[0],
+        "sighash byte 0x01 included"
+    );
 }

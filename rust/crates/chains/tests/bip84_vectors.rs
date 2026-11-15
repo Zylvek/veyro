@@ -7,17 +7,15 @@
 use bip39::Mnemonic;
 use bitcoin::bip32::{ChildNumber, DerivationPath};
 use bitcoin::secp256k1::{PublicKey as SecpPublicKey, Secp256k1, SecretKey};
-use chains::bitcoin::keys::{
-    derive_secret_key, AccountPubkeys, BRANCH_EXTERNAL, BRANCH_INTERNAL,
-};
+use chains::bitcoin::keys::{derive_secret_key, AccountPubkeys, BRANCH_EXTERNAL, BRANCH_INTERNAL};
 use chains::electrum::BtcNetwork;
 
 /// BIP84 test vector mnemonic (12 words, "all abandon").
-const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const MNEMONIC: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 fn vector_seed() -> [u8; 64] {
-    let mnemonic =
-        Mnemonic::parse_normalized(MNEMONIC).expect("BIP84 vector mnemonic is valid");
+    let mnemonic = Mnemonic::parse_normalized(MNEMONIC).expect("BIP84 vector mnemonic is valid");
     mnemonic.to_seed_normalized("")
 }
 
