@@ -290,29 +290,6 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Center(child: VeyroMark(size: 64)),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'ВХОД',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 6,
-                                color: VColors.textPrimary,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Кошелёк «${_wallet?.name ?? '—'}»',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: VColors.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
                             TextField(
                               controller: _passwordController,
                               autofocus: true,

@@ -151,9 +151,8 @@ void main() {
         sessionLoader: () async => null,
         unlockAction: (id, _) async => unlockedFor = id,
       );
-      // Форма входа на весь экран + имя кошелька.
-      expect(find.text('ВХОД'), findsOneWidget);
-      expect(find.textContaining('Кошелёк «Основной»'), findsOneWidget);
+      // Панель входа на экране (поле пароля).
+      expect(find.byType(TextField), findsOneWidget);
       await tester.enterText(find.byType(TextField), '1234');
       await tester.tap(find.text('Войти'));
       // Орбитальный спиннер бесконечный — качаем кадрами.
