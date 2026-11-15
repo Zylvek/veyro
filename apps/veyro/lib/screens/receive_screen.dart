@@ -9,8 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 class ReceiveScreen extends StatefulWidget {
@@ -74,7 +76,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   Widget build(BuildContext context) {
     final network = _state?.networkDisplay;
     return Scaffold(
-      appBar: AppBar(title: const Text('Получение BTC')),
+      appBar: AppBar(title: Text(t('receive_title'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -83,8 +85,11 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             children: [
               VCard(
                 title: network == null
-                    ? 'Адрес получения (сеть не определена)'
-                    : 'Адрес получения ($network)',
+                    ? t('receive_card_no_network')
+                    : tf(
+                        'receive_card_with_network',
+                        {'network': network},
+                      ),
                 icon: Icons.qr_code_2_outlined,
                 children: _buildContent(context),
               ),
@@ -101,28 +106,41 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       return const [
         Padding(
           padding: EdgeInsets.all(32),
-          child: Center(child: CircularProgressIndicator()),
+          // Фирменная загрузка знака (система владельца), мини-версия.
+          child: Center(
+            child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+          ),
         ),
       ];
     }
     if (_error != null) {
       return [
         Text(
-          'Ядро не вернуло адрес: $_error${_sessionError == null ? '' : '\n(также: $_sessionError)'}',
+          tf(
+            'core_no_address',
+            {
+              'error': '$_error',
+              'extra': _sessionError == null
+                  ? ''
+                  : tf(
+                      'also_extra',
+                      {'error': '$_sessionError'},
+                    ),
+            },
+          ),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 10),
-        VButton.secondary('Повторить', icon: Icons.refresh, onPressed: _load),
+        VButton.secondary(t('retry'), icon: Icons.refresh, onPressed: _load),
       ];
     }
     final address = _address;
     if (address == null) {
       return [
-        Text('Адрес недоступен.', style: Theme.of(context).textTheme.bodyMedium)
+        Text(t('address_unavailable'),
+            style: Theme.of(context).textTheme.bodyMedium)
       ];
     }
-    final branchLabel =
-        address.branch == 0 ? 'получение (внешняя ветка)' : 'сдача (внутренняя ветка)';
     return [
       Center(
         child: Container(
@@ -140,28 +158,23 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         ),
       ),
       const SizedBox(height: 14),
-      VMonoCopyRow(label: 'Адрес', value: address.address),
-      const SizedBox(height: 8),
-      _kvRow(context, 'Путь', address.path, mono: true),
-      _kvRow(context, 'Ветка', branchLabel),
-      _kvRow(context, 'Индекс', '${address.index}'),
+      VMonoCopyRow(label: t('address_label'), value: address.address),
       const SizedBox(height: 12),
       Row(
         children: [
           Expanded(
             child: VButton.primary(
-              'Копировать адрес',
+              t('copy_address_btn'),
               icon: Icons.copy_outlined,
               onPressed: () =>
-                  copyToClipboard(context, 'Адрес', address.address),
+                  copyToClipboard(context, t('address_label'), address.address),
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Tooltip(
-              message: 'Системный Share появится в Android-группе: '
-                  'канал шерингa в этой сборке не подключён.',
-              child: VButton.secondary('Поделиться'),
+              message: t('share_note'),
+              child: VButton.secondary(t('share_btn')),
             ),
           ),
         ],
@@ -170,25 +183,3 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   }
 }
 
-/// Строка «ключ → значение» на токенах темы (аналог kvRow без
-/// жёстко-белых цветов, чтобы совпадать с новой системой).
-Widget _kvRow(BuildContext context, String key, String value,
-    {bool mono = false}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(key, style: Theme.of(context).textTheme.bodySmall),
-        ),
-        Expanded(
-          child: mono
-              ? VMono(value, fontSize: 12.5)
-              : SelectableText(value, style: Theme.of(context).textTheme.bodyMedium),
-        ),
-      ],
-    ),
-  );
-}

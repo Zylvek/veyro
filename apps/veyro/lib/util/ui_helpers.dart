@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:veyro/design/components.dart';
+import 'package:veyro/util/l10n.dart';
 
 /// Модальный запрос пароля. Возвращает пароль (не пустой) или `null`.
 /// Кнопка подтверждения оживает прямо при наборе: на каждый ввод текста
@@ -116,7 +117,7 @@ Future<bool> confirmAction(
 void copyToClipboard(BuildContext context, String label, String value) {
   Clipboard.setData(ClipboardData(text: value));
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('$label скопировано')),
+    SnackBar(content: Text(tf('copied_snackbar', {'label': label}))),
   );
 }
 

@@ -436,7 +436,9 @@ void main() {
       expect(find.byType(QrImageView), findsOneWidget);
       expect(find.text('tb1qExampleReceiveAddress000000000000x'),
           findsOneWidget);
-      expect(find.textContaining("m/84'/1'/0'/0/5"), findsOneWidget);
+      // Путь деривации/ветка/индекс убраны с экрана (решение владельца:
+      // «убери путь, а то что это за бред»).
+      expect(find.textContaining("m/84'"), findsNothing);
 
       // Copy — реальное действие: в буфере и SnackBar.
       await tester.tap(find.text('Копировать адрес'));

@@ -168,6 +168,88 @@ const Map<String, Map<String, String>> _strings = {
   // Разделы.
   'backups_btn': {'ru': 'Бэкап и восстановление', 'en': 'Backup and restore'},
   'about_btn': {'ru': 'О VEYRO', 'en': 'About VEYRO'},
+  // BTC-центр.
+  'btc_connecting': {'ru': 'Подключение…', 'en': 'Connecting…'},
+  'btc_syncing_addresses': {
+    'ru': 'Синхронизация адресов…',
+    'en': 'Syncing addresses…',
+  },
+  'btc_syncing_addresses_long': {
+    'ru': 'Синхронизация адресов… (gap-limit 20, это может занять до минуты)',
+    'en': 'Syncing addresses… (gap limit 20, this may take up to a minute)',
+  },
+  'btc_unlock_title': {
+    'ru': 'Разблокировать BTC — «{name}»',
+    'en': 'Unlock BTC — "{name}"',
+  },
+  'password_mismatch_hint': {
+    'ru': 'Похоже, это пароль другого кошелька. Пароль — от '
+        '«{name}»; при забытых паролях паре кошельков переключите '
+        'кошелёк на Обзоре.',
+    'en': 'This looks like another wallet\'s password. The password '
+        'belongs to "{name}"; if the two wallets have different '
+        'passwords, switch wallets on the dashboard.',
+  },
+  'connect_btn': {'ru': 'Подключиться', 'en': 'Connect'},
+  'error_title': {'ru': 'Ошибка', 'en': 'Error'},
+  'session_not_open': {'ru': 'Сессия не открыта', 'en': 'Session is not open'},
+  'session_desc': {
+    'ru': 'Подключение к Electrum-серверу выбранной сети.',
+    'en': 'Connecting to the Electrum server of the selected network.',
+  },
+  'wallet_label': {'ru': 'Кошелёк: «{name}»', 'en': 'Wallet: "{name}"'},
+  'unlock_btc_btn': {'ru': 'Разблокировать BTC', 'en': 'Unlock BTC'},
+  'connection_section': {'ru': 'Подключение', 'en': 'Connection'},
+  'network_label': {'ru': 'Сеть', 'en': 'Network'},
+  'server_label': {'ru': 'Сервер', 'en': 'Server'},
+  'xpub_note': {'ru': 'xpub (только публичный): ', 'en': 'xpub (public only): '},
+  'lock_btn': {'ru': 'Заблокировать', 'en': 'Lock'},
+  'balance_section': {'ru': 'Баланс', 'en': 'Balance'},
+  'not_synced_note': {
+    'ru': 'Ещё не синхронизировано. Синхронизация опрашивает сервер по всем '
+        'адресам аккаунта (gap-limit 20).',
+    'en': 'Not synced yet. Syncing polls the server across all the account '
+        'addresses (gap limit 20).',
+  },
+  'sats': {'ru': 'сат', 'en': 'sat'},
+  'mempool_row': {'ru': 'В мемпуле: {value}', 'en': 'In mempool: {value}'},
+  'utxo_available': {'ru': 'UTXO доступно', 'en': 'UTXOs available'},
+  'chain_height': {'ru': 'Высота чейна', 'en': 'Chain height'},
+  'addresses_with_history': {
+    'ru': 'Адресов с историей',
+    'en': 'Addresses with history',
+  },
+  'sync_btn': {'ru': 'Синхронизировать', 'en': 'Sync'},
+  'refresh_btn': {'ru': 'Обновить', 'en': 'Refresh'},
+  'get_btn': {'ru': 'Получить', 'en': 'Receive'},
+  'send_btn': {'ru': 'Отправить', 'en': 'Send'},
+  'history_btn': {'ru': 'История', 'en': 'History'},
+  // Получение.
+  'receive_title': {'ru': 'Получение BTC', 'en': 'Receive BTC'},
+  'receive_card_with_network': {
+    'ru': 'Адрес получения ({network})',
+    'en': 'Receiving address ({network})',
+  },
+  'receive_card_no_network': {
+    'ru': 'Адрес получения (сеть не определена)',
+    'en': 'Receiving address (network unknown)',
+  },
+  'address_label': {'ru': 'Адрес', 'en': 'Address'},
+  'copy_address_btn': {'ru': 'Копировать адрес', 'en': 'Copy address'},
+  'share_btn': {'ru': 'Поделиться', 'en': 'Share'},
+  'share_note': {
+    'ru': 'Системный Share появится в Android-группе: '
+        'канал шерингa в этой сборке не подключён.',
+    'en': 'The system Share lands with the Android group: the sharing '
+        'channel is not wired in this build.',
+  },
+  'core_no_address': {
+    'ru': 'Ядро не вернуло адрес: {error}{extra}',
+    'en': 'The core returned no address: {error}{extra}',
+  },
+  'also_extra': {'ru': '\n(также: {error})', 'en': '\n(also: {error})'},
+  'address_unavailable': {'ru': 'Адрес недоступен.', 'en': 'Address is unavailable.'},
+  'copied_snackbar': {'ru': '{label} скопировано', 'en': '{label} copied'},
 };
 
 /// Перевод с подстановкой переменных: t('wallet_deleted', {'name': x}).

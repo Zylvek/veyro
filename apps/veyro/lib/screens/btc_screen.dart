@@ -8,13 +8,13 @@ import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
-import 'addresses_screen.dart';
 import 'history_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
@@ -36,7 +36,7 @@ class _BtcScreenState extends State<BtcScreen> {
 
   /// Что сейчас происходит (аудит: «Подключение…» без деталей выглядит
   /// как зависание). busyLabel: Разблокировка → Синхронизация.
-  String _busyLabel = 'Подключение…';
+  String _busyLabel = t('btc_connecting');
 
   /// Диалог пароля показывается автоматически один раз на вход (решение
   /// владельца: «подключаться сразу», без лишних нажатий). После отмены
@@ -74,7 +74,7 @@ class _BtcScreenState extends State<BtcScreen> {
   }) async {
     setState(() {
       _busy = true;
-      _busyLabel = 'Синхронизация адресов…';
+      _busyLabel = t('btc_syncing_addresses');
       _error = null;
     });
     try {
@@ -109,8 +109,11 @@ class _BtcScreenState extends State<BtcScreen> {
 
     final password = await promptPassword(
       context,
-      title: 'Разблокировать BTC — «${widget.info.name}»',
-      confirmLabel: 'Подключиться',
+      title: tf(
+        'btc_unlock_title',
+        {'name': widget.info.name},
+      ),
+      confirmLabel: t('connect_btn'),
     );
     if (password == null || !mounted) {
       debugPrint('veyro-flow: password dialog cancelled');
@@ -138,9 +141,10 @@ class _BtcScreenState extends State<BtcScreen> {
       // vault даёт generic-ошибку расшифровки: добавляем честную подсказку
       // (частый случай — пароль другого из нескольких кошельков).
       final hint = raw.contains('decryption failed')
-          ? '$e\n\nПохоже, это пароль другого кошелька. Пароль — от '
-              '«${widget.info.name}»; при забытых паролях паре кошельков '
-              'переключите кошелёк на Обзоре.'
+          ? '$e\n\n${tf(
+              'password_mismatch_hint',
+              {'name': widget.info.name},
+            )}'
           : e.toString();
       setState(() {
         _error = hint;
@@ -151,8 +155,7 @@ class _BtcScreenState extends State<BtcScreen> {
 
   Future<void> _doSync() async {
     setState(() {
-      _busyLabel =
-          'Синхронизация адресов… (gap-limit 20, это может занять до минуты)';
+      _busyLabel = t('btc_syncing_addresses_long');
       _error = null;
     });
     try {
@@ -208,17 +211,6 @@ class _BtcScreenState extends State<BtcScreen> {
     }
   }
 
-  Future<void> _openNetworkSettings() async {
-    // Выбор сети/сервера убран (решение владельца): сервер подбирается
-    // автоматически при входе. Кнопки сети больше никуда не ведут.
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text(
-          'Сеть и сервер выбираются автоматически — ничего настраивать '
-          'не нужно.'),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = _state;
@@ -235,7 +227,7 @@ class _BtcScreenState extends State<BtcScreen> {
               children: [
                 if (_error != null)
                   SectionCard(
-                    title: 'Ошибка',
+                    title: t('error_title'),
                     icon: Icons.error_outline,
                     children: [
                       Text('$_error'),
@@ -247,33 +239,32 @@ class _BtcScreenState extends State<BtcScreen> {
                                 autosyncIfUnlocked: true,
                                 useCache: false,
                               ),
-                        child: const Text('Повторить'),
+                        child: Text(t('retry')),
                       ),
                     ],
                   ),
                 if (state == null)
                   SectionCard(
-                    title: 'Сессия не открыта',
+                    title: t('session_not_open'),
                     icon: Icons.lock_outline,
                     children: [
-                      const Text(
-                        'Подключение к Electrum-серверу выбранной сети.',
-                        style: TextStyle(color: Colors.white60),
+                      Text(
+                        t('session_desc'),
+                        style: const TextStyle(color: Colors.white60),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Кошелёк: «${widget.info.name}»',
-                        style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        tf(
+                          'wallet_label',
+                          {'name': widget.info.name},
+                        ),
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 12),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
                         onPressed: _busy ? null : _unlock,
-                        child: Text(_busy ? _busyLabel : 'Разблокировать BTC'),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: _openNetworkSettings,
-                        child: const Text('Сервер и сеть'),
+                        child: Text(_busy ? _busyLabel : t('unlock_btc_btn')),
                       ),
                     ],
                   )
@@ -294,31 +285,24 @@ class _BtcScreenState extends State<BtcScreen> {
 
   Widget _buildSessionCard(BuildContext context, BtcSessionStateDto state) {
     return SectionCard(
-      title: 'Подключение',
+      title: t('connection_section'),
       icon: Icons.dns_outlined,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       children: [
-        kvRow('Сеть', ruNetworkText(state.networkDisplay) ?? '—'),
-        kvRow('Сервер', state.serverUrl),
+        kvRow(t('network_label'), ruNetworkText(state.networkDisplay) ?? '—'),
+        kvRow(t('server_label'), state.serverUrl),
         SelectableText(
-          'xpub (только публичный): ${state.accountXpub}',
+          '${t('xpub_note')}${state.accountXpub}',
           style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.white54),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _lock,
-              icon: const Icon(Icons.lock_outline),
-              label: const Text('Заблокировать'),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _openNetworkSettings,
-              icon: const Icon(Icons.settings_outlined),
-              label: const Text('Сеть'),
-            ),
-          ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _lock,
+            icon: const Icon(Icons.lock_outline),
+            label: Text(t('lock_btn')),
+          ),
         ),
       ],
     );
@@ -327,16 +311,15 @@ class _BtcScreenState extends State<BtcScreen> {
   Widget _buildBalanceCard(BuildContext context) {
     final sync = _sync;
     return SectionCard(
-      title: 'Баланс',
+      title: t('balance_section'),
       icon: Icons.savings_outlined,
       children: [
         if (_sync == null && _busy)
           const Center(child: CircularProgressIndicator())
         else if (_sync == null)
-          const Text(
-            'Ещё не синхронизировано. Синхронизация опрашивает сервер по всем '
-            'адресам аккаунта (gap-limit 20).',
-            style: TextStyle(color: Colors.white70),
+          Text(
+            t('not_synced_note'),
+            style: const TextStyle(color: Colors.white70),
           )
         else ...[
           Text(
@@ -344,70 +327,74 @@ class _BtcScreenState extends State<BtcScreen> {
             style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
           ),
           Text(
-            '${groupDigits(sync.confirmedSat.toInt())} сат',
+            '${groupDigits(sync.confirmedSat.toInt())} ${t('sats')}',
             style: const TextStyle(color: Colors.white60),
           ),
           if (sync.unconfirmedDeltaSat != 0) ...[
             const SizedBox(height: 6),
             Text(
-              'В мемпуле: ${signedSatToBtcString(sync.unconfirmedDeltaSat)} BTC',
+              tf(
+                'mempool_row',
+                {'value': '${signedSatToBtcString(sync.unconfirmedDeltaSat)} BTC'},
+              ),
               style: const TextStyle(color: Colors.orangeAccent),
             ),
           ],
           const SizedBox(height: 10),
-          kvRow('UTXO доступно', '${sync.utxoCount}'),
-          kvRow('Высота чейна', '${sync.tipHeight}'),
-          kvRow('Адресов с историей', '${sync.usedAddresses.length}'),
+          kvRow(t('utxo_available'), '${sync.utxoCount}'),
+          kvRow(t('chain_height'), '${sync.tipHeight}'),
+          kvRow(t('addresses_with_history'), '${sync.usedAddresses.length}'),
         ],
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
           onPressed: _busy ? null : _doSync,
           icon: const Icon(Icons.sync),
-          label: Text(_sync == null ? 'Синхронизировать' : 'Обновить'),
+          label: Text(_sync == null ? t('sync_btn') : t('refresh_btn')),
         ),
       ],
     );
   }
 
   Widget _buildActionsGrid(BuildContext context) {
-    Widget action(IconData icon, String label, VoidCallback? onPressed) {
-      return Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Column(
-              children: [
-                Icon(icon, size: 26, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 8),
-                Text(label),
-              ],
+    final unlocked = _state != null;
+    return Row(
+      children: [
+        for (final entry in [
+          (
+            icon: Icons.qr_code_2_outlined,
+            label: t('get_btn'),
+            onTap: unlocked ? _openReceive : null
+          ),
+          (
+            icon: Icons.north_east,
+            label: t('send_btn'),
+            onTap: unlocked ? _openSend : null
+          ),
+          (
+            icon: Icons.history,
+            label: t('history_btn'),
+            onTap: unlocked ? _openHistory : null
+          ),
+        ])
+          Expanded(
+            child: Card(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: entry.onTap,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  child: Column(
+                    children: [
+                      Icon(entry.icon,
+                          size: 26, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(height: 8),
+                      Text(entry.label),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      );
-    }
-
-    final unlocked = _state != null;
-    return Column(
-      children: [
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 1.1,
-          children: [
-            action(Icons.qr_code_2_outlined, 'Получить',
-                unlocked ? _openReceive : null),
-            action(Icons.north_east, 'Отправить', unlocked ? _openSend : null),
-            action(Icons.history, 'История', unlocked ? _openHistory : null),
-            action(Icons.location_on_outlined, 'Адреса', unlocked ? _openAddresses : null),
-            action(Icons.dns_outlined, 'Сервер', unlocked ? _openNetworkSettings : null),
-          ],
-        ),
       ],
     );
   }
@@ -424,12 +411,5 @@ class _BtcScreenState extends State<BtcScreen> {
       builder: (_) => const HistoryScreen(),
     ));
     if (mounted) await _refresh(autosyncIfUnlocked: true);
-  }
-
-  Future<void> _openAddresses() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const AddressesScreen(),
-    ));
-    if (mounted) await _refresh();
   }
 }

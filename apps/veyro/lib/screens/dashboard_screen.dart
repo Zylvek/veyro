@@ -596,7 +596,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final rate = _fiatRate;
     return VCard(
       icon: Icons.grid_view_outlined,
-      title: 'Активы',
+      title: t('assets_title'),
       children: [
         Card(
           child: ListTile(
