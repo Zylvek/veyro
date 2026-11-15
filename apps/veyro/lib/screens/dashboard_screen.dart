@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
@@ -686,7 +687,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (recent == null)
           const Padding(
             padding: EdgeInsets.all(8),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            // Фирменная загрузка знака (система владельца), мини-версия.
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
           )
         else if (recent.isEmpty)
           Text('Транзакций пока нет — всё чисто.',
