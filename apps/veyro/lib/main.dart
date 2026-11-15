@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/v_theme.dart';
+import 'package:veyro/design/ambience.dart';
 import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/frb_generated.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -49,6 +50,13 @@ class VeyroApp extends StatelessWidget {
       title: 'VEYRO',
       debugShowCheckedModeBanner: false,
       theme: buildVeyroTheme(),
+      // Бренд-фон под всеми экранами (решение владельца: дизайн-элементы
+      // экрана пароля — амбьент-свечения и приглушённый знак — везде):
+      // тема делает Scaffold прозрачным, а этот слой рисует под ним.
+      builder: (context, child) => AmbienceSurface(
+        withMark: true,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: const LockScreen(),
     );
   }

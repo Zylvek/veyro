@@ -9,13 +9,22 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/veyro_mark.dart';
 
 /// Ambient-фон: цвет базы + 3 мягких радиальных свечения. Всё рисуется
 /// в одном виджете, чтобы карточки-стёкла размывали именно его.
 class AmbienceSurface extends StatelessWidget {
   final Widget child;
 
-  const AmbienceSurface({super.key, required this.child});
+  /// Неподвижный приглушённый знак (r 88, d 46, 0.18) за содержимым —
+  /// как на экране пароля; используется глобальным фоном приложения.
+  final bool withMark;
+
+  const AmbienceSurface({
+    super.key,
+    required this.child,
+    this.withMark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +52,17 @@ class AmbienceSurface extends StatelessWidget {
             child:
                 _glow(520, VColors.primary.withValues(alpha: 0.05)),
           ),
+          if (withMark)
+            const Positioned.fill(
+              child: Center(
+                child: VeyroMark(
+                  size: 480,
+                  distance: kBackdropDistance,
+                  radius: kBackdropRadius,
+                  opacity: kBackdropOpacity,
+                ),
+              ),
+            ),
           Positioned.fill(child: child),
         ],
       ),

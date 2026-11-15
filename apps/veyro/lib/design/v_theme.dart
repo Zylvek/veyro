@@ -85,7 +85,10 @@ ThemeData buildVeyroTheme() {
     useMaterial3: true,
     fontFamily: kInterFont,
     colorScheme: scheme,
-    scaffoldBackgroundColor: VColors.background,
+    // Scaffold/ AppBar прозрачные: под КАЖДЫМ экраном лежит глобальный
+    // бренд-фон (амбьент-свечения + приглушённый знак) из builder'а
+    // MaterialApp (решение владельца «добавь их везде»).
+    scaffoldBackgroundColor: Colors.transparent,
     canvasColor: VColors.background,
     textTheme: textTheme,
     dividerTheme: const DividerThemeData(
@@ -94,7 +97,7 @@ ThemeData buildVeyroTheme() {
       space: 1,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: VColors.background,
+      backgroundColor: Colors.transparent,
       elevation: 0,
       centerTitle: true,
       foregroundColor: VColors.textPrimary,

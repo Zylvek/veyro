@@ -64,20 +64,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          color: VColors.background,
-          gradient: RadialGradient(
-            center: const Alignment(-0.75, -0.65),
-            radius: 1.1,
-            colors: [
-              VColors.primaryGlow.withValues(alpha: 0.14),
-              VColors.background,
-            ],
-            stops: const [0, 1],
-          ),
-        ),
-        child: SafeArea(
+      body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -159,8 +146,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
             ),
           ),
-        ),
-      ),
+          ),
     );
   }
 

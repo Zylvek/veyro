@@ -235,7 +235,10 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         // Анимация 03: неподвижный фоновый знак сразу начинает
         // вращаться, плавно набирает яркость и размер — и без остановок
         // переходит в орбитальную загрузку (1800 мс, разгон из покоя).
-        return const Scaffold(
+        // Непрозрачный фон: глобальный знак не должен просвечивать
+        // вторым слоем под анимацией.
+        return Scaffold(
+          backgroundColor: VColors.background,
           body: Center(
             child: LogoLoader(
               mode: LogoLoaderMode.backgroundToLoading,
