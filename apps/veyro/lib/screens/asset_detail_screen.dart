@@ -69,8 +69,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   Future<void> _load() async {
     await DisplayPrefs.ensureLoaded();
-    // Кошелёк нужен только BTC (центр управления работает от кошелька).
-    if (_asset.ticker == 'BTC') {
+    // Кошелёк нужен для активов с центром управления (BTC и LTC).
+    if (_asset.ticker == 'BTC' || _asset.ticker == 'LTC') {
       try {
         final list = widget.walletLoader != null
             ? await widget.walletLoader!()
@@ -111,7 +111,14 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     try {
       if (_asset.ticker == 'LTC') {
         try {
-          final state = await ltcSessionState();
+          // Честная граница ожидания: если ядро не отвечает — ошибка и
+          // Retry, а не вечный лоудер (жалоба владельца на зависание).
+          final state = await ltcSessionState().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () => throw StateError(
+              'Состояние сессии LTC не получено за 12 c (ядро занято?)',
+            ),
+          );
           if (!mounted) return;
           setState(() {
             _ltcSession = state;
@@ -214,8 +221,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                 _buildLtcCard(context),
                 const SizedBox(height: 14),
               ],
-              _buildStatusCard(context),
-              const SizedBox(height: 14),
             ],
           ),
         ),
@@ -334,18 +339,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           icon: Icons.lock_open_outlined,
           onPressed: _chosenWallet == null ? null : _openLtcWorkbench,
         ),
-      ],
-    );
-  }
-
-  Widget _buildStatusCard(BuildContext context) {
-    // Владелец: статус-чипы не нужны («зачем писать, если работает»):
-    // осталась только честная заметка о состоянии исследования.
-    return VCard(
-      icon: Icons.verified_outlined,
-      title: t('research_state_card'),
-      children: [
-        Text(_asset.note, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
