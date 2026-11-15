@@ -12,6 +12,7 @@ import 'dart:async';
 
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -42,6 +43,12 @@ class _LtcScreenState extends State<LtcScreen> {
   /// Что сейчас происходит («Подключение…» без деталей выглядит как
   /// зависание — жалоба владельца).
   String _busyLabel = t('btc_connecting');
+
+  /// Дисциплина повторов (решение владельца «не долбить серверы»):
+  /// после неудачной серии пауза удваивается (15 c → … → 4 мин max),
+  /// успех сброс. Экспонента копит goodwill у живых серверов.
+  DateTime? _lastSeriesFailedAt;
+  int _failureStreak = 0;
 
   /// Диалог пароля показывается автоматически один раз на вход; после
   /// отмены остаются ручные кнопки.
@@ -125,8 +132,29 @@ class _LtcScreenState extends State<LtcScreen> {
       _error = null;
     });
     try {
+      // Экспоненциальная пауза после неудачной серии: не долбим серверы
+      // (rate-limits копятся именно от частых попыток). Честная пауза с
+      // лейблом — юзер видит, сколько осталось.
+      if (_lastSeriesFailedAt != null) {
+        final waitSec = (15 * (1 << (_failureStreak - 1))).clamp(15, 240);
+        final deadline = _lastSeriesFailedAt!.add(Duration(seconds: waitSec));
+        var remain = deadline.difference(DateTime.now()).inSeconds;
+        if (remain > 0) {
+          while (remain > 0 && mounted) {
+            setState(() {
+              _busyLabel = tf('ltc_backoff_wait', {'sec': '$remain'});
+            });
+            await Future.delayed(const Duration(seconds: 1));
+            if (!mounted) return;
+            remain = deadline.difference(DateTime.now()).inSeconds;
+          }
+        }
+      }
       try {
         await _unlockViaCandidates(password);
+        // Успех — экспонента обнуляется.
+        _failureStreak = 0;
+        _lastSeriesFailedAt = null;
       } catch (e) {
         // Тихая попытка (кэшированный пароль) не прошла ИЗ-ЗА НЕПОДХОДЯЩЕГО
         // пароля? Тогда один честный диалог — никакого бесконечного цикла
@@ -156,7 +184,16 @@ class _LtcScreenState extends State<LtcScreen> {
             }
             return;
           }
-          await _unlockViaCandidates(manual);
+          try {
+            await _unlockViaCandidates(manual);
+            // Успех ручной попытки — экспонента обнуляется.
+            _failureStreak = 0;
+            _lastSeriesFailedAt = null;
+          } catch (e2) {
+            _failureStreak += 1;
+            _lastSeriesFailedAt = DateTime.now();
+            rethrow;
+          }
         } else {
           rethrow;
         }
@@ -165,6 +202,8 @@ class _LtcScreenState extends State<LtcScreen> {
       await _doSync();
     } catch (e) {
       if (!mounted) return;
+      _failureStreak += 1;
+      _lastSeriesFailedAt = DateTime.now();
       setState(() {
         _error = _cleanError(e);
         _busy = false;
@@ -181,12 +220,22 @@ class _LtcScreenState extends State<LtcScreen> {
     return base.replaceAll(RegExp(r'https?://\S+'), '');
   }
 
-  /// Full unlock attempt: candidates loop (transient → next server,
-  /// polite pauses; a per-candidate Dart timeout guarantees the loop
-  /// NEVER stalls forever on a stuck server — «вообще ничего не
-  /// происходит» решено честным прогрессом и границами).
+  /// Full unlock attempt: candidates loop (the LAST GOOD server first —
+  /// persisted between runs; transient → next server, polite pauses; a
+  /// per-candidate Dart timeout guarantees the loop NEVER stalls forever
+  /// on a stuck server).
   Future<void> _unlockViaCandidates(String password) async {
-    final candidates = await ltcServers();
+    final stored = List<String>.from(await ltcServers());
+    // Память о живом (решение владельца): прошлый удачный сервер — первым,
+    // без дубликатов; экономим соединения и не зарабатываем баны.
+    String? lastGood;
+    try {
+      lastGood = await dbGetSetting(key: 'ltc_last_good_server');
+    } catch (_) {}
+    if (lastGood != null && lastGood.isNotEmpty && stored.remove(lastGood)) {
+      stored.insert(0, lastGood);
+    }
+    final candidates = stored;
     final failures = <String>[];
     var unlocked = false;
     for (var i = 0; i < candidates.length; i++) {
@@ -212,6 +261,11 @@ class _LtcScreenState extends State<LtcScreen> {
           // 60 c: с быстрым коннектом ядра этого с запасом; зависший
           // кандидат не задержит цикл навсегда.
         ).timeout(const Duration(seconds: 60));
+        // Success → remember the live server for next launches AND for the
+        // network-info card (persisted, non-secret key-value).
+        try {
+          await dbSetSetting(key: 'ltc_last_good_server', value: server);
+        } catch (_) {}
         unlocked = true;
         break;
       } on TimeoutException {
