@@ -278,8 +278,10 @@ fn full_cycle_on_fake_testnet_gateway() {
     // 5) sign locally
     let builder = SignedTransferBuilder {
         seed: &seed,
-        network: BtcNetwork::Testnet,
-        account: 0,
+        key_path: chains::bitcoin::tx::KeyPath::Btc {
+            network: BtcNetwork::Testnet,
+            account: 0,
+        },
     };
     let signed = builder.sign(&plan, gw.tip).expect("sign");
     let spend: Transaction = {

@@ -12,7 +12,7 @@ use std::sync::{Mutex, MutexGuard};
 use anyhow::{anyhow, Result};
 use zeroize::Zeroizing;
 
-use chains::bitcoin::scan::Discovery;
+use chains::bitcoin::scan::{Discovery, WalletUtxo};
 use chains::litecoin::{LtcAccount, LtcGateway};
 
 /// Everything the LTC feature needs between unlock and lock. Same secret
@@ -22,8 +22,8 @@ pub struct LtcSession {
     pub server_url: String,
     pub account: u32,
     /// BIP39 seed — the only secret here, zeroized when the session drops.
-    /// Consumed by the LTC send layer (same signing contract as BTC); in the
-    /// receive-only milestone nothing reads it yet.
+    /// Consumed by the signing builder inside `ltc_send` (the same local-
+    /// signing contract as BTC).
     #[allow(dead_code)]
     pub seed: Zeroizing<[u8; 64]>,
     /// Watch-only public material (safe in any log/display).
@@ -32,6 +32,10 @@ pub struct LtcSession {
     pub gateway: LtcGateway,
     /// Last successful discovery (sync). `None` before the first sync.
     pub discovery: Option<Discovery>,
+    /// Spendable outputs from the last sync (the send layer consumes this
+    /// exact set; it is reset after a successful send — a stale set would
+    /// double-spend). `None` before the first sync.
+    pub utxos: Option<Vec<WalletUtxo>>,
 }
 
 impl std::fmt::Debug for LtcSession {
@@ -70,15 +74,24 @@ pub fn snapshot() -> Result<(LtcGateway, LtcAccount)> {
     Ok((session.gateway.clone(), session.account_pub.clone()))
 }
 
-/// Store discovery results of a sync back into the session. (No spendable
-/// set yet: the LTC receive-only milestone has no sends — that layer
-/// arrives with the LTC send milestone.)
-pub fn store_sync(discovery: Discovery) -> Result<()> {
+/// Store discovery/UTXO results of a sync back into the session.
+pub fn store_sync(discovery: Discovery, utxos: Vec<WalletUtxo>) -> Result<()> {
     let mut guard = with_lock()?;
     let session = guard
         .as_mut()
         .ok_or_else(|| anyhow!("no LTC session — unlock a wallet first"))?;
     session.discovery = Some(discovery);
+    session.utxos = Some(utxos);
+    Ok(())
+}
+
+/// Invalidate stale spendables (after a successful send). The discovery
+/// data stays — receive addresses and history do not depend on UTXOs.
+pub fn invalidate_utxos() -> Result<()> {
+    let mut guard = with_lock()?;
+    if let Some(session) = guard.as_mut() {
+        session.utxos = None;
+    }
     Ok(())
 }
 

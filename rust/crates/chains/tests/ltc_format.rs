@@ -171,6 +171,115 @@ fn ltc_derivation_is_deterministic() {
     assert_eq!(a.scripthash_hex, b.scripthash_hex);
 }
 
+// ------------------------------------------------------------- send ----
+
+/// Recipient address parsing (live vectors from docs/coins/LTC.md §2,
+/// litecoinspace.org 11.11.2026): shapes → the exact script types.
+#[test]
+fn ltc_recipient_script_live_vectors() {
+    use chains::litecoin::ltc_recipient_script;
+
+    // P2WPKH bech32 (22-byte script: OP_0 push-20).
+    let s = ltc_recipient_script("ltc1qhw6ntumfxtmz7jek9vukdh53gj40u9arcclp85")
+        .expect("bech32 recipient");
+    let bytes = s.as_bytes();
+    assert_eq!(bytes.len(), 22);
+    assert_eq!(bytes[0], 0x00);
+    assert_eq!(bytes[1], 0x14);
+
+    // Uppercase bech32 is allowed and must normalize (BIP173).
+    let upper = "LTC1QHW6NTUMFXTMZ7JEK9VUKDH53GJ40U9ARCCLP85";
+    let s2 = ltc_recipient_script(upper).expect("uppercase");
+    assert_eq!(s2.as_bytes(), bytes);
+
+    // Legacy P2PKH L… (25-byte script: OP_DUP OP_HASH160 push-20 … OP_EQUALVERIFY OP_CHECKSIG).
+    let s3 = ltc_recipient_script("LYhttvnKawAv6RcHQ4eBkNtifuiEA99PFe").expect("L addr");
+    let b3 = s3.as_bytes();
+    assert_eq!(b3.len(), 25);
+    assert_eq!(b3[0], 0x76, "OP_DUP");
+    assert_eq!(b3[1], 0xA9, "OP_HASH160");
+    assert_eq!(b3[2], 0x14, "push 20");
+    assert_eq!(*b3.last().unwrap(), 0xAC, "OP_CHECKSIG");
+
+    // P2SH-2 M… (base58 version 50 → OP_HASH160 script). Live vector:
+    // SoChain shows the address as …Cqk1DaYgn (the passport had a typo
+    // `…Cqk5DaYgn`, which does not pass base58check — 15.11.2026).
+    let s4 = ltc_recipient_script("MHEhpP2jcSrvZQQbEHHKPw26bCqk1DaYgn").expect("M addr");
+    let b4 = s4.as_bytes();
+    assert_eq!(b4.len(), 23);
+    assert_eq!(b4[0], 0xA9, "OP_HASH160");
+    assert_eq!(b4[1], 0x14, "push 20");
+    assert_eq!(*b4.last().unwrap(), 0x87, "OP_EQUAL");
+
+    // Refusals: MWEB (transparent wallet cannot see them back), garbage.
+    assert!(ltc_recipient_script("ltcmweb1qqqzyregcwwwwwwxylylyle").is_err());
+    assert!(ltc_recipient_script("").is_err());
+    assert!(ltc_recipient_script("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4").is_err());
+    assert!(
+        ltc_recipient_script("ltc1qhw6ntumfxtmz7jek9vukdh53gj40u9arcclp86").is_err(),
+        "checksum"
+    );
+    assert!(
+        ltc_recipient_script("LYhttvnKawAv6RcHQ4eBkNtifuiEA99PFd").is_err(),
+        "base58 checksum"
+    );
+}
+
+/// Plan an LTC transfer with the shared selection machine (no network):
+/// largest-first, fee re-per-input, honest change. Uses the standard
+/// disposable seed's derived change address and synthetic UTXOs.
+#[test]
+fn ltc_plan_transfer_selection_math() {
+    use chains::bitcoin::scan::WalletUtxo;
+    use chains::litecoin::{ltc_plan_transfer, LTC_OUTPUT_DUST_LIT};
+
+    let seed = test_seed();
+    let account = LtcAccount::from_seed(&seed, 0).expect("account");
+    let recv = account.derive_address(0, 0).expect("recv");
+    let change = account.derive_address(1, 0).expect("change");
+
+    let utxos = vec![WalletUtxo {
+        txid: "0000000000000000000000000000000000000000000000000000000000000001"
+            .parse()
+            .unwrap(),
+        vout: 0,
+        value_sat: 100_000,
+        branch: 0,
+        index: 0,
+        height: Some(2_000_000),
+        address: recv.address.clone(),
+        script_pubkey: recv.script_pubkey.as_bytes().to_vec(),
+    }];
+
+    let plan = ltc_plan_transfer(recv.address.as_str(), 60_000, 10, &utxos, &change).expect("plan");
+    assert_eq!(plan.recipient_amount_sat, 60_000);
+    assert_eq!(plan.inputs.len(), 1);
+    let c = plan.change.as_ref().expect("change");
+    assert_eq!(c.2 + plan.fee_sat, 40_000);
+    assert!(plan.fee_sat > 0);
+    assert_eq!(plan.recipient, recv.address, "validated text is kept as-is");
+
+    // Dust is refused with the conservative LTC threshold.
+    let err = ltc_plan_transfer(
+        recv.address.as_str(),
+        LTC_OUTPUT_DUST_LIT - 1,
+        10,
+        &utxos,
+        &change,
+    );
+    assert!(err.is_err(), "dust amount refused");
+
+    // Invalid recipient never plans.
+    assert!(ltc_plan_transfer(
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+        60_000,
+        10,
+        &utxos,
+        &change
+    )
+    .is_err());
+}
+
 /// Standard disposable BIP39 vector (12 words "abandon…" + "about").
 fn test_seed() -> [u8; 64] {
     let mut words: Vec<&str> = vec!["abandon"; 11];

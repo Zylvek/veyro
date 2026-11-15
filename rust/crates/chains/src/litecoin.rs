@@ -22,6 +22,7 @@ use ::bitcoin::{Transaction, Txid};
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv, Xpub};
 use bitcoin::ScriptBuf;
 use electrum_client::ElectrumApi;
+use zeroize::Zeroizing;
 
 pub use crate::bitcoin::keys::BRANCH_EXTERNAL as LTC_BRANCH_EXTERNAL;
 pub use crate::bitcoin::keys::BRANCH_INTERNAL as LTC_BRANCH_INTERNAL;
@@ -214,6 +215,42 @@ impl AddressSource for LtcAccount {
     }
 }
 
+/// Derive the (zeroizing) secret key of `branch/index` under
+/// `m/84'/2'/account'` — used only inside local signing (parity with BTC).
+pub fn derive_secret_key_ltc(
+    seed: &[u8; 64],
+    account: u32,
+    branch: u32,
+    index: u32,
+) -> Result<Zeroizing<[u8; 32]>, ChainError> {
+    let secp = bitcoin::secp256k1::Secp256k1::new();
+    let hardened = |i: u32| -> Result<ChildNumber, ChainError> {
+        ChildNumber::from_hardened_idx(i)
+            .map_err(|e| ChainError::key(format!("hardened child {i}: {e}")))
+    };
+    let normal = |i: u32| -> Result<ChildNumber, ChainError> {
+        ChildNumber::from_normal_idx(i)
+            .map_err(|e| ChainError::key(format!("normal child {i}: {e}")))
+    };
+    let path: DerivationPath = [
+        hardened(BIP84_PURPOSE)?,
+        hardened(LTC_COIN_TYPE)?,
+        hardened(account)?,
+        normal(branch)?,
+        normal(index)?,
+    ]
+    .into_iter()
+    .collect();
+    let master = Xpriv::new_master(bitcoin::Network::Bitcoin, seed)
+        .map_err(|e| ChainError::key(format!("master key: {e}")))?;
+    let leaf = master
+        .derive_priv(&secp, &path)
+        .map_err(|e| ChainError::key(format!("leaf derivation: {e}")))?;
+    let mut bytes = <[u8; 32]>::default();
+    bytes.copy_from_slice(&leaf.private_key.secret_bytes());
+    Ok(Zeroizing::new(bytes))
+}
+
 /// Ltc-транспорт: тот же electrum_client, что у BTC, но с валидацией
 /// genesis Litecoin и бэкоффом на «дохлые» свежие соединения.
 #[derive(Clone)]
@@ -389,4 +426,195 @@ pub fn ltc_scan_and_balance(
     let discovery = discover(gateway, account, gap_limit)?;
     let balance = wallet_balance(gateway, &discovery)?;
     Ok((discovery, balance))
+}
+
+// ---------------------------------------------------------------------------
+// Send layer (milestone after receive-only): address parsing and transfer
+// planning. Coin selection, BIP143 signing and broadcast are shared with
+// BTC in `bitcoin::tx` (the sighash model is identical: Litecoin Core is a
+// Bitcoin Core fork) — only the address decoding differs.
+// ---------------------------------------------------------------------------
+
+/// Conservative dust threshold for ANY LTC output (litoshi). The precise
+/// per-script limits are lower (P2WPKH ≈ 294 lits at the same relay fee);
+/// using the biggest legacy one for every output never creates dust.
+pub const LTC_OUTPUT_DUST_LIT: u64 = 546;
+
+const BASE58_LTC: &[u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+/// base58check decode (double-sha256 checksum), the standard byte algorithm.
+fn base58check_decode(text: &str) -> Result<Vec<u8>, ChainError> {
+    let mut bytes: Vec<u8> = vec![0u8];
+    for c in text.bytes() {
+        let val =
+            BASE58_LTC.iter().position(|&b| b == c).ok_or_else(|| {
+                ChainError::InvalidAddress(format!("{text}: not a base58 character"))
+            })? as u32;
+        let mut carry = val;
+        for b in bytes.iter_mut().rev() {
+            carry += (*b as u32) * 58;
+            *b = (carry & 0xff) as u8;
+            carry >>= 8;
+        }
+        while carry > 0 {
+            bytes.insert(0, (carry & 0xff) as u8);
+            carry >>= 8;
+        }
+    }
+    // A leading '1' means a zero byte.
+    let zeros = text.bytes().take_while(|&c| c == b'1').count();
+    for _ in 0..zeros {
+        bytes.insert(0, 0);
+    }
+    if bytes.len() < 5 {
+        return Err(ChainError::InvalidAddress(format!("{text}: too short")));
+    }
+    let payload = &bytes[..bytes.len() - 4];
+    let check = &bytes[bytes.len() - 4..];
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(Sha256::digest(payload));
+    if check != &digest[..4] {
+        return Err(ChainError::InvalidAddress(format!(
+            "{text}: base58 checksum"
+        )));
+    }
+    Ok(payload.to_vec())
+}
+
+/// Parse an LTC mainnet recipient address into its script_pubkey:
+/// - `ltc1…` bech32 (BIP173, witness **v0** only: P2WPKH/p2WSH);
+/// - `L…` legacy P2PKH (base58 version 48);
+/// - `M…` P2SH (base58 version 50).
+///   MWEB addresses (`ltcmweb…`) are deliberately NOT accepted: the wallet is
+///   transparent-only and cannot see MWEB funds back (docs/coins/LTC.md §9).
+pub fn ltc_recipient_script(address: &str) -> Result<ScriptBuf, ChainError> {
+    let trimmed = address.trim();
+    if trimmed.is_empty() {
+        return Err(ChainError::InvalidAddress("empty address".into()));
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("ltcmweb") {
+        return Err(ChainError::InvalidAddress(
+            "MWEB addresses are not supported (transparent wallet only)".into(),
+        ));
+    }
+
+    if lower.starts_with("ltc1") {
+        // Bech32 guard: mixed case is forbidden by BIP173.
+        let has_lower = trimmed.bytes().any(|c| c.is_ascii_lowercase());
+        let has_upper = trimmed.bytes().any(|c| c.is_ascii_uppercase());
+        if has_lower && has_upper {
+            return Err(ChainError::InvalidAddress("bech32 mixed case".into()));
+        }
+        let addr = if has_upper { &lower } else { trimmed };
+
+        // Decode: data part after the 'ltc1' separator (indices: hrp 'ltc'
+        // then the '1' separator, so the data starts at byte index 4).
+        let data: Vec<u8> = addr["ltc".len() + 1..]
+            .bytes()
+            .map(|c| {
+                CHARSET
+                    .iter()
+                    .position(|&x| x as char == c as char)
+                    .map(|q| q as u8)
+                    .ok_or_else(|| {
+                        ChainError::InvalidAddress(format!("{address}: bad bech32 character"))
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if data.len() < 1 + 6 {
+            return Err(ChainError::InvalidAddress(format!("{address}: too short")));
+        }
+        // BIP173 checksum over the WHOLE string (bech32 constant 1).
+        let mut values = hrp_expand(HRP_MAINNET);
+        values.extend_from_slice(&data);
+        if bech32_polymod(&values) != 1 {
+            return Err(ChainError::InvalidAddress(format!("{address}: checksum")));
+        }
+        // Witness v0 only (taproot/bech32m programs are rejected — Litecoin
+        // has taproot activated, but this milestone spends to v0 programs).
+        let version = data[0];
+        let prog_quints = &data[1..data.len() - 6];
+        let mut program: Vec<u8> = Vec::new();
+        let mut acc: u32 = 0;
+        let mut bits: u32 = 0;
+        for &q in prog_quints {
+            acc = (acc << 5) | ((q & 31) as u32);
+            bits += 5;
+            while bits >= 8 {
+                bits -= 8;
+                program.push(((acc >> bits) & 0xff) as u8);
+            }
+        }
+        if bits % 8 != 0 {
+            return Err(ChainError::InvalidAddress(format!(
+                "{address}: invalid program padding"
+            )));
+        }
+        if version != 0 {
+            return Err(ChainError::InvalidAddress(format!(
+                "{address}: only witness v0 is accepted"
+            )));
+        }
+        return match program.len() {
+            20 => Ok(ScriptBuf::new_p2wpkh(&{
+                use bitcoin_hashes::Hash;
+                bitcoin::WPubkeyHash::from_byte_array(program.try_into().expect("20 bytes"))
+            })),
+            32 => Ok(ScriptBuf::new_p2wsh(&{
+                use bitcoin_hashes::Hash;
+                bitcoin::WScriptHash::from_byte_array(program.try_into().expect("32 bytes"))
+            })),
+            _ => Err(ChainError::InvalidAddress(format!(
+                "{address}: invalid witness program length {}",
+                program.len()
+            ))),
+        };
+    }
+
+    // base58check legacy shapes.
+    let payload = base58check_decode(trimmed)?;
+    if payload.len() != 21 {
+        return Err(ChainError::InvalidAddress(format!(
+            "{address}: payload must be 21 bytes, got {}",
+            payload.len()
+        )));
+    }
+    let hash20: [u8; 20] = payload[1..]
+        .try_into()
+        .map_err(|_| ChainError::InvalidAddress(format!("{address}: payload")))?;
+    use bitcoin_hashes::Hash;
+    match payload[0] {
+        48 => Ok(ScriptBuf::new_p2pkh(&bitcoin::PubkeyHash::from_byte_array(
+            hash20,
+        ))),
+        50 => Ok(ScriptBuf::new_p2sh(&bitcoin::ScriptHash::from_byte_array(
+            hash20,
+        ))),
+        v => Err(ChainError::InvalidAddress(format!(
+            "{address}: unknown base58 version {v} (48 L… or 50 M… expected)"
+        ))),
+    }
+}
+
+/// Plan an LTC transfer (coin selection + fee; nothing signed yet).
+/// Validates the recipient LTC address and reuses the shared BTC machine
+/// (`plan_transfer_script`) for selection/fee math.
+pub fn ltc_plan_transfer(
+    recipient: &str,
+    amount_lit: u64,
+    fee_lit_per_vbyte: u64,
+    utxos: &[crate::bitcoin::scan::WalletUtxo],
+    change_address: &crate::bitcoin::keys::DerivedAddress,
+) -> Result<crate::bitcoin::tx::PlannedTransfer, ChainError> {
+    let script = ltc_recipient_script(recipient)?;
+    crate::bitcoin::tx::plan_transfer_script(
+        recipient.trim(),
+        script,
+        amount_lit,
+        fee_lit_per_vbyte,
+        utxos,
+        change_address,
+        LTC_OUTPUT_DUST_LIT,
+    )
 }

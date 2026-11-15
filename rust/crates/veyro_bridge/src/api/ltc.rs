@@ -13,16 +13,20 @@ use anyhow::{anyhow, Result};
 
 use chains::bitcoin::keys::{BRANCH_EXTERNAL, BRANCH_INTERNAL};
 use chains::bitcoin::scan::{
-    discover, history_with_amounts, tx_status, wallet_balance, HistoryDirection, TxStatus,
+    collect_utxos, discover, history_with_amounts, tx_status, wallet_balance, HistoryDirection,
+    TxStatus,
 };
+use chains::bitcoin::tx::{estimate_fee_rates_with_fallback, idempotent_broadcast, KeyPath};
 use chains::electrum::Gateway;
-use chains::litecoin::{LtcAccount, LtcGateway, GENESIS_MAINNET_HEX};
+use chains::litecoin::{ltc_plan_transfer, LtcAccount, LtcGateway, GENESIS_MAINNET_HEX};
 use zeroize::Zeroizing;
 
 use key_manager::from_phrase;
 use wallet_core::WalletManager;
 
-use crate::ltc_session::{snapshot, store_gateway, store_sync, with_lock, with_session};
+use crate::ltc_session::{
+    invalidate_utxos, snapshot, store_gateway, store_sync, with_lock, with_session,
+};
 use crate::production_kdf;
 
 /// Server identity shown on the network-info screen. All public data.
@@ -87,6 +91,7 @@ pub fn ltc_unlock(
         account_pub,
         gateway,
         discovery: None,
+        utxos: None,
     });
 
     Ok(LtcUnlockDto {
@@ -212,10 +217,9 @@ fn attempt_sync(
 ) -> Result<LtcSyncDto> {
     let discovery = discover(gateway, account_pub, gap_limit).map_err(|e| anyhow!("{e}"))?;
     let balance = wallet_balance(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
-    // UTXO set is part of the sync story (balance == Σ utxo values stays
-    // observable); the send layer of LTC will consume it later.
-    let utxos =
-        chains::bitcoin::scan::collect_utxos(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
+    // UTXO set: the exact spendable set the send layer will consume; a
+    // successful send invalidates it (double-spend guard, same as BTC).
+    let utxos = collect_utxos(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
     let utxo_count = utxos.len() as u32;
     let used_addresses: Vec<LtcAddressDto> = discovery
         .slots()
@@ -246,7 +250,7 @@ fn attempt_sync(
 
     let tip_height = gateway.tip_height()?;
 
-    store_sync(discovery)?;
+    store_sync(discovery, utxos)?;
 
     Ok(LtcSyncDto {
         confirmed_sat: balance.confirmed_sat,
@@ -367,4 +371,139 @@ pub fn ltc_history() -> Result<Vec<LtcHistoryItemDto>> {
             fee_sat: item.fee_sat,
         })
         .collect())
+}
+
+// ------------------------------------------------------------- sends ----
+
+/// Fee presets in lit/vB (integers). `fallback == true` means the server
+/// had no fee estimate and the conservative presets are used — surfaced
+/// so the UI never presents a guess as a server measurement.
+#[derive(Debug)]
+pub struct LtcFeeRatesDto {
+    pub fast_lit_vb: u64,
+    pub normal_lit_vb: u64,
+    pub slow_lit_vb: u64,
+    pub fallback: bool,
+}
+
+/// Fee presets for the 1/3/6-block depth. The Electrum protocol unit is
+/// "coin per kilobyte" and 1 LTC = 1e8 lits — the same integers as BTC.
+pub fn ltc_fees() -> Result<LtcFeeRatesDto> {
+    let (gateway, _account) = snapshot()?;
+    let (rates, fallback) =
+        estimate_fee_rates_with_fallback(&gateway).map_err(|e| anyhow!("{e}"))?;
+    Ok(LtcFeeRatesDto {
+        fast_lit_vb: rates.fast_sat_vb,
+        normal_lit_vb: rates.normal_sat_vb,
+        slow_lit_vb: rates.slow_sat_vb,
+        fallback,
+    })
+}
+
+/// Scripts of every scanned address (for the post-broadcast status lookup).
+fn ltc_scanned_scripts() -> Result<Vec<Vec<u8>>> {
+    with_session(|s| {
+        Ok(s.discovery
+            .as_ref()
+            .ok_or_else(|| anyhow!("no scanned addresses — run ltc_sync first"))?
+            .slots()
+            .map(|slot| slot.script_pubkey.clone())
+            .collect::<Vec<_>>())
+    })
+}
+
+/// Result of `ltc_send`: everything the confirmation screen shows.
+#[derive(Debug)]
+pub struct LtcSendResultDto {
+    pub txid: String,
+    /// Consensus hex of the signed transaction (display/record only).
+    pub raw_hex: String,
+    pub already_known: bool,
+    pub recipient: String,
+    pub amount_lit: u64,
+    pub fee_lit: u64,
+    pub vsize: u64,
+    pub fee_lit_per_vb: u64,
+    pub change_address: Option<String>,
+    pub change_lit: Option<u64>,
+    /// Status snapshot right after the broadcast ("mempool" or "unknown").
+    pub status: String,
+}
+
+/// Plan, sign (locally, BIP143 — the same sighash model; Litecoin Core is
+/// a Bitcoin Core fork) and broadcast an LTC transfer.
+///
+/// Requires a successful `ltc_sync` first (sends are built from the exact
+/// spendable set discovered then; after a success the set is invalidated —
+/// a stale set would double-spend). Recipient: `ltc1…` (v0), `L…` (P2PKH),
+/// `M…` (P2SH); MWEB addresses are refused (transparent wallet only).
+pub fn ltc_send(
+    recipient: String,
+    amount_lit: u64,
+    fee_lit_per_vb: u64,
+) -> Result<LtcSendResultDto> {
+    let (gateway, _account_pub) = snapshot()?;
+
+    // Tip height first (locktime): network call outside the session lock.
+    let tip_height = gateway.tip_height()?;
+
+    // Plan + sign under the lock — CPU-only work with the seed, no I/O.
+    let signed = with_session(|s| {
+        let utxos = s
+            .utxos
+            .as_ref()
+            .ok_or_else(|| anyhow!("no spendable set — run ltc_sync before sending"))?;
+        let change_index = s
+            .discovery
+            .as_ref()
+            .map(|d| d.internal.next_index())
+            .unwrap_or(0);
+        let change = s
+            .account_pub
+            .derive_address(BRANCH_INTERNAL, change_index)
+            .map_err(|e| anyhow!("{e}"))?;
+        let plan = ltc_plan_transfer(&recipient, amount_lit, fee_lit_per_vb, utxos, &change)
+            .map_err(|e| anyhow!("{e}"))?;
+        let builder = chains::bitcoin::tx::SignedTransferBuilder {
+            seed: &s.seed,
+            key_path: KeyPath::Ltc { account: s.account },
+        };
+        builder.sign(&plan, tip_height).map_err(|e| anyhow!("{e}"))
+    })?;
+
+    // Idempotent broadcast outside the lock.
+    let outcome = idempotent_broadcast(&gateway, &signed).map_err(|e| anyhow!("{e}"))?;
+
+    // Spend-safety: the spendable set is stale now; force a re-sync before
+    // any further send (prevents a repeated send from the same coins).
+    invalidate_utxos()?;
+
+    let (already_known, status) = match outcome {
+        chains::electrum::BroadcastOutcome::Sent(txid) => {
+            let scripts = ltc_scanned_scripts().unwrap_or_default();
+            let st = tx_status(&gateway, &scripts, txid)
+                .map(|s| match s {
+                    TxStatus::Unknown => "unknown".to_string(),
+                    TxStatus::Mempool => "mempool".to_string(),
+                    TxStatus::Confirmed { .. } => "confirmed".to_string(),
+                })
+                .unwrap_or_else(|_| "unknown".to_string());
+            (false, st)
+        }
+        chains::electrum::BroadcastOutcome::AlreadyKnown(_) => (true, "mempool".to_string()),
+    };
+
+    Ok(LtcSendResultDto {
+        txid: signed.txid.to_string(),
+        raw_hex: signed.raw_hex,
+        already_known,
+        recipient: signed.plan.recipient,
+        amount_lit: signed.plan.recipient_amount_sat,
+        fee_lit: signed.plan.fee_sat,
+        vsize: signed.plan.vsize,
+        fee_lit_per_vb: signed.plan.fee_sat_per_vb,
+        change_address: signed.plan.change.as_ref().map(|c| c.0.clone()),
+        change_lit: signed.plan.change.as_ref().map(|c| c.2),
+        status,
+    })
 }

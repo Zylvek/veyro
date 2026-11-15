@@ -23,7 +23,8 @@ use chains::bitcoin::scan::{
     TxStatus,
 };
 use chains::bitcoin::tx::{
-    estimate_fee_rates_with_fallback, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
+    estimate_fee_rates_with_fallback, idempotent_broadcast, plan_transfer, KeyPath,
+    SignedTransferBuilder,
 };
 use chains::electrum::{BtcNetwork, ElectrumGateway, Gateway};
 use zeroize::Zeroizing;
@@ -369,8 +370,10 @@ pub fn btc_send(recipient: String, amount_sat: u64, fee_sat_vb: u64) -> Result<B
         .map_err(|e| anyhow!("{e}"))?;
         let builder = SignedTransferBuilder {
             seed: &s.seed,
-            network: s.network,
-            account: s.account,
+            key_path: KeyPath::Btc {
+                network: s.network,
+                account: s.account,
+            },
         };
         builder.sign(&plan, tip_height).map_err(|e| anyhow!("{e}"))
     })?;

@@ -52,7 +52,7 @@
 - Кривая: **secp256k1**; подписи ECDSA (+ Schnorr для Taproot). PoW Scrypt не влияет на кошелёчные ключи.
 - Форматы адресов (mainnet):
   - P2PKH `L...` (префикс 48) — пример: `LYhttvnKawAv6RcHQ4eBkNtifuiEA99PFe` (live, litecoinspace.org, 11.11.2026)
-  - P2SH `M...` (префикс 50; исторический вариант 5 → `3...`) — пример: `MHEhpP2jcSrvZQQbEHHKPw26bCqk5DaYgn` (live)
+  - P2SH `M...` (префикс 50; исторический вариант 5 → `3...`) — пример: `MHEhpP2jcSrvZQQbEHHKPw26bCqk1DaYgn` (live; SoChain 15.11.2026. Ранее здесь был вектор с опечаткой `…Cqk5DaYgn`, не проходящий base58check)
   - P2WPKH/P2WSH bech32 `ltc1...` (HRP ltc, BIP173-кодирование) — пример: `ltc1qhw6ntumfxtmz7jek9vukdh53gj40u9arcclp85` (live)
   - **MWEB `ltcmweb...`** — конфиденциальные адреса MimbleWimble (вне объёма VEYRO, см. §9)
 - Testnet: `m/n...` (111), `Q...` (58), HRP `tltc`.

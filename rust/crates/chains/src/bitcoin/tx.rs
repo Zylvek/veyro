@@ -24,7 +24,7 @@ pub use crate::bitcoin::scan::TxStatus;
 use crate::bitcoin::scan::WalletUtxo;
 use crate::bitcoin::{P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};
 use crate::{BroadcastOutcome, BtcNetwork, ChainError, Gateway};
-
+use zeroize::Zeroizing;
 /// Fee rates in sat/vbyte (integers; floats never represent fees either).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FeeRates {
@@ -109,7 +109,7 @@ pub fn estimate_vsize(input_count: usize, output_script_lens: &[usize]) -> u64 {
 /// signed transaction will look like.
 #[derive(Debug, Clone)]
 pub struct PlannedTransfer {
-    pub network: BtcNetwork,
+    /// Recipient address text (as entered and validated at plan time).
     pub recipient: String,
     /// Raw recipient script (validated at plan time).
     pub recipient_script: Vec<u8>,
@@ -139,15 +139,19 @@ fn shape_fee(n_inputs: usize, recipient_script_len: usize, has_change: bool, rat
     estimate_vsize(n_inputs, &lens) * rate
 }
 
-/// Plan a transfer: validate recipient/amount/rate, select coins (largest
-/// first), compute fee and change. Never talks to the network and never signs.
-pub fn plan_transfer(
-    network: BtcNetwork,
-    recipient: &str,
+/// Plan a transfer from an ALREADY-parsed recipient script (the coin module
+/// owns address parsing: BTC validates via `Address::from_str`, LTC via its
+/// own bech32/base58 decoder). Coin-agnostic core of coin selection and
+/// fees; never talks to the network and never signs. `dust_sat` is the
+/// coin's conservative output-dust threshold.
+pub fn plan_transfer_script(
+    recipient_display: &str,
+    recipient_script: ScriptBuf,
     amount_sat: u64,
     fee_sat_per_vb: u64,
     utxos: &[WalletUtxo],
     change_address: &DerivedAddress,
+    dust_sat: u64,
 ) -> Result<PlannedTransfer, ChainError> {
     if amount_sat == 0 {
         return Err(ChainError::InvalidAmount("amount must be positive".into()));
@@ -155,22 +159,12 @@ pub fn plan_transfer(
     if fee_sat_per_vb == 0 {
         return Err(ChainError::FeeTooLow);
     }
-    if amount_sat < P2WPKH_DUST_SAT {
+    if amount_sat < dust_sat {
         return Err(ChainError::Dust {
             amount_sat,
-            dust_sat: P2WPKH_DUST_SAT,
+            dust_sat,
         });
     }
-
-    // Recipient must be a valid address of a matching network (any standard
-    // type: p2wpkh/p2sh/legacy/taproot — `Address::from_str` validates).
-    let unchecked: bitcoin::Address<bitcoin::address::NetworkUnchecked> = recipient
-        .parse()
-        .map_err(|e| ChainError::InvalidAddress(format!("{recipient}: {e}")))?;
-    let checked = unchecked
-        .require_network(network.bitcoin_network())
-        .map_err(|_| ChainError::AddressNetworkMismatch(network.display_name()))?;
-    let recipient_script = checked.script_pubkey();
     let recipient_script_len = recipient_script.as_bytes().len();
 
     if utxos.is_empty() {
@@ -197,7 +191,7 @@ pub fn plan_transfer(
         let f_with_change = shape_fee(picked.len(), recipient_script_len, true, fee_sat_per_vb);
         if gathered >= amount_sat.saturating_add(f_with_change) {
             let leftover = gathered - amount_sat - f_with_change;
-            if leftover >= P2WPKH_DUST_SAT {
+            if leftover >= dust_sat {
                 break (f_with_change, Some(leftover));
             }
         }
@@ -227,8 +221,7 @@ pub fn plan_transfer(
     });
 
     Ok(PlannedTransfer {
-        network,
-        recipient: checked.to_string(),
+        recipient: recipient_display.to_string(),
         recipient_script: recipient_script.as_bytes().to_vec(),
         recipient_amount_sat: amount_sat,
         change,
@@ -241,12 +234,68 @@ pub fn plan_transfer(
     })
 }
 
+/// Plan a BTC transfer: validate recipient/amount/rate, select coins
+/// (largest first), compute fee and change. Never talks to the network.
+pub fn plan_transfer(
+    network: BtcNetwork,
+    recipient: &str,
+    amount_sat: u64,
+    fee_sat_per_vb: u64,
+    utxos: &[WalletUtxo],
+    change_address: &DerivedAddress,
+) -> Result<PlannedTransfer, ChainError> {
+    // Recipient must be a valid address of a matching network (any standard
+    // type: p2wpkh/p2sh/legacy/taproot — `Address::from_str` validates).
+    let unchecked: bitcoin::Address<bitcoin::address::NetworkUnchecked> = recipient
+        .parse()
+        .map_err(|e| ChainError::InvalidAddress(format!("{recipient}: {e}")))?;
+    let checked = unchecked
+        .require_network(network.bitcoin_network())
+        .map_err(|_| ChainError::AddressNetworkMismatch(network.display_name()))?;
+    plan_transfer_script(
+        &checked.to_string(),
+        checked.script_pubkey(),
+        amount_sat,
+        fee_sat_per_vb,
+        utxos,
+        change_address,
+        P2WPKH_DUST_SAT,
+    )
+}
+
+/// Which key tree a signing builder draws inputs' secret keys from.
+/// BTC: BIP84 `m/84'/coin'/account'` (coin follows the BTC network).
+/// LTC: the BIP84-analog `m/84'/2'/account'`.
+#[derive(Debug, Clone, Copy)]
+pub enum KeyPath {
+    Btc { network: BtcNetwork, account: u32 },
+    Ltc { account: u32 },
+}
+
+impl KeyPath {
+    /// Per-input secret key (zeroized as soon as the input is signed).
+    fn secret_key(
+        &self,
+        seed: &[u8; 64],
+        branch: u32,
+        index: u32,
+    ) -> Result<Zeroizing<[u8; 32]>, ChainError> {
+        match self {
+            KeyPath::Btc { network, account } => {
+                derive_secret_key(seed, *network, *account, branch, index)
+            }
+            KeyPath::Ltc { account } => {
+                crate::litecoin::derive_secret_key_ltc(seed, *account, branch, index)
+            }
+        }
+    }
+}
+
 /// Context for local signing: the BIP39 seed stays with the caller (session),
 /// each derived secret key is zeroized as soon as its input is signed.
 pub struct SignedTransferBuilder<'a> {
     pub seed: &'a [u8; 64],
-    pub network: BtcNetwork,
-    pub account: u32,
+    pub key_path: KeyPath,
 }
 
 impl<'a> SignedTransferBuilder<'a> {
@@ -291,7 +340,7 @@ impl<'a> SignedTransferBuilder<'a> {
 
         for (i, u) in plan.inputs.iter().enumerate() {
             // Zeroizes on drop — the key bytes do not outlive this iteration.
-            let sk = derive_secret_key(self.seed, self.network, self.account, u.branch, u.index)?;
+            let sk = self.key_path.secret_key(self.seed, u.branch, u.index)?;
             sign_p2wpkh_input(&mut tx, i, u.value_sat, &sk)?;
         }
 
