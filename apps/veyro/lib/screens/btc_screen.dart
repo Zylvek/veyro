@@ -9,6 +9,7 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
@@ -333,22 +334,11 @@ class _BtcScreenState extends State<BtcScreen> {
           ),
         ])
           Expanded(
-            child: Card(
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: entry.onTap,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  child: Column(
-                    children: [
-                      Icon(entry.icon,
-                          size: 26, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(height: 8),
-                      Text(entry.label),
-                    ],
-                  ),
-                ),
-              ),
+            child: _ActionTile(
+              icon: entry.icon,
+              label: entry.label,
+              enabled: entry.onTap != null,
+              onTap: entry.onTap,
             ),
           ),
       ],
@@ -367,5 +357,95 @@ class _BtcScreenState extends State<BtcScreen> {
       builder: (_) => const HistoryScreen(),
     ));
     if (mounted) await _refresh(autosyncIfUnlocked: true);
+  }
+}
+
+/// Плитка действия центра монет: hover-подъём + мягкое свечение,
+/// курсор «клик» на desktop; без действий — честно потушена.
+class _ActionTile extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  State<_ActionTile> createState() => _ActionTileState();
+}
+
+class _ActionTileState extends State<_ActionTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.enabled ? Theme.of(context).colorScheme.primary : null;
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : MouseCursor.defer,
+      onEnter: widget.enabled ? (_) => setState(() => _hover = true) : null,
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
+        decoration: BoxDecoration(
+          color: VColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _hover
+                ? (accent ?? VColors.textSecondary).withValues(alpha: 0.35)
+                : Colors.transparent,
+          ),
+          boxShadow: [
+            if (_hover && widget.enabled)
+              BoxShadow(
+                color: (accent ?? VColors.textSecondary)
+                    .withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: widget.enabled ? widget.onTap : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Column(
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: 26,
+                    color: widget.enabled
+                        ? (accent ?? VColors.textPrimary)
+                        : VColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Opacity(
+                    opacity: widget.enabled ? 1.0 : 0.45,
+                    child: Text(
+                      widget.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

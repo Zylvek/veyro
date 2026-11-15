@@ -432,16 +432,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Кошельков нет'), findsOneWidget);
-      // Кнопка недоступна без кошелька.
+      // Кнопка недоступна без кошелька (VButton primary — InkWell с null
+      // колбэком; градиент держится отдельно).
       final button = find.text('Разблокировать и управлять BTC');
       expect(button, findsOneWidget);
-      final filled = tester.widget<FilledButton>(
-        find.ancestor(
-          of: button,
-          matching: find.byType(FilledButton),
-        ),
-      );
-      expect(filled.onPressed, isNull);
+      final ink = tester.widgetList<InkWell>(
+        find.ancestor(of: button, matching: find.byType(InkWell)),
+      ).first;
+      expect(ink.onTap, isNull);
     });
   });
 }

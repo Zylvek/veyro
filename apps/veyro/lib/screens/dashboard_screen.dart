@@ -270,13 +270,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(20),
                         children: [
-                          _buildTopPanel(context),
+                          VEntrance(
+                            step: 0,
+                            child: _buildTopPanel(context),
+                          ),
                           const SizedBox(height: 14),
-                          _buildBalanceBlock(context),
+                          VEntrance(
+                            step: 1,
+                            child: _buildBalanceBlock(context),
+                          ),
                           const SizedBox(height: 14),
-                          _buildActionsRow(context),
+                          VEntrance(
+                            step: 2,
+                            child: _buildActionsRow(context),
+                          ),
                           const SizedBox(height: 20),
-                          VTwoColumn(
+                          VEntrance(
+                            step: 3,
+                            child: VTwoColumn(
                             left: Column(
                               children: [
                                 _buildAssetsCard(context),
@@ -290,7 +301,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 20),
+                        ),
+                        const SizedBox(height: 20),
                         ],
                       ),
           ),
@@ -476,44 +488,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Вкладки окна реального графика курса: 1Д/1Н/1М/1Г (как в
-  /// референсе); переключение окна перезагружает серию.
+  /// Вкладки окна: скользящая «пилюля» под выбранным окном — плавно
+  /// катается между вкладками (решение владельца: живые микро-анимации).
   Widget _buildPeriodTabs() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    final tabs = _periodDays.keys.toList();
+    final idx = tabs.indexOf(_period);
+    const tabWidth = 52.0;
+    return Stack(
       children: [
-        for (final entry in _periodDays.entries)
-          Padding(
-            padding: const EdgeInsets.only(right: 4, bottom: 10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                if (_period == entry.key) return;
-                setState(() => _period = entry.key);
-                _loadMarketSeries();
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: _period == entry.key
-                      ? Colors.white.withValues(alpha: 0.09)
-                      : Colors.transparent,
-                ),
-                child: Text(
-                  t(_periodKeyToL10n[entry.key] ?? entry.key),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _period == entry.key
-                        ? VColors.textPrimary
-                        : VColors.textSecondary.withValues(alpha: 0.7),
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          left: idx * tabWidth,
+          child: Container(
+            width: tabWidth,
+            height: 34,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withValues(alpha: 0.09),
+            ),
+          ),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < tabs.length; i++)
+              SizedBox(
+                width: tabWidth,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    if (_period == tabs[i]) return;
+                    setState(() => _period = tabs[i]);
+                    _loadMarketSeries();
+                  },
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    child: Text(
+                      t(_periodKeyToL10n[tabs[i]] ?? tabs[i]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: _period == tabs[i]
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: _period == tabs[i]
+                            ? VColors.textPrimary
+                            : VColors.textSecondary.withValues(alpha: 0.7),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
+          ],
+        ),
       ],
     );
   }
@@ -695,8 +723,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           )
         else if (recent.isEmpty)
-          Text(t('no_transactions'),
-              style: Theme.of(context).textTheme.bodyMedium)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Center(
+                  child: VeyroMark(size: 40, opacity: 0.45),
+                ),
+                const SizedBox(height: 8),
+                Text(t('no_transactions'),
+                    style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          )
         else ...[
           for (final item in recent)
             ListTile(

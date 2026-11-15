@@ -158,15 +158,32 @@ class VAmount extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontFamily: kInterFont,
-            fontSize: fontSize,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-            fontFeatures: const [FontFeature.tabularFigures()],
-            color: color ?? scheme.onSurface,
+        // Мягкий «переезд» суммы при изменении/скрытии — без резкой смены.
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 240),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.35),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: Text(
+            value,
+            key: ValueKey(value),
+            style: TextStyle(
+              fontFamily: kInterFont,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.5,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: color ?? scheme.onSurface,
+            ),
           ),
         ),
         if (suffix != null) ...[
@@ -253,7 +270,7 @@ class VStatusChip extends StatelessWidget {
 
 /// Кнопка основного действия с индикатором занятости. Обёртка над
 /// FilledButton/OutlinedButton с темой формы из темы; busy блокирует нажатия.
-class VButton extends StatelessWidget {
+class VButton extends StatefulWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
@@ -289,30 +306,104 @@ class VButton extends StatelessWidget {
         destructive = true;
 
   @override
+  State<VButton> createState() => _VButtonState();
+}
+
+class _VButtonState extends State<VButton> {
+  bool _hover = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (secondary) {
+    final widget_ = widget;
+    final enabled = !widget_.busy && widget_.onPressed != null;
+    if (widget_.secondary) {
       return OutlinedButton.icon(
-        onPressed: busy ? null : onPressed,
+        onPressed: widget_.busy ? null : widget_.onPressed,
         style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
         icon: _iconOrProgress(),
-        label: Text(label),
+        label: Text(widget_.label),
       );
     }
-    return FilledButton.icon(
-      onPressed: busy ? null : onPressed,
-      style:
-          destructive ? FilledButton.styleFrom(backgroundColor: VColors.error) : null,
-      icon: _iconOrProgress(),
-      label: Text(label),
+
+    // Primary/destructive — своя отрисовка: вертикальный градиент,
+    // мягкое «дыхание» тени под курсором (desktop), press через InkWell.
+    final accent =
+        widget_.destructive ? VColors.error : VColors.primary;
+    return MouseRegion(
+      cursor: widget_.busy ? MouseCursor.defer : SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1.0 : 0.55,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: widget_.destructive
+                ? const LinearGradient(
+                    colors: [VColors.error, VColors.error],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [VColors.primaryGlow, VColors.primary],
+                  ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(
+                    alpha: enabled ? (_hover ? 0.42 : 0.20) : 0.0),
+                blurRadius: _hover ? 18 : 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: widget_.busy ? null : widget_.onPressed,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _iconOrProgress(),
+                    const SizedBox(width: 8),
+                    // Flexible: длинные подписи переносятся, а не рвут
+                    // строку переполнением.
+                    Flexible(
+                      child: Text(
+                        widget_.label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _iconOrProgress() {
-    if (!busy) return Icon(icon ?? Icons.arrow_forward_outlined, size: 18);
+    if (!widget.busy) {
+      return Icon(widget.icon ?? Icons.arrow_forward_outlined,
+          size: 18, color: Colors.white);
+    }
     return const SizedBox(
       width: 16,
       height: 16,
-      child: CircularProgressIndicator(strokeWidth: 2),
+      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
     );
   }
 }
@@ -879,4 +970,52 @@ class _SparklinePainter extends CustomPainter {
       !identical(oldDelegate.values, values) ||
       oldDelegate.values.length != values.length ||
       oldDelegate.drawProgress != drawProgress;
+}
+
+/// Появление блока с мягким подъёмом; [step] задаёт задержку каскада —
+/// последовательные блоки (0, 1, 2…) въезжают друг за другим, экран
+/// «собирается» на глазах, а не мигает готовым списком.
+class VEntrance extends StatefulWidget {
+  final int step;
+  final Widget child;
+
+  const VEntrance({super.key, required this.step, required this.child});
+
+  @override
+  State<VEntrance> createState() => _VEntranceState();
+}
+
+class _VEntranceState extends State<VEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 460),
+  )..forward();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final begin = (widget.step * 0.08).clamp(0.0, 0.9);
+    final end = (begin + 0.5).clamp(0.0, 1.0);
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, child) => Opacity(
+        opacity: curved.value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - curved.value) * 18),
+          child: child,
+        ),
+      ),
+      child: widget.child,
+    );
+  }
 }

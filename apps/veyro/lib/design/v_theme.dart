@@ -91,6 +91,15 @@ ThemeData buildVeyroTheme() {
     scaffoldBackgroundColor: Colors.transparent,
     canvasColor: VColors.background,
     textTheme: textTheme,
+    // Мягкие переходы между экранами: fade + микроподъём вместо резкой
+    // системной анимации.
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.windows: _VeyroPageTransition(),
+        TargetPlatform.linux: _VeyroPageTransition(),
+        TargetPlatform.android: _VeyroPageTransition(),
+      },
+    ),
     dividerTheme: const DividerThemeData(
       color: VColors.elevated,
       thickness: 1,
@@ -218,4 +227,34 @@ ThemeData buildVeyroTheme() {
       textStyle: TextStyle(color: VColors.textPrimary, fontSize: 15),
     ),
   );
+}
+
+/// Переход экранов VEYRO: fade + мягкий микроподъём, коротко и дорого.
+class _VeyroPageTransition extends PageTransitionsBuilder {
+  const _VeyroPageTransition();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.02),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
 }
