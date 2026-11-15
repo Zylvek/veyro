@@ -14,7 +14,7 @@ import 'package:veyro/util/l10n.dart';
 Future<String?> promptPassword(
   BuildContext context, {
   required String title,
-  String confirmLabel = 'Продолжить',
+  String confirmLabel = '',
 }) {
   final controller = TextEditingController();
   var obscure = true;
@@ -34,8 +34,8 @@ Future<String?> promptPassword(
           onSubmitted: (v) =>
               Navigator.of(dialogContext).pop(v.trim().isEmpty ? null : v),
           decoration: InputDecoration(
-            labelText: 'Пароль',
-            hintText: 'Пароль кошелька',
+            labelText: t('password_prompt'),
+            hintText: t('password_hint'),
             suffixIcon: IconButton(
               icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
               onPressed: () => setDialogState(() => obscure = !obscure),
@@ -45,13 +45,13 @@ Future<String?> promptPassword(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Отмена'),
+            child: Text(t('cancel')),
           ),
           FilledButton(
             onPressed: controller.text.trim().isEmpty
                 ? null
                 : () => Navigator.of(dialogContext).pop(controller.text),
-            child: Text(confirmLabel),
+            child: Text(confirmLabel.isEmpty ? t('continue_default') : confirmLabel),
           ),
         ],
       ),
@@ -68,14 +68,14 @@ Future<void> showMnemonicDialog(BuildContext context, String phrase) {
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Seed-фраза'),
+      title: Text(t('mnemonic_dialog_title')),
       content: SingleChildScrollView(
         child: VMnemonicGrid(words: words),
       ),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('Закрыть'),
+          child: Text(t('close_btn')),
         ),
       ],
     ),
@@ -126,12 +126,17 @@ void showError(BuildContext context, Object error) {
   final cls = Theme.of(context);
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text('Ошибка: $error', style: const TextStyle(color: Colors.white)),
+      content: Text(
+          tf(
+            'error_prefix',
+            {'error': '$error'},
+          ),
+          style: const TextStyle(color: Colors.white)),
       backgroundColor: Colors.red.shade800,
       duration: const Duration(seconds: 6),
       behavior: SnackBarBehavior.floating,
       action: SnackBarAction(
-        label: 'Скрыть',
+        label: t('dismiss_snackbar'),
         textColor: cls.colorScheme.primary,
         onPressed: () {},
       ),

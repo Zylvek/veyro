@@ -261,7 +261,253 @@ const Map<String, Map<String, String>> _strings = {
   'also_extra': {'ru': '\n(также: {error})', 'en': '\n(also: {error})'},
   'address_unavailable': {'ru': 'Адрес недоступен.', 'en': 'Address is unavailable.'},
   'copied_snackbar': {'ru': '{label} скопировано', 'en': '{label} copied'},
-  // Выбор актива (плитки без статус-пометок — решение владельца).
+  // Общие компоненты.
+  'copy_tooltip': {'ru': 'Копировать', 'en': 'Copy'},
+  'dismiss_snackbar': {'ru': 'Скрыть', 'en': 'Dismiss'},
+  'password_prompt': {'ru': 'Пароль', 'en': 'Password'},
+  'password_hint': {'ru': 'Пароль кошелька', 'en': 'Wallet password'},
+  'continue_default': {'ru': 'Продолжить', 'en': 'Continue'},
+  'mnemonic_dialog_title': {'ru': 'Seed-фраза', 'en': 'Seed phrase'},
+  'close_btn': {'ru': 'Закрыть', 'en': 'Close'},
+  // Обзор — остатки.
+  'favorites_card': {'ru': 'Избранные активы', 'en': 'Favorite assets'},
+  'mempool_suffix': {'ru': '(мемпул)', 'en': '(mempool)'},
+  'tx_internal_short': {'ru': 'Внутри кошелька', 'en': 'Internal'},
+  'full_history': {'ru': 'Полная история', 'en': 'Full history'},
+  // Детали транзакции.
+  'tx_details_title': {'ru': 'Детали транзакции', 'en': 'Transaction details'},
+  'direction_row': {'ru': 'Направление: {dir}', 'en': 'Direction: {dir}'},
+  'tx_card': {'ru': 'Транзакция', 'en': 'Transaction'},
+  'block_height_row': {'ru': 'Высота блока', 'en': 'Block height'},
+  'in_mempool_short': {'ru': '— (в мемпуле)', 'en': '— (in mempool)'},
+  'fee_row_label': {'ru': 'Комиссия', 'en': 'Fee'},
+  'status_card': {'ru': 'Статус (запрос в ядро)', 'en': 'Status (core query)'},
+  'status_read_error': {
+    'ru': 'Статус не прочитан: {error}',
+    'en': 'Status could not be read: {error}',
+  },
+  'retry_query_btn': {'ru': 'Повторить запрос', 'en': 'Retry query'},
+  'status_confirmed': {'ru': 'Подтверждено сетью', 'en': 'Confirmed by network'},
+  'status_mempool': {
+    'ru': 'В мемпуле — не подтверждено',
+    'en': 'In mempool — not confirmed',
+  },
+  'status_not_found': {'ru': 'Не найдено на сервере', 'en': 'Not found on the server'},
+  'confirmations_row': {'ru': 'Подтверждения', 'en': 'Confirmations'},
+  'server_height_row': {'ru': 'Высота (сервер)', 'en': 'Height (server)'},
+  'network_explorer_card': {'ru': 'Сеть и explorer', 'en': 'Network and explorer'},
+  'network_unknown': {'ru': '— (сеть не определена)', 'en': '— (network unknown)'},
+  'explorer_note': {
+    'ru': 'Explorer для этой сети не настроен ({name} '
+        'поддерживает сети mainnet/testnet3/testnet4).',
+    'en': 'No explorer is configured for this network ({name} '
+        'supports mainnet/testnet3/testnet4).',
+  },
+  'summary_incoming': {
+    'ru': 'Сумма получена на адреса кошелька: {value} сат.',
+    'en': 'The amount was received at the wallet addresses: {value} sat.',
+  },
+  'summary_outgoing': {
+    'ru': 'Чистый уход с кошелька (с учётом возврата сдачи): {value} сат.',
+    'en': 'Net outflow from the wallet (change returned): {value} sat.',
+  },
+  'summary_internal': {
+    'ru': 'Перевод между своими адресами: чистая сумма по кошельку равна нулю.',
+    'en': 'Transfer between own addresses: the net wallet sum is zero.',
+  },
+  'summary_unknown': {
+    'ru': 'Направление «{dir}» отдало ядро — суммы проверьте в explorer по TXID.',
+    'en': 'The core reported direction "{dir}" — check the amounts in an '
+        'explorer by TXID.',
+  },
+  // Детали монеты.
+  'identification_card': {'ru': 'Идентификация', 'en': 'Identification'},
+  'ticker_label': {'ru': 'Тикер', 'en': 'Ticker'},
+  'name_label': {'ru': 'Имя', 'en': 'Name'},
+  'implemented_in_core': {'ru': 'Реализован в ядре', 'en': 'Implemented in the core'},
+  'yes': {'ru': 'да', 'en': 'yes'},
+  'no': {'ru': 'нет', 'en': 'no'},
+  'research_state_card': {
+    'ru': 'Состояние исследования',
+    'en': 'Research status',
+  },
+  'management_card': {
+    'ru': 'Управление — реальный поток',
+    'en': 'Management — the real flow',
+  },
+  'account_row': {'ru': 'Аккаунт', 'en': 'Account'},
+  'funds_not_synced': {
+    'ru': 'Средства ещё не синхронизированы',
+    'en': 'Funds are not synced yet',
+  },
+  'session_closed_note': {
+    'ru': 'Сессия закрыта: разблокировка происходит в центре управления '
+        'по паролю кошелька (реальная, не имитация).',
+    'en': 'Session is closed: unlocking happens in the control center '
+        'with the wallet password (real, not imitated).',
+  },
+  'sync_note': {
+    'ru': 'Баланс и транзакции появляются после явной синхронизации в центре '
+        'управления (btcSync — сетевая операция, из экрана деталей '
+        'не запускается). Receive/Send поверх реальных FFI-вызовов.',
+    'en': 'Balances and transactions appear after an explicit sync in the '
+        'control center (btcSync is a network operation; it is not started '
+        'from the details screen). Receive/Send run over real FFI calls.',
+  },
+  'wallets_read_error': {
+    'ru': 'Не удалось прочитать кошельки: {error}',
+    'en': 'Wallets could not be read: {error}',
+  },
+  'no_wallets_btc': {
+    'ru': 'Кошельков нет — создайте или импортируйте кошелёк, затем '
+        'вернитесь к BTC.',
+    'en': 'No wallets — create or import a wallet, then come back to BTC.',
+  },
+  'btc_wallet_field': {'ru': 'Кошелёк для BTC', 'en': 'Wallet for BTC'},
+  'open_btc_center': {
+    'ru': 'Открыть центр управления BTC',
+    'en': 'Open the BTC control center',
+  },
+  'unlock_manage_btc': {
+    'ru': 'Разблокировать и управлять BTC',
+    'en': 'Unlock and manage BTC',
+  },
+  'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
+  'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
+  // Кошельковый экран (портфель-карточка).
+  'state_unavailable': {'ru': 'Состояние недоступно', 'en': 'State unavailable'},
+  'open_btc_btn': {'ru': 'Открыть BTC', 'en': 'Open BTC'},
+  'secrets_ui_note': {
+    'ru': 'Секреты живут только внутри Rust-ядра: интерфейс ни разу не '
+        'получает seed — лишь адреса и балансы.',
+    'en': 'Secrets live only inside the Rust core: the UI never receives '
+        'the seed — only addresses and balances.',
+  },
+  'session_open_synced': {
+    'ru': 'Сессия открыта, синхронизирована',
+    'en': 'Session open and synced',
+  },
+  'session_open_needs_sync': {
+    'ru': 'Сессия открыта — нужна синхронизация',
+    'en': 'Session open — sync needed',
+  },
+  'connect_tap_note': {
+    'ru': 'Нажмите, чтобы подключиться к Electrum-серверу и синхронизировать '
+        'баланс. Сеть и сервер настраиваются на экране BTC.',
+    'en': 'Tap to connect to the Electrum server and sync the balance. '
+        'Network and server are configured on the BTC screen.',
+  },
+  // Создание кошелька.
+  'create_title': {'ru': 'Создание кошелька', 'en': 'Create a wallet'},
+  'wallet_created_snack': {
+    'ru': 'Кошелёк «{name}» создан',
+    'en': 'Wallet "{name}" created',
+  },
+  'abort_title': {'ru': 'Прервать создание?', 'en': 'Abort creating?'},
+  'abort_body': {
+    'ru': 'Кошелёк ещё не прошёл проверку фразы. Отмена удалит его '
+        'насовсем — вместе с записанной фразой. Если фраза уже переписана '
+        'на бумагу и кошелёк нужен — пройдите проверку до конца.',
+    'en': 'The wallet has not passed the phrase check yet. Cancelling '
+        'deletes it for good — together with the recorded phrase. If the '
+        'phrase is already written down and the wallet is needed — finish '
+        'the check first.',
+  },
+  'delete_and_exit': {'ru': 'Удалить и выйти', 'en': 'Delete and exit'},
+  'back_btn': {'ru': 'Назад', 'en': 'Back'},
+  'step_next': {'ru': 'Далее', 'en': 'Next'},
+  'step_create': {'ru': 'Создать кошелёк', 'en': 'Create'},
+  'step_to_check': {'ru': 'Перейти к проверке', 'en': 'Go to the check'},
+  'step_done': {'ru': 'Готово', 'en': 'Done'},
+  'step_name_title': {'ru': 'Имя кошелька', 'en': 'Wallet name'},
+  'step_name_subtitle': {
+    'ru': 'Шаг 1 из 4. Кошелёк хранится зашифрованным на этом устройстве.',
+    'en': 'Step 1 of 4. The wallet is stored encrypted on this device.',
+  },
+  'step_prefs_title': {'ru': 'Параметры кошелька', 'en': 'Wallet parameters'},
+  'name_field': {'ru': 'Название', 'en': 'Name'},
+  'step_password_title': {'ru': 'Пароль кошелька', 'en': 'Wallet password'},
+  'step_password_subtitle': {
+    'ru': 'Шаг 2 из 4. Расшифровывает хранилище на этом устройстве; '
+        'восстановление пароля невозможно.',
+    'en': 'Step 2 of 4. It decrypts the storage on this device; password '
+        'recovery is impossible.',
+  },
+  'encryption_title': {'ru': 'Шифрование', 'en': 'Encryption'},
+  'password_field': {'ru': 'Пароль', 'en': 'Password'},
+  'password_min_helper': {
+    'ru': 'Минимум {n} символов',
+    'en': 'At least {n} characters',
+  },
+  'password_repeat_field': {'ru': 'Повтор пароля', 'en': 'Repeat password'},
+  'password_min_note': {
+    'ru': 'Пароль короче {n} символов — кнопка создания заблокирована.',
+    'en': 'With a password shorter than {n} characters the create button '
+        'stays disabled.',
+  },
+  'step_seed_title': {'ru': 'Резервная фраза', 'en': 'Recovery phrase'},
+  'step_seed_subtitle': {
+    'ru': 'Шаг 3 из 4. Показывается один раз — запишите её на бумаге.',
+    'en': 'Step 3 of 4. Shown once — write it down on paper.',
+  },
+  'seed_header': {'ru': 'BIP39-фраза — 24 слова', 'en': 'BIP39 phrase — 24 words'},
+  'shown_once_chip': {'ru': 'показ один раз', 'en': 'shown once'},
+  'wrote_it_down_btn': {
+    'ru': 'Я записал фразу на бумаге',
+    'en': 'I wrote the phrase down',
+  },
+  'step_check_title': {'ru': 'Проверка фразы', 'en': 'Phrase check'},
+  'step_check_subtitle': {
+    'ru': 'Шаг 4 из 4. Введите слова на выбранных позициях.',
+    'en': 'Step 4 of 4. Enter the words at the chosen positions.',
+  },
+  'enter_words_title': {'ru': 'Введите слова', 'en': 'Enter the words'},
+  'word_n_field': {'ru': 'Слово № {n}', 'en': 'Word #{n}'},
+  'position_n_of_m': {
+    'ru': 'Позиция {n} из {m}',
+    'en': 'Position {n} of {m}',
+  },
+  'check_after_all_words': {
+    'ru': 'Проверка пройдёт после ввода всех четырёх слов.',
+    'en': 'The check runs after all four words are entered.',
+  },
+  'matches_chip': {'ru': 'Совпадает', 'en': 'Matches'},
+  // Импорт кошелька.
+  'import_title': {'ru': 'Импорт кошелька', 'en': 'Import a wallet'},
+  'wallet_restored_snack': {
+    'ru': 'Кошелёк «{name}» восстановлен',
+    'en': 'Wallet "{name}" restored',
+  },
+  'import_from_phrase_title': {
+    'ru': 'Восстановление из фразы',
+    'en': 'Restore from a phrase',
+  },
+  'import_from_phrase_subtitle': {
+    'ru': 'Собственный BIP39-фразы достаточно для полного восстановления. '
+        'Фраза остаётся на устройстве.',
+    'en': 'A valid BIP39 phrase alone is enough for a full restoration. '
+        'The phrase never leaves the device.',
+  },
+  'wallet_card': {'ru': 'Кошелёк', 'en': 'Wallet'},
+  'wallet_name_field': {'ru': 'Название кошелька', 'en': 'Wallet name'},
+  'phrase_field': {'ru': 'BIP39-фраза (12 или 24 слова)', 'en': 'BIP39 phrase (12 or 24 words)'},
+  'words_entered': {'ru': 'Слов введено: {count}', 'en': 'Words entered: {count}'},
+  'words_counter': {
+    'ru': 'Слов: {count} — нужно 12 или 24',
+    'en': 'Words: {count} — 12 or 24 needed',
+  },
+  'passphrase_field': {
+    'ru': 'Passphrase (25-е слово, необязательно)',
+    'en': 'Passphrase (25th word, optional)',
+  },
+  'device_encryption_title': {
+    'ru': 'Шифрование на этом устройстве',
+    'en': 'Encryption on this device',
+  },
+  'restore_wallet_btn': {
+    'ru': 'Восстановить кошелёк',
+    'en': 'Restore the wallet',
+  },
   'implemented_tag': {'ru': '· реализован', 'en': '· implemented'},
   // Отправка BTC.
   'send_title': {'ru': 'Отправить BTC', 'en': 'Send BTC'},

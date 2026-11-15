@@ -8,22 +8,28 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/links.dart';
+import 'package:veyro/util/network_names.dart';
 
 /// Общие подписи направлений истории (используются также экраном истории).
 String directionLabel(String direction) {
   switch (direction) {
     case 'incoming':
-      return 'Получение';
+      return t('dir_incoming');
     case 'outgoing':
-      return 'Отправка';
+      return t('dir_outgoing');
     case 'internal':
-      return 'Внутри кошелька';
+      return t('tx_internal_short');
     default:
-      return 'Направление: $direction';
+      return tf(
+        'direction_row',
+        {'dir': direction},
+      );
   }
 }
 
@@ -40,15 +46,15 @@ IconData directionIcon(String direction) {
   }
 }
 
-/// Название сети по коду ядра, по-русски (для прочих — null).
+/// Название сети по коду ядра, локализованное (для прочих — null).
 String? networkName(int? networkCode) {
   switch (networkCode) {
     case 0:
-      return 'Bitcoin · основная сеть (mainnet)';
+      return ruNetworkText('Bitcoin mainnet');
     case 1:
-      return 'Bitcoin · тестовая сеть (testnet)';
+      return ruNetworkText('Bitcoin testnet3');
     case 2:
-      return 'Bitcoin · тестовая сеть (testnet4)';
+      return ruNetworkText('Bitcoin testnet4');
     default:
       return null;
   }
@@ -139,17 +145,22 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   String get _directionNote {
     switch (widget.item.direction) {
       case 'incoming':
-        return 'Сумма получена на адреса кошелька: '
-            '${groupDigits(widget.item.receivedSat.toInt())} сат.';
+        return tf(
+          'summary_incoming',
+          {'value': groupDigits(widget.item.receivedSat.toInt())},
+        );
       case 'outgoing':
-        return 'Чистый уход с кошелька (с учётом возврата сдачи): '
-            '${groupDigits(widget.item.sentNetSat.toInt())} сат.';
+        return tf(
+          'summary_outgoing',
+          {'value': groupDigits(widget.item.sentNetSat.toInt())},
+        );
       case 'internal':
-        return 'Перевод между своими адресами: чистая сумма по кошельку '
-            'равна нулю.';
+        return t('summary_internal');
       default:
-        return 'Направление «${widget.item.direction}» отдало ядро — '
-            'суммы проверьте в explorer по TXID.';
+        return tf(
+          'summary_unknown',
+          {'dir': widget.item.direction},
+        );
     }
   }
 
@@ -158,7 +169,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
     final item = widget.item;
     final inMempool = item.height < 1; // −1 = mempool (см. FFI-док).
     return Scaffold(
-      appBar: AppBar(title: const Text('Детали транзакции')),
+      appBar: AppBar(title: Text(t('tx_details_title'))),
       body: RefreshIndicator(
         onRefresh: _loadStatus,
         child: Center(
@@ -174,7 +185,6 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
                 const SizedBox(height: 12),
                 _buildExplorerCard(context),
                 const SizedBox(height: 12),
-
               ],
             ),
           ),
@@ -211,7 +221,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   Widget _buildHeadCard(BuildContext context) {
     final item = widget.item;
     return VCard(
-      title: 'Транзакция',
+      title: t('tx_card'),
       icon: Icons.receipt_long_outlined,
       children: [
         Row(
@@ -234,14 +244,21 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         const SizedBox(height: 4),
         Text(_directionNote, style: Theme.of(context).textTheme.bodySmall),
         const Divider(height: 24),
-        _row(context, 'Высота блока',
-            item.height >= 1 ? '${item.height}' : '— (в мемпуле)'),
+        _row(context, t('block_height_row'),
+            item.height >= 1 ? '${item.height}' : t('in_mempool_short')),
         _row(
           context,
-          'Комиссия',
+          t('fee_row_label'),
           item.feeSat != null
-              ? '${satToBtcString(item.feeSat!.toInt())} BTC '
-                  '(${groupDigits(item.feeSat!.toInt())} сат)'
+              ? tf(
+                  'tx_fee_row',
+                  {
+                    'btc': satToBtcString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                    'vsize': '0',
+                    'rate': '0',
+                  },
+                )
               : '—',
         ),
       ],
@@ -251,26 +268,30 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   Widget _buildStatusCard(BuildContext context, bool inMempool) {
     final status = _status;
     return VCard(
-      title: 'Статус (запрос в ядро)',
+      title: t('status_card'),
       icon: Icons.verified_outlined,
       children: [
         if (_statusLoading)
-          const Padding(
-            padding: EdgeInsets.all(10),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
           )
         else if (_statusError != null)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Статус не прочитан: $_statusError',
+              Text(tf(
+                'status_read_error',
+                {'error': '$_statusError'},
+              ),
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall!
                       .copyWith(color: VColors.error)),
               const SizedBox(height: 8),
-              VButton.secondary('Повторить запрос',
-                  onPressed: _loadStatus),
+              VButton.secondary(t('retry_query_btn'), onPressed: _loadStatus),
             ],
           )
         else if (status == null)
@@ -281,22 +302,25 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
             runSpacing: 8,
             children: [
               switch (status.state) {
-                'confirmed' => const VStatusChip('Подтверждено сетью',
+                'confirmed' => VStatusChip(t('status_confirmed'),
                     kind: VChipKind.success),
-                'mempool' => const VStatusChip('В мемпуле — не подтверждено',
+                'mempool' => VStatusChip(t('status_mempool'),
                     kind: VChipKind.warning),
-                'unknown' => const VStatusChip(
-                    'Не найдено на сервере', kind: VChipKind.error),
-                _ => VStatusChip('Статус: ${status.state}',
+                'unknown' => VStatusChip(
+                    t('status_not_found'), kind: VChipKind.error),
+                _ => VStatusChip(
+                    tf(
+                      'tx_status_chip',
+                      {'status': status.state},
+                    ),
                     kind: VChipKind.neutral),
               },
             ],
           ),
           const SizedBox(height: 10),
-          _row(context, 'Подтверждения', status.confirmations?.toString() ?? '—'),
-          _row(context, 'Высота (сервер)', status.height?.toString() ?? '—'),
+          _row(context, t('confirmations_row'), status.confirmations?.toString() ?? '—'),
+          _row(context, t('server_height_row'), status.height?.toString() ?? '—'),
           const SizedBox(height: 6),
-
         ],
         if (status == null && !_statusLoading && _statusError == null)
           const SizedBox.shrink(),
@@ -310,23 +334,23 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
     final code = _networkCode;
     final url = code == null ? null : explorerTxUrl(code, widget.item.txid);
     return VCard(
-      title: 'Сеть и explorer',
+      title: t('network_explorer_card'),
       icon: Icons.public_outlined,
       children: [
-        _row(context, 'Сеть', networkName(code) ?? '— (сеть не определена)'),
+        _row(context, t('network_label'), networkName(code) ?? t('network_unknown')),
         const SizedBox(height: 8),
         if (url != null) ...[
           VMonoCopyRow(label: 'Explorer', value: url),
           const SizedBox(height: 6),
-
         ] else
           Text(
-            'Explorer для этой сети не настроен ($kBtcExplorerName '
-            'поддерживает сети mainnet/testnet3/testnet4).',
+            tf(
+              'explorer_note',
+              {'name': kBtcExplorerName},
+            ),
             style: Theme.of(context).textTheme.bodySmall,
           ),
       ],
     );
   }
-
 }

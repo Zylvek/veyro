@@ -14,9 +14,11 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -147,7 +149,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         title: Text(_asset.ticker),
         actions: [
           IconButton(
-            tooltip: isFavorite ? 'Убрать из избранного' : 'В избранное',
+            tooltip: isFavorite ? t('fav_remove_tooltip') : t('fav_add_tooltip'),
             icon: Icon(
               isFavorite ? Icons.star : Icons.star_outline,
               color: isFavorite ? VColors.warning : VColors.textSecondary,
@@ -195,7 +197,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _asset.network,
+                networkLabel(_asset.network),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],
@@ -208,12 +210,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   Widget _buildIdentityCard(BuildContext context) {
     return VCard(
       icon: Icons.badge_outlined,
-      title: 'Идентификация',
+      title: t('identification_card'),
       children: [
-        kvRow('Тикер', _asset.ticker, mono: true),
-        kvRow('Имя', _asset.name),
-        kvRow('Сеть', _asset.network),
-        kvRow('Реализован в ядре', _asset.implemented ? 'да' : 'нет'),
+        kvRow(t('ticker_label'), _asset.ticker, mono: true),
+        kvRow(t('name_label'), _asset.name),
+        kvRow(t('network_label'), networkLabel(_asset.network)),
+        kvRow(
+          t('implemented_in_core'),
+          _asset.implemented ? t('yes') : t('no'),
+        ),
       ],
     );
   }
@@ -223,60 +228,58 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     // осталась только честная заметка о состоянии исследования.
     return VCard(
       icon: Icons.verified_outlined,
-      title: 'Состояние исследования',
+      title: t('research_state_card'),
       children: [
         Text(_asset.note, style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
 
-
-
   Widget _buildBtcCard(BuildContext context) {
     final session = _session;
     return VCard(
       icon: Icons.settings_backup_restore,
-      title: 'Управление — реальный поток',
+      title: t('management_card'),
       children: [
         if (!_sessionChecked)
           const Padding(
             padding: EdgeInsets.all(8),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
           )
         else if (session != null) ...[
-          kvRow('Сеть', ruNetworkText(session.networkDisplay) ?? '—'),
-          VMonoCopyRow(label: 'Сервер', value: session.serverUrl),
-          kvRow('Аккаунт', "m/84'/0'/${session.account}'"),
+          kvRow(t('network_label'), ruNetworkText(session.networkDisplay) ?? '—'),
+          VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
+          kvRow(t('account_row'), "m/84'/0'/${session.account}'"),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               if (session.hasSpendables)
-                const VStatusChip('Есть синхронизированные средства',
-                    kind: VChipKind.success)
+                VStatusChip(t('synced_funds'), kind: VChipKind.success)
               else
-                const VStatusChip('Средства ещё не синхронизированы',
-                    kind: VChipKind.warning),
+                VStatusChip(t('funds_not_synced'), kind: VChipKind.warning),
             ],
           ),
         ] else
           Text(
-            'Сессия закрыта: разблокировка происходит в центре управления '
-            'по паролю кошелька (реальная, не имитация).',
+            t('session_closed_note'),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         const Divider(height: 22),
         Text(
-          'Баланс и транзакции появляются после явной синхронизации в центре '
-          'управления (btcSync — сетевая операция, из экрана деталей '
-          'не запускается). Receive/Send поверх реальных FFI-вызовов.',
+          t('sync_note'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         if (_walletError != null) ...[
           Text(
-            'Не удалось прочитать кошельки: $_walletError',
+            tf(
+              'wallets_read_error',
+              {'error': '$_walletError'},
+            ),
             style: Theme.of(context)
                 .textTheme
                 .bodySmall!
@@ -284,15 +287,14 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           ),
         ] else if (_wallets != null && _wallets!.isEmpty) ...[
           Text(
-            'Кошельков нет — создайте или импортируйте кошелёк, затем '
-            'вернитесь к BTC.',
+            t('no_wallets_btc'),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ] else if (_wallets != null && _wallets!.length > 1) ...[
           DropdownButtonFormField<String>(
             initialValue: _chosenWallet?.id,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Кошелёк для BTC'),
+            decoration: InputDecoration(labelText: t('btc_wallet_field')),
             items: [
               for (final w in _wallets!)
                 DropdownMenuItem(value: w.id, child: Text(w.name)),
@@ -307,8 +309,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         ],
         VButton.primary(
           session != null
-              ? 'Открыть центр управления BTC'
-              : 'Разблокировать и управлять BTC',
+              ? t('open_btc_center')
+              : t('unlock_manage_btc'),
           icon: Icons.lock_open_outlined,
           onPressed: _chosenWallet == null ? null : _openBtcWorkbench,
         ),

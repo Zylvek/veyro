@@ -566,7 +566,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (favorites.isEmpty) return const SizedBox.shrink();
     return VCard(
       icon: Icons.star_outline,
-      title: 'Избранные активы',
+      title: t('favorites_card'),
       children: [
         Wrap(
           spacing: 8,
@@ -640,7 +640,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
                 if (sync != null && sync.unconfirmedDeltaSat.toInt() != 0)
                   Text(
-                    '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} BTC (мемпул)',
+                    '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} BTC ${t('mempool_suffix')}',
                     style: TextStyle(
                       fontFamily: kMonoFont,
                       fontSize: 11,
@@ -732,9 +732,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               title: Text(
                 switch (item.direction) {
-                  'incoming' => 'Получение BTC',
-                  'outgoing' => 'Отправка BTC',
-                  'internal' => 'Внутри кошелька',
+                  'incoming' => t('dir_incoming'),
+                  'outgoing' => t('dir_outgoing'),
+                  'internal' => t('tx_internal_short'),
                   _ => item.direction,
                 },
                 style: const TextStyle(
@@ -743,7 +743,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               subtitle: Text(
-                item.height >= 1 ? 'высота ${item.height}' : 'в мемпуле',
+                item.height >= 1
+                    ? tf(
+                        'height_n',
+                        {'height': '${item.height}'},
+                      )
+                    : t('in_mempool'),
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall!
@@ -778,7 +783,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           const SizedBox(height: 4),
           VButton.secondary(
-            'Полная история',
+            t('full_history'),
             icon: Icons.history,
             onPressed: () => _push(const HistoryScreen(), reload: true),
           ),

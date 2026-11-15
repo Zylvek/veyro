@@ -12,6 +12,7 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'dashboard_screen.dart';
@@ -146,7 +147,10 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Кошелёк «${_created!.info.name}» создан'),
+        content: Text(tf(
+          'wallet_created_snack',
+          {'name': _created!.info.name},
+        )),
         backgroundColor: VColors.success,
       ),
     );
@@ -164,11 +168,9 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     // строго vault-файл этого сценария, другой трогать нельзя.
     final leave = await confirmAction(
       context,
-      title: 'Прервать создание?',
-      body: 'Кошелёк ещё не прошёл проверку фразы. Отмена удалит его '
-          'насовсем — вместе с записанной фразой. Если фраза уже переписана '
-          'на бумагу и кошелёк нужен — пройдите проверку до конца.',
-      confirmLabel: 'Удалить и выйти',
+      title: t('abort_title'),
+      body: t('abort_body'),
+      confirmLabel: t('delete_and_exit'),
       destructive: true,
     );
     if (!leave) return false;
@@ -200,7 +202,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
         if (leave && mounted) navigator.pop();
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Создание кошелька')),
+        appBar: AppBar(title: Text(t('create_title'))),
         body: VScreen(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -236,7 +238,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
                   if (_step != _Step.profile)
                     TextButton(
                       onPressed: _busy ? null : () => _goBack(),
-                      child: const Text('Назад'),
+                      child: Text(t('back_btn')),
                     ),
                   const Spacer(),
                   Expanded(
@@ -259,13 +261,13 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
   String _stepActionButtonLabel() {
     switch (_step) {
       case _Step.profile:
-        return 'Далее';
+        return t('step_next');
       case _Step.password:
-        return 'Создать кошелёк';
+        return t('step_create');
       case _Step.phrase:
-        return 'Перейти к проверке';
+        return t('step_to_check');
       case _Step.verify:
-        return 'Готово';
+        return t('step_done');
     }
   }
 
@@ -294,21 +296,20 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const VSectionHeader(
-          title: 'Имя кошелька',
-          subtitle: 'Шаг 1 из 4. Кошелёк храняется зашифрованным на этом '
-              'устройстве.',
+        VSectionHeader(
+          title: t('step_name_title'),
+          subtitle: t('step_name_subtitle'),
         ),
         const SizedBox(height: 16),
         VCard(
           icon: Icons.badge_outlined,
-          title: 'Параметры кошелька',
+          title: t('step_prefs_title'),
           children: [
             TextField(
               controller: _nameController,
               autofocus: true,
               maxLength: 40,
-              decoration: const InputDecoration(labelText: 'Название'),
+              decoration: InputDecoration(labelText: t('name_field')),
               onChanged: (_) => setState(() {}),
             ),
           ],
@@ -321,24 +322,26 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const VSectionHeader(
-          title: 'Пароль кошелька',
-          subtitle: 'Шаг 2 из 4. Расшифровывает хранилище на этом устройстве; '
-              'восстановление пароля невозможно.',
+        VSectionHeader(
+          title: t('lock_password_field'),
+          subtitle: t('step_password_subtitle'),
         ),
         const SizedBox(height: 16),
         VCard(
           icon: Icons.password_outlined,
-          title: 'Шифрование',
+          title: t('encryption_title'),
           children: [
             TextField(
               controller: _passwordController,
               autofocus: true,
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
-              decoration: const InputDecoration(
-                labelText: 'Пароль',
-                helperText: 'Минимум $_kMinPasswordLength символов',
+              decoration: InputDecoration(
+                labelText: t('password_field'),
+                helperText: tf(
+                  'password_min_helper',
+                  {'n': '$_kMinPasswordLength'},
+                ),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -347,14 +350,17 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               controller: _confirmController,
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
-              decoration: const InputDecoration(labelText: 'Повтор пароля'),
+              decoration:
+                  InputDecoration(labelText: t('password_repeat_field')),
               onChanged: (_) => setState(() {}),
             ),
             if (_passwordController.text.length < _kMinPasswordLength) ...[
               const SizedBox(height: 8),
               Text(
-                'Пароль короче $_kMinPasswordLength символов — кнопка '
-                'создания заблокирована.',
+                tf(
+                  'password_min_note',
+                  {'n': '$_kMinPasswordLength'},
+                ),
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall!
@@ -372,19 +378,18 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const VSectionHeader(
-          title: 'Резервная фраза',
-          subtitle: 'Шаг 3 из 4. Показывается один раз — запишите её на '
-              'бумаге.',
+        VSectionHeader(
+          title: t('step_seed_title'),
+          subtitle: t('step_seed_subtitle'),
         ),
         const SizedBox(height: 16),
         VCard(
           icon: Icons.key_outlined,
-          title: 'BIP39-фраза — 24 слова',
+          title: t('seed_header'),
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: VStatusChip('показ один раз', kind: VChipKind.warning),
+              child: VStatusChip(t('shown_once_chip'), kind: VChipKind.warning),
             ),
             const SizedBox(height: 12),
             VMnemonicGrid(words: words),
@@ -393,7 +398,7 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               value: _wroteItDown,
-              title: const Text('Я записал фразу на бумаге'),
+              title: Text(t('wrote_it_down_btn')),
               onChanged: (v) => setState(() => _wroteItDown = v ?? false),
             ),
           ],
@@ -407,14 +412,14 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const VSectionHeader(
-          title: 'Проверка фразы',
-          subtitle: 'Шаг 4 из 4. Введите слова на выбранных позициях.',
+        VSectionHeader(
+          title: t('step_check_title'),
+          subtitle: t('step_check_subtitle'),
         ),
         const SizedBox(height: 16),
         VCard(
           icon: Icons.fact_check_outlined,
-          title: 'Введите слова',
+          title: t('enter_words_title'),
           children: [
             for (final entry in _phraseChecks.entries)
               Padding(
@@ -423,21 +428,29 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
                   controller: entry.key,
                   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]'))],
                   decoration: InputDecoration(
-                    labelText: 'Слово № ${entry.value + 1}',
-                    helperText: 'Позиция '
-                        '${entry.value + 1} из ${words.length}',
+                    labelText: tf(
+                      'word_n_field',
+                      {'n': '${entry.value + 1}'},
+                    ),
+                    helperText: tf(
+                      'position_n_of_m',
+                      {
+                        'n': '${entry.value + 1}',
+                        'm': '${words.length}',
+                      },
+                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
             if (!_canProceed)
               Text(
-                'Проверка пройдёт после ввода всех четырёх слов.',
+                t('check_after_all_words'),
                 style: Theme.of(context).textTheme.bodySmall,
               )
             else ...[
               const SizedBox(height: 2),
-              const VStatusChip('Совпадает', kind: VChipKind.success),
+              VStatusChip(t('matches_chip'), kind: VChipKind.success),
             ],
           ],
         ),

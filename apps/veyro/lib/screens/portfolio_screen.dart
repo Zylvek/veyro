@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -70,7 +71,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   Future<void> _showSeedPhrase() async {
     final password = await promptPassword(
       context,
-      title: 'Показать seed-фразу «${widget.info.name}»',
+      title: tf(
+        'reveal_title',
+        {'name': widget.info.name},
+      ),
     );
     if (password == null || !mounted) return;
     try {
@@ -108,10 +112,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   ),
                 ] else if (_error != null) ...[
                   SectionCard(
-                    title: 'Состояние недоступно',
+                    title: t('state_unavailable'),
                     icon: Icons.error_outline,
                     children: [
-                      Text('Ошибка: $_error'),
+                      Text(tf(
+                        'error_prefix',
+                        {'error': '$_error'},
+                      )),
                     ],
                   ),
                 ] else ...[
@@ -120,20 +127,23 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   FilledButton.icon(
                     onPressed: _openBtc,
                     icon: const Icon(Icons.currency_bitcoin),
-                    label: Text(
-                        _btcState == null ? 'Разблокировать BTC' : 'Открыть BTC'),
+                    label: Text(_btcState == null
+                        ? t('unlock_btc_btn')
+                        : t('open_btc_btn')),
                   ),
                 ],
                 const SizedBox(height: 16),
-                OutlinedButton.icon(
+                FilledButton.icon(
                   onPressed: _showSeedPhrase,
                   icon: const Icon(Icons.key_outlined),
-                  label: const Text('Показать seed-фразу'),
+                  label: Text(tf(
+                    'reveal_title',
+                    {'name': widget.info.name},
+                  )),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Секреты живут только внутри Rust-ядра: интерфейс ни разу не '
-                  'получает seed — лишь адреса и балансы.',
+                  t('secrets_ui_note'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white38, fontSize: 12),
                 ),
@@ -169,12 +179,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Bitcoin',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Text('Bitcoin',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                         Text(
                           unlocked
                               ? '${ruNetworkText(state.networkDisplay)} · ${state.serverUrl}'
-                              : 'Сессия не открыта',
+                              : t('session_not_open'),
                           style: const TextStyle(color: Colors.white60, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -196,8 +206,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   ),
                   child: Text(
                     state.hasSpendables
-                        ? 'Сессия открыта, синхронизирована'
-                        : 'Сессия открыта — нужна синхронизация',
+                        ? t('session_open_synced')
+                        : t('session_open_needs_sync'),
                     style: TextStyle(
                       fontSize: 12,
                       color: state.hasSpendables ? Colors.tealAccent : Colors.orangeAccent,
@@ -206,8 +216,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 )
               else
                 Text(
-                  'Нажмите, чтобы подключиться к Electrum-серверу и синхронизировать '
-                  'баланс. Сеть и сервер настраиваются на экране BTC.',
+                  t('connect_tap_note'),
                   style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
                 ),
             ],

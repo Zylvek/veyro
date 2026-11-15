@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/ambience.dart';
+import 'package:veyro/util/l10n.dart';
 
 /// Максимальная ширина основного содержимого на desktop (аудит UI:
 /// «ориентировочно 1400 px»; экраны перестают быть узкой колонкой).
@@ -438,12 +439,12 @@ class VMonoCopyRow extends StatelessWidget {
         ),
         Expanded(child: VMono(value, fontSize: 12.5)),
         IconButton(
-          tooltip: 'Копировать',
+          tooltip: t('copy_tooltip'),
           icon: Icon(Icons.copy_outlined, size: 16, color: VColors.textSecondary),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: value));
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label скопировано')),
+              SnackBar(content: Text(tf('copied_snackbar', {'label': label}))),
             );
           },
         ),

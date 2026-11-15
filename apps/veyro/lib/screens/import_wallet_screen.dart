@@ -7,6 +7,7 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'dashboard_screen.dart';
@@ -57,7 +58,10 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Кошелёк «${restored.name}» восстановлен'),
+          content: Text(tf(
+            'wallet_restored_snack',
+            {'name': restored.name},
+          )),
           backgroundColor: VColors.success,
         ),
       );
@@ -77,27 +81,26 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
     final wordCount =
         _phraseController.text.trim().split(RegExp(r'\s+')).length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Импорт кошелька')),
+      appBar: AppBar(title: Text(t('import_title'))),
       body: VScreen(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const VSectionHeader(
-              title: 'Восстановление из фразы',
-              subtitle: 'Собственный BIP39-фразы достаточно для полного '
-                  'восстановления. Фраза остаётся на устройстве.',
+            VSectionHeader(
+              title: t('import_from_phrase_title'),
+              subtitle: t('import_from_phrase_subtitle'),
             ),
             const SizedBox(height: 16),
             VCard(
               icon: Icons.text_fields_outlined,
-              title: 'Кошелёк',
+              title: t('wallet_card'),
               children: [
                 TextField(
                   controller: _nameController,
                   autofocus: true,
                   maxLength: 40,
-                  decoration: const InputDecoration(
-                    labelText: 'Название кошелька',
+                  decoration: InputDecoration(
+                    labelText: t('wallet_name_field'),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -108,10 +111,17 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(
-                    labelText: 'BIP39-фраза (12 или 24 слова)',
-                    helperText: wordCount >= 12 && wordCount <= 24
-                        ? 'Слов введено: $wordCount'
-                        : 'Слов: $wordCount — нужно 12 или 24',
+                    labelText: t('phrase_field'),
+                    helperText:
+                        wordCount >= 12 && wordCount <= 24
+                            ? tf(
+                                'words_entered',
+                                {'count': '$wordCount'},
+                              )
+                            : tf(
+                                'words_counter',
+                                {'count': '$wordCount'},
+                              ),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -119,8 +129,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                 TextField(
                   controller: _passphraseController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Passphrase (25-е слово, необязательно)',
+                  decoration: InputDecoration(
+                    labelText: t('passphrase_field'),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -129,13 +139,14 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
             const SizedBox(height: 16),
             VCard(
               icon: Icons.password_outlined,
-              title: 'Шифрование на этом устройстве',
+              title: t('device_encryption_title'),
               children: [
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  decoration: const InputDecoration(labelText: 'Пароль'),
+                  decoration:
+                      InputDecoration(labelText: t('password_field')),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
@@ -143,14 +154,15 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   controller: _confirmController,
                   obscureText: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  decoration: const InputDecoration(labelText: 'Повтор пароля'),
+                  decoration:
+                      InputDecoration(labelText: t('password_repeat_field')),
                   onChanged: (_) => setState(() {}),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             VButton.primary(
-              'Восстановить кошелёк',
+              t('restore_wallet_btn'),
               icon: Icons.restore_outlined,
               busy: _busy,
               onPressed: _valid ? _restore : null,
