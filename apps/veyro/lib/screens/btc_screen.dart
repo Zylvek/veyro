@@ -119,28 +119,39 @@ class _BtcScreenState extends State<BtcScreen> {
       if (cached) {
         password = '';
       } else {
+        // Никакой тишины: кэша нет или проверка не удалась — честный
+        // диалог (например, старая DLL рядом с новым exe).
         password = await promptPassword(
-              context,
-              title: tf('btc_unlock_title', {'name': widget.info.name}),
-              confirmLabel: t('connect_btn'),
-            ) ??
-            '';
+            context,
+            title: tf('btc_unlock_title', {'name': widget.info.name}),
+            confirmLabel: t('connect_btn'),
+          ) ??
+          '';
         if (!mounted) return;
       }
     } catch (_) {
       if (!mounted) return;
-      password = '';
+      password = await promptPassword(
+          context,
+          title: tf('btc_unlock_title', {'name': widget.info.name}),
+          confirmLabel: t('connect_btn'),
+        ) ??
+        '';
+      if (!mounted) return;
     }
     if (password.isEmpty) {
       // Пустая строка допустима только при живом кэше; иначе это отмена
       // диалога — ничего не делаем.
+      var cacheKnown = true;
       try {
         final cached = await sessionPasswordCached();
-        if (!cached) {
-          debugPrint('veyro-flow: password dialog cancelled');
-          return;
-        }
+        cacheKnown = cached;
       } catch (_) {
+        // Проверка недоступна — идём в ядро за честной ошибкой.
+        cacheKnown = true;
+      }
+      if (!cacheKnown) {
+        debugPrint('veyro-flow: password dialog cancelled');
         return;
       }
     }

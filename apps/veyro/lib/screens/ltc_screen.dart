@@ -111,6 +111,9 @@ class _LtcScreenState extends State<LtcScreen> {
       if (cached) {
         password = '';
       } else {
+        // Никакой тишины: кэша нет или проверка не удалась — честный
+        // диалог (владелец мог запустить старую DLL рядом с новым exe,
+        // тогда именно эта ветка спасает от «кнопка жмётся, а ничего»).
         password = await promptPassword(
               context,
               title: tf('ltc_unlock_title', {'name': widget.info.name}),
@@ -121,17 +124,27 @@ class _LtcScreenState extends State<LtcScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      password = '';
+      password = await promptPassword(
+            context,
+            title: tf('ltc_unlock_title', {'name': widget.info.name}),
+            confirmLabel: t('connect_btn'),
+          ) ??
+          '';
+      if (!mounted) return;
     }
     if (password.isEmpty) {
       // Пустая строка допустима только при живом кэше; иначе — отмена
       // диалога: ничего не делаем.
+      var cacheKnown = true;
       try {
         final cached = await sessionPasswordCached();
-        if (!cached) return;
+        cacheKnown = cached;
       } catch (_) {
-        return;
+        // Проверка недоступна: идём разблокироваться в ядро — там честная
+        // ошибка «no cached password» вместо тишины.
+        cacheKnown = true;
       }
+      if (!cacheKnown) return;
     }
     if (!mounted) return;
     setState(() {
