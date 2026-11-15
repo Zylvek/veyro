@@ -212,7 +212,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           Positioned.fill(
             child: IgnorePointer(
               child: VeyroMarkIntro(
-                size: 300,
+                size: 480,
                 withReveal: true,
                 onDone: _finishIntro,
               ),
@@ -238,7 +238,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           body: Center(
             child: LogoLoader(
               mode: LogoLoaderMode.backgroundToLoading,
-              size: 300,
+              size: 480,
             ),
           ),
         );
@@ -260,14 +260,15 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       body: AmbienceSurface(
         child: Stack(
           children: [
-            // Фон формы — НЕподвижный приглушённый знак (решение
-            // владельца: круги сходились в интро и застыли); при входе
-            // он станет стартом анимации 03 (разгон в загрузку).
+            // Фон формы — НЕподвижный приглушённый знак, крупнее панели:
+            // выглядывает из-под стекла сверху и снизу (решение
+            // владельца: «а где лого с фона?»). При входе он станет
+            // стартом анимации 03 (разгон в загрузку).
             if (withBackdrop)
               const Positioned.fill(
                 child: Center(
                   child: VeyroMark(
-                    size: 300,
+                    size: 480,
                     distance: kBackdropDistance,
                     radius: kBackdropRadius,
                     opacity: kBackdropOpacity,
@@ -284,6 +285,9 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                       borderRadius:
                           const BorderRadius.all(Radius.circular(24)),
                       sigma: 22,
+                      // Панель почти прозрачная: матовое стекло без
+                      // плотной заливки (решение владельца).
+                      fillOpacity: 0.2,
                       child: Padding(
                         padding: const EdgeInsets.all(28),
                         child: Column(
