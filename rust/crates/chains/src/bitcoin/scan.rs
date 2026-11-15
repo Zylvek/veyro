@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use bitcoin::Txid;
 
 use crate::bitcoin::keys::DerivedAddress;
-use crate::bitcoin::keys::{AccountPubkeys, BRANCH_EXTERNAL, BRANCH_INTERNAL};
+use crate::bitcoin::keys::{AddressSource, BRANCH_EXTERNAL, BRANCH_INTERNAL};
 use crate::electrum::{Gateway, HistoryEntry, ScriptBalance, Utxo};
 use crate::{electrum_scripthash_hex, ChainError};
 
@@ -67,9 +67,9 @@ impl Discovery {
 /// the gateway for the history of each. Stops each branch after `gap_limit`
 /// consecutive unused addresses past the last used one (hard-capped to guard
 /// against runaway servers/servers with lies).
-pub fn discover<G: Gateway + ?Sized>(
+pub fn discover<A: AddressSource, G: Gateway + ?Sized>(
     gateway: &G,
-    account: &AccountPubkeys,
+    account: &A,
     gap_limit: u32,
 ) -> Result<Discovery, ChainError> {
     if gap_limit == 0 {
@@ -88,9 +88,9 @@ pub fn discover<G: Gateway + ?Sized>(
 
 const HARD_SCAN_CAP: u32 = 10_000;
 
-fn discover_branch<G: Gateway + ?Sized>(
+fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
     gateway: &G,
-    account: &AccountPubkeys,
+    account: &A,
     branch: u32,
     gap_limit: u32,
 ) -> Result<BranchDiscovery, ChainError> {

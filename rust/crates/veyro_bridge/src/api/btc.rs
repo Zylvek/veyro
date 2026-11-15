@@ -194,8 +194,8 @@ pub fn btc_sync(gap_limit: u32) -> Result<BtcSyncDto> {
                 return Err(anyhow!("{e}"));
             }
             // Reconnect with the honest handshake backoff and retry once.
-            let fresh = ElectrumGateway::connect(gateway.url(), network)
-                .map_err(|e| anyhow!("{e}"))?;
+            let fresh =
+                ElectrumGateway::connect(gateway.url(), network).map_err(|e| anyhow!("{e}"))?;
             store_gateway(fresh)?;
             let (gateway, account_pub, network) = snapshot()?;
             attempt_sync(&gateway, &account_pub, network, gap_limit)
@@ -235,10 +235,18 @@ fn attempt_sync(
         })
         .collect();
 
-    let next_receive =
-        derive_dto(account_pub, BRANCH_EXTERNAL, discovery.external.next_index(), false)?;
-    let next_change =
-        derive_dto(account_pub, BRANCH_INTERNAL, discovery.internal.next_index(), false)?;
+    let next_receive = derive_dto(
+        account_pub,
+        BRANCH_EXTERNAL,
+        discovery.external.next_index(),
+        false,
+    )?;
+    let next_change = derive_dto(
+        account_pub,
+        BRANCH_INTERNAL,
+        discovery.internal.next_index(),
+        false,
+    )?;
 
     store_sync(discovery, utxos)?;
 

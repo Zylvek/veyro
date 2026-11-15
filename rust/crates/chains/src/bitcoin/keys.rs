@@ -189,3 +189,16 @@ pub fn derive_secret_key(
 pub fn format_path(coin_type: u32, account: u32, branch: u32, index: u32) -> String {
     format!("m/84'/{coin_type}'/{account}'/{branch}/{index}")
 }
+
+/// Источник адресов для скана: BTC (BIP84) и другие coin-модули (LTC,
+/// форки BCH) дают один и тот же контракт — функции `scan.rs` не зависят
+/// от конкретной монеты.
+pub trait AddressSource {
+    fn derive_address(&self, branch: u32, index: u32) -> Result<DerivedAddress, ChainError>;
+}
+
+impl AddressSource for AccountPubkeys {
+    fn derive_address(&self, branch: u32, index: u32) -> Result<DerivedAddress, ChainError> {
+        AccountPubkeys::derive_address(self, branch, index)
+    }
+}

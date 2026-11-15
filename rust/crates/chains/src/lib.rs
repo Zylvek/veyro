@@ -16,6 +16,7 @@
 
 pub mod bitcoin;
 pub mod electrum;
+pub mod litecoin;
 
 pub use crate::bitcoin::tx::SignedTransfer;
 pub use crate::bitcoin::{DEFAULT_GAP_LIMIT, P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};

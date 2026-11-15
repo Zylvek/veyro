@@ -80,7 +80,7 @@
 | Способ | Статус | Детали |
 |---|---|---|
 | Собственный узел Litecoin Core + RPC | ✅ | RPC 9332 / 19332 / 19443; P2P 9333 / 19335 / 19444; диск ~40 ГБ (оценка) |
-| **Electrum-протокол** | ✅ | Публичные серверы LTC живы: **7 серверов** в публичном servers.json (например `electrum-ltc.bysh.me:50002`, `ltc.rentonisk.com:50002`; протокол 1.4.2; порты 50001/50002). ⚠️ Официальный клиент **Electrum-LTC заброшен** (4.2.2.1 от 05.06.2022; сайт предупреждает «no longer maintained… STRONGLY DISCOURAGED»; альтернативный форк — ltc-electrum.github.io). Для VEYRO: **rust electrum-client 0.25.2** — протокол универсальный, серверы доступны |
+| **Electrum-протокол** | ✅ | Публичные серверы LTC живы: протокол 1.4; порты 50002 (ssl)/50001 (tcp). ⚠️ Официальный клиент **Electrum-LTC заброшен** (4.2.2.1 от 05.06.2022; сайт предупреждает «no longer maintained… STRONGLY DISCOURAGED»; альтернативный форк — ltc-electrum.github.io). **Live-верификация VEYRO 15.11.2026** (наш rustls-клиент): рабочие — `electrum-ltc.petrkr.net:60002` (Fulcrum 2.1.1), `litecoin.stackwallet.com:20063` (Fulcrum 2.1.4), `electrum.petrkr.net:60002`; отвечают по SslStream, но не прошли через webpki — `electrum.ltc.xurious.com:50002`, `backup.electrum-ltc.org:50002` (сертификаты), `ltc.rentonisk.com`/`electrum-ltc.bysh.me` рвут свежие коннекты/сертификат old-версии. Список держится в `SERVERS_MAINNET` (chains/src/litecoin.rs) — порядок кандидатов по живости |
 | Эксплорер/API | ✅ | litecoinspace.org (живой 11.11.2026 — block-height API и данные блока). ⚠️ Приватность |
 
 ⚠️ Приватность публичных серверов: IP + адреса видны провайдеру. Решение: Tor + пользовательский сервер (Fulcrum/ElectrumX поверх узла).
