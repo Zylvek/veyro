@@ -8,6 +8,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
@@ -180,12 +182,25 @@ class _LtcScreenState extends State<LtcScreen> {
   }
 
   /// Full unlock attempt: candidates loop (transient → next server,
-  /// polite pauses) then the auto-sync.
+  /// polite pauses; a per-candidate Dart timeout guarantees the loop
+  /// NEVER stalls forever on a stuck server — «вообще ничего не
+  /// происходит» решено честным прогрессом и границами).
   Future<void> _unlockViaCandidates(String password) async {
     final candidates = await ltcServers();
     Object? unlockError;
     var unlocked = false;
-    for (final server in candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      final server = candidates[i];
+      // Прогресс прямо на кнопке: какой сервер, какой по счёту.
+      if (mounted) {
+        setState(() {
+          _busyLabel = tf('ltc_candidate_progress', {
+            'n': '${i + 1}',
+            'm': '${candidates.length}',
+            'host': Uri.parse(server).host,
+          });
+        });
+      }
       try {
         debugPrint('veyro-flow: ltc unlock via $server');
         await ltcUnlock(
@@ -193,9 +208,14 @@ class _LtcScreenState extends State<LtcScreen> {
           walletId: widget.info.id,
           password: password,
           serverUrl: server,
-        );
+          // 90 c: handshake backoff + retries в ядре укладываются;
+          // зависший кандидат не задержит цикл навсегда.
+        ).timeout(const Duration(seconds: 90));
         unlocked = true;
         break;
+      } on TimeoutException {
+        unlockError = StateError('timeout on $server (90 c)');
+        await Future.delayed(const Duration(milliseconds: 800));
       } catch (e) {
         unlockError = e;
         final raw = e.toString();

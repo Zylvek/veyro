@@ -271,7 +271,7 @@ impl LtcGateway {
             )));
         }
         let config = electrum_client::ConfigBuilder::new()
-            .retry(3)
+            .retry(1)
             .timeout(Some(6))
             .build();
         let client = std::sync::Arc::new(
@@ -282,17 +282,18 @@ impl LtcGateway {
             client,
             url: url.to_string(),
         };
-        // Живой хэндшейк с бэкоффом (публичные серверы отрезают часть
-        // свежих соединений): до трёх попыток, 0.7/1.4с.
+        // Живой хэндшейк (публичные серверы отрезают часть свежих
+        // соединений): 2 попытки с одной паузой — быстрый провал мёртвого
+        // сервера, кандидатов в списке хватает для честного автоподбора.
         let mut wait = 700u64;
-        for attempt in 0..3 {
+        for attempt in 0..2 {
             match gateway.server_features() {
                 Ok(f) => {
                     let _ = f;
                     return Ok(gateway);
                 }
                 Err(e) => {
-                    if attempt == 2 {
+                    if attempt == 1 {
                         return Err(ChainError::Transport(format!("{url}: {e}")));
                     }
                     std::thread::sleep(std::time::Duration::from_millis(wait));

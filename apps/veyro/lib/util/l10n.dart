@@ -407,6 +407,10 @@ const Map<String, Map<String, String>> _strings = {
         'public ones (the genesis check is mandatory).',
   },
   'ltc_unit': {'ru': 'лит.', 'en': 'lits'},
+  'ltc_candidate_progress': {
+    'ru': 'Подключение: сервер {n} из {m} — {host}…',
+    'en': 'Connecting: server {n} of {m} — {host}…',
+  },
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).
