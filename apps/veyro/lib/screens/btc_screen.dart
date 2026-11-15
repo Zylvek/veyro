@@ -33,6 +33,7 @@ class _BtcScreenState extends State<BtcScreen> {
   BtcSyncDto? _sync;
   bool _busy = false;
   String? _error;
+  String? _errorRaw;
 
   /// Что сейчас происходит (аудит: «Подключение…» без деталей выглядит
   /// как зависание). busyLabel: Разблокировка → Синхронизация.
@@ -76,6 +77,7 @@ class _BtcScreenState extends State<BtcScreen> {
       _busy = true;
       _busyLabel = t('btc_syncing_addresses');
       _error = null;
+      _errorRaw = null;
     });
     try {
       final state = await btcSessionState();
@@ -122,7 +124,9 @@ class _BtcScreenState extends State<BtcScreen> {
     debugPrint('veyro-flow: password entered, unlocking…');
     setState(() {
       _busy = true;
-      _busyLabel = t('unlocking_now');      _error = null;
+      _busyLabel = t('unlocking_now');
+      _error = null;
+      _errorRaw = null;
     });
     try {
       await btcUnlock(
@@ -156,6 +160,7 @@ class _BtcScreenState extends State<BtcScreen> {
     setState(() {
       _busyLabel = t('btc_syncing_addresses_long');
       _error = null;
+      _errorRaw = null;
     });
     try {
       final sync = await btcSync(gapLimit: 20);
@@ -167,8 +172,39 @@ class _BtcScreenState extends State<BtcScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final raw = e.toString();
+      final transient = raw.contains('electrum') ||
+          raw.contains('unexpected end of file') ||
+          raw.contains('eof while parsing') ||
+          raw.contains('all errored') ||
+          raw.contains('timed out') ||
+          raw.contains('connection');
+      // Тихий авто-повтор: обрывы у публичных серверов флакичные, почти
+      // всегда следующий проход проходит (переподключение делает ядро).
+      if (transient) {
+        await Future.delayed(const Duration(milliseconds: 1600));
+        if (mounted) {
+          try {
+            final sync = await btcSync(gapLimit: 20);
+            if (!mounted) return;
+            BtcStateCache.instance.store(sync);
+            setState(() {
+              _sync = sync;
+              _busy = false;
+            });
+            return;
+          } catch (e) {
+            setState(() {
+              _error = e.toString();
+              _busy = false;
+            });
+            return;
+          }
+        }
+      }
+      if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = raw;
         _busy = false;
       });
     }
@@ -214,7 +250,20 @@ class _BtcScreenState extends State<BtcScreen> {
                     title: t('error_title'),
                     icon: Icons.error_outline,
                     children: [
-                      Text('$_error'),
+                      // Дружелюбная суть (подключение/синхронизация) +
+                      // честные подробности ядра мелкой приглушённой
+                      // строкой, если они есть.
+                      Text(_error!, style: const TextStyle(fontSize: 13.5)),
+                      if (_errorRaw != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '${t('error_detail_prefix')}$_errorRaw',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: VColors.textSecondary,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       FilledButton.tonal(
                         onPressed: _busy
