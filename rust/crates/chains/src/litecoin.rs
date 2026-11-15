@@ -387,6 +387,73 @@ impl Gateway for LtcGateway {
             .collect())
     }
 
+    fn script_balances_batch(&self, scripts: &[Vec<u8>]) -> Result<Vec<ScriptBalance>, ChainError> {
+        let refs: Vec<&bitcoin::Script> = scripts
+            .iter()
+            .map(|s| bitcoin::Script::from_bytes(s))
+            .collect();
+        let list = self
+            .client
+            .batch_script_get_balance(refs)
+            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+        Ok(list
+            .into_iter()
+            .map(|b| ScriptBalance {
+                confirmed_sat: b.confirmed,
+                unconfirmed_sat: b.unconfirmed,
+            })
+            .collect())
+    }
+
+    fn script_histories_batch(
+        &self,
+        scripts: &[Vec<u8>],
+    ) -> Result<Vec<Vec<HistoryEntry>>, ChainError> {
+        let refs: Vec<&bitcoin::Script> = scripts
+            .iter()
+            .map(|s| bitcoin::Script::from_bytes(s))
+            .collect();
+        let list = self
+            .client
+            .batch_script_get_history(refs)
+            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+        Ok(list
+            .into_iter()
+            .map(|per| {
+                per.into_iter()
+                    .map(|h| HistoryEntry {
+                        txid: h.tx_hash,
+                        height: h.height as i64,
+                    })
+                    .collect()
+            })
+            .collect())
+    }
+
+    fn script_utxos_batch(&self, scripts: &[Vec<u8>]) -> Result<Vec<Vec<Utxo>>, ChainError> {
+        let refs: Vec<&bitcoin::Script> = scripts
+            .iter()
+            .map(|s| bitcoin::Script::from_bytes(s))
+            .collect();
+        let list = self
+            .client
+            .batch_script_list_unspent(refs)
+            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+        Ok(list
+            .into_iter()
+            .map(|per| {
+                per.into_iter()
+                    .map(|u| Utxo {
+                        txid: u.tx_hash,
+                        vout: u.tx_pos as u32,
+                        value_sat: u.value,
+                        height: (u.height > 0).then_some(u.height as u32),
+                    })
+                    .collect()
+            })
+            .collect())
+    }
+
     fn tx_by_id(&self, txid: &Txid) -> Result<Option<Transaction>, ChainError> {
         match self.client.transaction_get(txid) {
             Ok(tx) => Ok(Some(tx)),

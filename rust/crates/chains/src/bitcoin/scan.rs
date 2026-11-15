@@ -11,7 +11,7 @@ use bitcoin::Txid;
 
 use crate::bitcoin::keys::DerivedAddress;
 use crate::bitcoin::keys::{AddressSource, BRANCH_EXTERNAL, BRANCH_INTERNAL};
-use crate::electrum::{Gateway, HistoryEntry, ScriptBalance, Utxo};
+use crate::electrum::{Gateway, HistoryEntry, Utxo};
 use crate::{electrum_scripthash_hex, ChainError};
 
 /// Discovery result for one branch: all *scanned* slots plus the highest used
@@ -98,33 +98,69 @@ fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
     let mut consecutive_unused: u32 = 0;
     let mut last_used: Option<u32> = None;
 
-    let mut index = 0;
-    while consecutive_unused < gap_limit {
+    // Batch discipline (решение владельца по скорости + отсутствие банов):
+    // запросить историю для gap_limit+1 адресов ОДНИМ round-trip, а гэп
+    // применить локально. Диапазон растёт только если вся выборка оказалась
+    // использованной (живой хвост аккаунта) — тогда следующий батч.
+    let mut index: u32 = 0;
+    loop {
         if index >= HARD_SCAN_CAP {
             return Err(ChainError::Internal(format!(
                 "branch {branch}: hit the scan cap of {HARD_SCAN_CAP} addresses"
             )));
         }
-        let derived: DerivedAddress = account.derive_address(branch, index)?;
-        let script_pubkey = derived.script_pubkey.as_bytes().to_vec();
-        let history = gateway.script_history(&script_pubkey)?;
-        let used = !history.is_empty();
-        if used {
-            last_used = Some(index);
-            consecutive_unused = 0;
-        } else {
-            consecutive_unused += 1;
+        let batch_len: usize = gap_limit as usize + 1;
+        let mut scripts: Vec<Vec<u8>> = Vec::with_capacity(batch_len);
+        for i in index..(index + batch_len as u32) {
+            scripts.push(
+                account
+                    .derive_address(branch, i)?
+                    .script_pubkey
+                    .as_bytes()
+                    .to_vec(),
+            );
         }
-        slots.push(AddressSlot {
-            address: derived.address,
-            script_pubkey,
-            scripthash_hex: derived.scripthash_hex,
-            branch,
-            index,
-            path: derived.path,
-            used,
-        });
-        index += 1;
+        let histories = if batch_len == 1 {
+            vec![gateway.script_history(&scripts[0])?]
+        } else {
+            gateway.script_histories_batch(&scripts)?
+        };
+
+        let mut progressed = false;
+        for (offset, history) in histories.into_iter().enumerate() {
+            let i = index + offset as u32;
+            let derived: DerivedAddress = account.derive_address(branch, i)?;
+            let used = !history.is_empty();
+            if used {
+                last_used = Some(i);
+                consecutive_unused = 0;
+            } else {
+                consecutive_unused += 1;
+            }
+            slots.push(AddressSlot {
+                address: derived.address,
+                script_pubkey: derived.script_pubkey.as_bytes().to_vec(),
+                scripthash_hex: derived.scripthash_hex,
+                branch,
+                index: i,
+                path: derived.path,
+                used,
+            });
+            // Дистанция гэпа соблюдена — честная точка остановки.
+            if consecutive_unused >= gap_limit {
+                return Ok(BranchDiscovery {
+                    branch,
+                    slots,
+                    last_used,
+                });
+            }
+            progressed = true;
+        }
+        // Вся выборка использована (gap не прерван) → продолжить дальше.
+        if !progressed {
+            break;
+        }
+        index += batch_len as u32;
     }
 
     Ok(BranchDiscovery {
@@ -143,16 +179,19 @@ pub struct WalletBalance {
     pub unconfirmed_delta_sat: i64,
 }
 
-/// Balance view across all discovered addresses (used and unused: an address
-/// with no history cannot hold funds, but the per-script query is cheap and
-/// this keeps the invariant "balance == Σ utxo values" observable).
+/// Balance view across all discovered addresses in ONE batch round-trip
+/// (the invariant "balance == Σ utxo values" stays observable).
 pub fn wallet_balance<G: Gateway + ?Sized>(
     gateway: &G,
     discovery: &Discovery,
 ) -> Result<WalletBalance, ChainError> {
+    let scripts: Vec<Vec<u8>> = discovery
+        .slots()
+        .map(|slot| slot.script_pubkey.clone())
+        .collect();
+    let per = gateway.script_balances_batch(&scripts)?;
     let mut total = WalletBalance::default();
-    for slot in discovery.slots() {
-        let s: ScriptBalance = gateway.script_balance(&slot.script_pubkey)?;
+    for s in per {
         total.confirmed_sat = total.confirmed_sat.saturating_add(s.confirmed_sat);
         total.unconfirmed_delta_sat = total
             .unconfirmed_delta_sat
@@ -183,14 +222,20 @@ impl WalletUtxo {
 }
 
 /// Collect `WalletUtxo`s across all discovered addresses in deterministic
-/// order (branch asc, index asc, txid, vout).
+/// order (branch asc, index asc, txid, vout) — ONE batch round-trip.
 pub fn collect_utxos<G: Gateway + ?Sized>(
     gateway: &G,
     discovery: &Discovery,
 ) -> Result<Vec<WalletUtxo>, ChainError> {
+    let slots: Vec<&crate::bitcoin::scan::AddressSlot> = discovery.slots().collect();
+    let scripts: Vec<Vec<u8>> = slots
+        .iter()
+        .map(|slot| slot.script_pubkey.clone())
+        .collect();
+    let per = gateway.script_utxos_batch(&scripts)?;
     let mut utxos: Vec<WalletUtxo> = Vec::new();
-    for slot in discovery.slots() {
-        for u in gateway.script_utxos(&slot.script_pubkey)? {
+    for (slot, list) in slots.into_iter().zip(per) {
+        for u in list {
             let Utxo {
                 txid,
                 vout,
@@ -246,14 +291,19 @@ pub struct HistoryItem {
 pub type RawHistory = BTreeMap<(u32, u32), Vec<HistoryEntry>>;
 
 /// Fetch the raw per-address history (used by the UI list before amounts are
-/// resolved). Returns `(branch, index) → entries`.
+/// resolved). Returns `(branch, index) → entries` — ONE batch round-trip.
 pub fn raw_history<G: Gateway + ?Sized>(
     gateway: &G,
     discovery: &Discovery,
 ) -> Result<RawHistory, ChainError> {
+    let slots: Vec<&crate::bitcoin::scan::AddressSlot> = discovery.slots().collect();
+    let scripts: Vec<Vec<u8>> = slots
+        .iter()
+        .map(|slot| slot.script_pubkey.clone())
+        .collect();
+    let per = gateway.script_histories_batch(&scripts)?;
     let mut out: RawHistory = BTreeMap::new();
-    for slot in discovery.slots() {
-        let entries = gateway.script_history(&slot.script_pubkey)?;
+    for (slot, entries) in slots.into_iter().zip(per) {
         out.insert((slot.branch, slot.index), entries);
     }
     Ok(out)
@@ -282,21 +332,28 @@ pub fn history_with_amounts<G: Gateway + ?Sized>(
     }
     let mut occurrences: BTreeMap<Txid, Occur> = BTreeMap::new();
     let mut total_entries: usize = 0;
-    for slot in discovery.slots() {
-        let entries = gateway.script_history(&slot.script_pubkey)?;
-        total_entries += entries.len();
-        for HistoryEntry { txid, height } in entries {
-            let e = occurrences.entry(txid).or_insert(Occur {
-                height,
-                scripts: HashSet::new(),
-            });
-            if e.height == 0 || (e.height > 0 && height > 0 && height < e.height) {
-                // keep the best-known height (confirmed wins; lowest wins)
-                e.height = height;
-            } else if height > 0 && e.height <= 0 {
-                e.height = height;
+    {
+        let slots: Vec<&crate::bitcoin::scan::AddressSlot> = discovery.slots().collect();
+        let scripts: Vec<Vec<u8>> = slots
+            .iter()
+            .map(|slot| slot.script_pubkey.clone())
+            .collect();
+        let per = gateway.script_histories_batch(&scripts)?;
+        for (slot, entries) in slots.into_iter().zip(per) {
+            total_entries += entries.len();
+            for HistoryEntry { txid, height } in entries {
+                let e = occurrences.entry(txid).or_insert(Occur {
+                    height,
+                    scripts: HashSet::new(),
+                });
+                if e.height == 0 || (e.height > 0 && height > 0 && height < e.height) {
+                    // keep the best-known height (confirmed wins; lowest wins)
+                    e.height = height;
+                } else if height > 0 && e.height <= 0 {
+                    e.height = height;
+                }
+                e.scripts.insert(slot.script_pubkey.clone());
             }
-            e.scripts.insert(slot.script_pubkey.clone());
         }
     }
     if total_entries > MAX_HISTORY_ITEMS {
