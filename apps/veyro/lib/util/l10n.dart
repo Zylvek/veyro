@@ -415,6 +415,7 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Пауза {sec} с — даём серверам выдохнуть (частые попытки копят блокировки)',
     'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
   },
+  'server_status_row': {'ru': 'Сервер: {value}', 'en': 'Server: {value}'},
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).

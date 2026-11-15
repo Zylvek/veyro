@@ -1019,3 +1019,96 @@ class _VEntranceState extends State<VEntrance>
     );
   }
 }
+
+/// Плитка действия центра монет (BTC/LTC и далее): hover-подъём + мягкое
+/// свечение, курсор «клик» на desktop; без действий — честно потушена.
+/// Общий виджет — центры всех coin-экранов обязаны выглядеть одинаково
+/// (решение владельца: «почисти как у битка»).
+class CoinActionTile extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const CoinActionTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.enabled = true,
+    required this.onTap,
+  });
+
+  @override
+  State<CoinActionTile> createState() => _CoinActionTileState();
+}
+
+class _CoinActionTileState extends State<CoinActionTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.enabled ? Theme.of(context).colorScheme.primary : null;
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : MouseCursor.defer,
+      onEnter: widget.enabled ? (_) => setState(() => _hover = true) : null,
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, _hover ? -2 : 0, 0),
+        decoration: BoxDecoration(
+          color: VColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _hover
+                ? (accent ?? VColors.textSecondary).withValues(alpha: 0.35)
+                : Colors.transparent,
+          ),
+          boxShadow: [
+            if (_hover && widget.enabled)
+              BoxShadow(
+                color: (accent ?? VColors.textSecondary)
+                    .withValues(alpha: 0.18),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: widget.enabled ? widget.onTap : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Column(
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: 26,
+                    color: widget.enabled
+                        ? (accent ?? VColors.textPrimary)
+                        : VColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Opacity(
+                    opacity: widget.enabled ? 1.0 : 0.45,
+                    child: Text(
+                      widget.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

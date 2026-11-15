@@ -18,6 +18,7 @@ import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/price_source.dart';
 
 import 'asset_catalog_screen.dart' show AssetCatalogScreen, CoinIcon;
@@ -26,6 +27,7 @@ import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
 import 'btc_screen.dart';
 import 'history_screen.dart';
+import 'ltc_screen.dart';
 import 'tx_details_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -60,6 +62,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Курс BTC в валюте отображения; null — курс недоступен (сети нет),
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
+
+  /// Курс LTC (строка карточки «Активы»); null — честно скрыта.
+  double? _ltcRate;
 
   /// Курс выбранной монеты графика (id из PriceSource.chartCoins) —
   /// для подписи «≈ N {монета}» (решение владельца). Нет курса — нет
@@ -132,6 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // иначе hero-карта рисуется пустой и «допрыгивает» контентом.
       double? rate;
       double? chartCoinRate;
+      double? ltcRate;
       List<MarketPoint>? series;
       try {
         final fiat = DisplayPrefs.fiatCurrency;
@@ -141,6 +147,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .timeout(const Duration(seconds: 12));
         chartCoinRate = await source
             .coinPriceIn(_chartCoinId, fiat)
+            .timeout(const Duration(seconds: 12));
+        ltcRate = await source
+            .coinPriceIn('litecoin', fiat)
             .timeout(const Duration(seconds: 12));
         series = await PriceSource.instance
             .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
@@ -155,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _session = session;
         _fiatRate = rate;
         _chartCoinRate = chartCoinRate;
+        _ltcRate = ltcRate;
         _marketPoints = series;
       });
       await _loadRecent();
@@ -616,12 +626,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildAssetsCard(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
+    final ltc = kAssetRegistry.firstWhere((a) => a.ticker == 'LTC');
     final wallet = _selected;
     // Сумма монеты — реальный подтверждённый баланс из последней
     // синхронизации (кэш; без данных — 0 по решению владельца).
     final sync = BtcStateCache.instance.take();
     final balanceSat = _btcBalanceSat();
+    // LTC — вторая реализованная монета (receive-only ядро + send): та же
+    // карточка-шапка, баланс из LTC-кэша, фиат от того же источника цен.
+    final ltcSync = LtcStateCache.instance.take();
+    final ltcBalanceLit = ltcSync == null
+        ? 0
+        : (ltcSync.unconfirmedDeltaSat.toInt() < 0
+            ? ltcSync.confirmedSat.toInt() +
+                ltcSync.unconfirmedDeltaSat.toInt()
+            : ltcSync.confirmedSat.toInt());
     final rate = _fiatRate;
+    final ltcRate = _ltcRate;
     return VCard(
       icon: Icons.grid_view_outlined,
       title: t('assets_title'),
@@ -682,6 +703,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: wallet == null
                 ? null
                 : () => _push(BtcScreen(info: wallet)),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            leading: _AssetAvatar(ltc),
+            title: const Text('Litecoin'),
+            subtitle: Text(
+              '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
+              style: const TextStyle(
+                fontFamily: kMonoFont,
+                fontSize: 11.5,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (ltcRate != null) ...[
+                  Text(
+                    _maskAmount(formatFiat(ltcBalanceLit / 1e8 * ltcRate)),
+                    style: const TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                      color: VColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    DisplayPrefs.fiatCurrency.toUpperCase(),
+                    style: const TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11,
+                      color: VColors.textSecondary,
+                    ),
+                  ),
+                ],
+                if (ltcSync != null &&
+                    ltcSync.unconfirmedDeltaSat.toInt() != 0)
+                  Text(
+                    '${signedSatToBtcString(ltcSync.unconfirmedDeltaSat.toInt())} LTC ${t('mempool_suffix')}',
+                    style: TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11,
+                      color: VColors.warning,
+                    ),
+                  ),
+              ],
+            ),
+            // Тап по LTC → сразу центр управления (тот же принцип).
+            onTap: wallet == null
+                ? null
+                : () => _push(LtcScreen(info: wallet)),
           ),
         ),
         const SizedBox(height: 6),
