@@ -277,9 +277,9 @@ class _SendScreenState extends State<SendScreen> {
                     controller: _recipientController,
                     autocorrect: false,
                     enableIMEPersonalizedLearning: false,
-                    decoration: const InputDecoration(
-                      labelText: 'Адрес (P2WPKH / P2SH / P2PKH / P2TR)',
-                      hintText: 'tb1q…  для testnet, bc1q… для mainnet',
+                    decoration: InputDecoration(
+                      labelText: t('address_field'),
+                      hintText: t('address_hint'),
                     ),
                   ),
                 ],

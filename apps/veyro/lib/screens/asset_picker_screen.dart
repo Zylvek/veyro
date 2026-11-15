@@ -98,10 +98,8 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     // (реальный пароль → unlock). Без кошелька это невозможно.
     final wallet = _chosenWallet;
     if (wallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Кошельков нет — создайте кошелёк в разделе «Кошельки», '
-            'затем разблокируйте BTC.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(t('no_wallets_btc')),
       ));
       return;
     }

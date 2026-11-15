@@ -267,8 +267,10 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Ядро недоступно (состояние сессии BTC не прочитано): '
-                      '$_error',
+                      tf(
+                        'core_session_read_error',
+                        {'error': '$_error'},
+                      ),
                       style: Theme.of(context)
                           .textTheme
                           .bodySmall!
@@ -283,8 +285,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                       ? VEmptyState(
                           icon: Icons.search_off,
                           title: t('nothing_found'),
-                          message: 'По запросу нет активов в реестре. '
-                              'Измените фильтр или строку поиска.',
+                          message: t('nothing_found_msg'),
                         )
                       : _grouped
                           ? ListView(
@@ -455,7 +456,7 @@ class _AssetTile extends StatelessWidget {
         ),
         isThreeLine: false,
         trailing: IconButton(
-          tooltip: favorite ? 'Убрать из избранного' : 'В избранное',
+          tooltip: favorite ? t('fav_remove_tooltip') : t('fav_add_tooltip'),
           icon: Icon(
             favorite ? Icons.star : Icons.star_outline,
             color: favorite ? VColors.warning : VColors.textSecondary,

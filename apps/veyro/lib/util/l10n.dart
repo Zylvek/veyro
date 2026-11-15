@@ -181,6 +181,7 @@ const Map<String, Map<String, String>> _strings = {
   'about_btn': {'ru': 'О VEYRO', 'en': 'About VEYRO'},
   // BTC-центр.
   'btc_connecting': {'ru': 'Подключение…', 'en': 'Connecting…'},
+  'unlocking_now': {'ru': 'Разблокировка…', 'en': 'Unlocking…'},
   'btc_syncing_addresses': {
     'ru': 'Синхронизация адресов…',
     'en': 'Syncing addresses…',
@@ -644,6 +645,10 @@ const Map<String, Map<String, String>> _strings = {
   'sign_send_btn': {
     'ru': 'Подписать и отправить',
     'en': 'Sign and send',
+  },
+  'core_session_read_error': {
+    'ru': 'Ядро недоступно (состояние сессии BTC не прочитано): {error}',
+    'en': 'Core unavailable (the BTC session state could not be read): {error}',
   },
   // История.
   'history_title': {'ru': 'История BTC', 'en': 'BTC history'},

@@ -121,8 +121,7 @@ class _BtcScreenState extends State<BtcScreen> {
     debugPrint('veyro-flow: password entered, unlocking…');
     setState(() {
       _busy = true;
-      _busyLabel = 'Разблокировка…';
-      _error = null;
+      _busyLabel = t('unlocking_now');      _error = null;
     });
     try {
       await btcUnlock(
