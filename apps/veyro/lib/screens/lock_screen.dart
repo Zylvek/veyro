@@ -206,11 +206,12 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
     if (_introActive) {
       return Scaffold(
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              VeyroMarkIntro(size: 260, onDone: _finishIntro),
-            ],
+          // Анимация 02 (app-entry): знак повёрнут на −45°, круги из-за
+          // краёв, оборот и сход; после 62% плавно тает — дальше форма.
+          child: LogoLoader(
+            mode: LogoLoaderMode.appEntry,
+            size: 260,
+            onDone: _finishIntro,
           ),
         ),
       );
@@ -221,11 +222,16 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           body: Center(child: CircularProgressIndicator()),
         );
       case _LockPhase.unlocking:
-        // Загрузка — фирменная орбитальная анимация знака (система
-        // лого-анимаций владельца, референс 01): знак вращается,
-        // круги дышат радиусом и дистанцией.
+        // Анимация 03: приглушённый знак, который был фоном формы, где
+        // только что ввели пароль, за 1800 мс плавно оживает в живую
+        // загрузку — вращение не прерывается ни на кадр.
         return const Scaffold(
-          body: Center(child: VeyroMarkSpinner(size: 230)),
+          body: Center(
+            child: LogoLoader(
+              mode: LogoLoaderMode.backgroundToLoading,
+              size: 300,
+            ),
+          ),
         );
       case _LockPhase.enter:
         // Мгновение до replace-навигации — экран входа уже не нужен.
