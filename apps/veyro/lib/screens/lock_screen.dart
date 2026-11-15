@@ -227,11 +227,10 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
   Widget _phaseScreen() {
     switch (_phase) {
       case _LockPhase.checking:
-        return const Scaffold(
-          body: Center(
-            child: LogoLoader(mode: LogoLoaderMode.loading, size: 220),
-          ),
-        );
+        // Проверка сессии — молча, без экрана загрузки (решение
+        // владельца: «обычную загрузку просто убрать»). Интро при
+        // первом пуске всё равно закрывает этот кадр.
+        return const Scaffold(body: SizedBox.shrink());
       case _LockPhase.unlocking:
         // Анимация 03: неподвижный фоновый знак сразу начинает
         // вращаться, плавно набирает яркость и размер — и без остановок
@@ -245,12 +244,8 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
           ),
         );
       case _LockPhase.enter:
-        // Мгновение до replace-навигации — фирменная загрузка.
-        return const Scaffold(
-          body: Center(
-            child: LogoLoader(mode: LogoLoaderMode.loading, size: 220),
-          ),
-        );
+        // Мгновение до replace-навигации — молча, без загрузки.
+        return const Scaffold(body: SizedBox.shrink());
       case _LockPhase.noWallets:
         WidgetsBinding.instance.addPostFrameCallback((_) => _enterWelcome());
         return const Scaffold(body: SizedBox.shrink());

@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
-import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
@@ -54,7 +53,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   BtcSessionStateDto? _session;
   List<BtcHistoryItemDto>? _recent;
   String? _historyError;
-  bool _loading = true;
   String? _error;
 
   /// Курс BTC в валюте отображения; null — курс недоступен (сети нет),
@@ -98,16 +96,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : await btcSessionState();
 
   Future<void> _refresh() async {
-    final repeat = _loading == false; // повторный refresh (pull-down):
-    // не вешаем полноэкранную загрузку, чтобы карты не мигали.
-    if (!repeat) {
-      setState(() {
-        _loading = true;
-        _error = null;
-        _recent = null;
-        _historyError = null;
-      });
-    }
+    // Никакой полноэкранной загрузки (решение владельца): Обзор сразу
+    // показывает контент, данные бесшумно заполняют его по приходу.
+    setState(() {
+      _error = null;
+      _recent = null;
+      _historyError = null;
+    });
     await DisplayPrefs.ensureLoaded();
     try {
       final wallets = await _loadWallets();
@@ -145,14 +140,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _fiatRate = rate;
         _ethRate = ethRate;
         _marketPoints = series;
-        _loading = false;
       });
       await _loadRecent();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
-        _loading = false;
       });
     }
   }
@@ -244,16 +237,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
           child: RefreshIndicator(
             onRefresh: _refresh,
-            child: _loading
-                ? const Center(
-                    // Фирменная загрузка знака (система владельца) —
-                    // никакого дефолтного спиннера на Обзоре.
-                    child: LogoLoader(
-                      mode: LogoLoaderMode.loading,
-                      size: 220,
-                    ),
-                  )
-                : _error != null
+            child: _error != null
                     ? Padding(
                         padding: const EdgeInsets.all(16),
                         child: VEmptyState(
