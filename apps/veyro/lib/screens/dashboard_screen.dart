@@ -61,9 +61,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
 
-  /// Курс ETH в валюте отображения — эквивалент в подписи «≈ X ETH»
-  /// (как в референсе владельца). Нет курса — подпись скрыта.
-  double? _ethRate;
+  /// Курс выбранной монеты графика (id из PriceSource.chartCoins) —
+  /// для подписи «≈ N {монета}» (решение владельца). Нет курса — нет
+  /// подписи, выдуманных значений нет.
+  double? _chartCoinRate;
 
   /// Активное окно реального графика курса (референс: 1D/1W/1M/1Y).
   String _period = '1М';
@@ -130,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Курсы BTC/ETH и линию курса эфира забираем ДО снятия загрузки,
       // иначе hero-карта рисуется пустой и «допрыгивает» контентом.
       double? rate;
-      double? ethRate;
+      double? chartCoinRate;
       List<MarketPoint>? series;
       try {
         final fiat = DisplayPrefs.fiatCurrency;
@@ -138,8 +139,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         rate = await source
             .btcPriceIn(fiat)
             .timeout(const Duration(seconds: 12));
-        ethRate = await source
-            .ethPriceIn(fiat)
+        chartCoinRate = await source
+            .coinPriceIn(_chartCoinId, fiat)
             .timeout(const Duration(seconds: 12));
         series = await PriceSource.instance
             .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
@@ -153,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _selectedId = selected;
         _session = session;
         _fiatRate = rate;
-        _ethRate = ethRate;
+        _chartCoinRate = chartCoinRate;
         _marketPoints = series;
       });
       await _loadRecent();
@@ -359,14 +360,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               // Настройки — шестерёнка в правом верхнем углу Обзора
               // (решение владельца): навигация без вкладки настроек.
+              // Возврат — тихий refresh: настройки (валюта/график)
+              // применяются сразу, без перезапуска приложения.
               IconButton(
-                tooltip: 'Настройки',
+                tooltip: t('settings_title'),
                 icon: const Icon(Icons.settings_outlined,
                     color: VColors.textSecondary),
-                onPressed: () {
-                  Navigator.of(context).push(MaterialPageRoute<void>(
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute<void>(
                     builder: (_) => const SettingsScreen(),
                   ));
+                  await _refresh();
                 },
               ),
             ],
@@ -435,11 +439,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fontSize: 42,
               ),
             const SizedBox(height: 6),
-            // Эквивалент суммы в ETH — как в референсе владельца
-            // («Total balance → ≈ N ETH»); курса ETH нет — строки нет.
-            if (rate != null && _ethRate != null && _ethRate! > 0)
+            // Эквивалент суммы в ВЫБРАННОЙ монете графика — решение
+            // владельца («≈ на эту же монету»); цены монеты нет —
+            // строки нет. По умолчанию ETH, как в референсе.
+            if (rate != null &&
+                _chartCoinRate != null &&
+                _chartCoinRate! > 0)
               Text(
-                '≈ ${_maskAmount((balanceSat / 1e8 * rate / _ethRate!).toStringAsFixed(4))} ETH',
+                '≈ ${_maskAmount((balanceSat / 1e8 * rate / _chartCoinRate!).toStringAsFixed(4))} ${DisplayPrefs.chartCoin}',
                 style: TextStyle(
                   fontFamily: kMonoFont,
                   fontSize: 13,
@@ -462,7 +469,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   : null,
             ),
             const SizedBox(height: 6),
-            _buildChartCoinChips(),
             _buildPeriodTabs(),
           ],
         ),
@@ -509,52 +515,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
       ],
-    );
-  }
-
-  /// Чипы монеты линии графика (решение владельца: настройка для
-  /// графика — «осматривать другие монеты»); выбор сохраняется.
-  Widget _buildChartCoinChips() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final symbol in PriceSource.chartCoins.keys)
-            Padding(
-              padding: const EdgeInsets.only(right: 4, bottom: 10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  if (symbol == DisplayPrefs.chartCoin) return;
-                  DisplayPrefs.setChartCoin(symbol);
-                  setState(() {});
-                  _loadMarketSeries();
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 13, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: symbol == DisplayPrefs.chartCoin
-                        ? Colors.white.withValues(alpha: 0.09)
-                        : Colors.transparent,
-                  ),
-                  child: Text(
-                    symbol,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: symbol == DisplayPrefs.chartCoin
-                          ? VColors.textPrimary
-                          : VColors.textSecondary.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 

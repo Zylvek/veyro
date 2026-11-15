@@ -18,6 +18,7 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/price_source.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_names.dart';
@@ -130,21 +131,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Удалить кошелёк «${info.name}»?'),
-        content: Text(
-          'Хранилище ключей этого кошелька (vault-файл) будет удалено с '
-          'диска навсегда. Без резервной копии восстановить доступ к '
-          'средствам будет невозможно.',
-        ),
+        title: Text(tf(
+          'delete_wallet_title',
+          {'name': info.name},
+        )),
+        content: Text(t('delete_wallet_body')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Отмена'),
+            child: Text(t('cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: VColors.error),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Удалить навсегда'),
+            child: Text(t('delete_forever')),
           ),
         ],
       ),
@@ -156,7 +156,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (file.existsSync()) file.deleteSync();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Кошелёк «${info.name}» удалён.'),
+        content: Text(tf(
+          'wallet_deleted',
+          {'name': info.name},
+        )),
       ));
       await _reloadWallets();
     } catch (e) {
@@ -170,7 +173,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _revealMnemonic(WalletInfoDto info) async {
     final password = await promptPassword(
       context,
-      title: 'Показать seed-фразу «${info.name}»',
+      title: tf(
+        'reveal_title',
+        {'name': info.name},
+      ),
     );
     if (password == null || !mounted) return;
     try {
@@ -190,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Настройки')),
+      appBar: AppBar(title: Text(t('settings_title'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
@@ -238,6 +244,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (code) {
                       if (code == null) return;
                       DisplayPrefs.setFiatCurrency(code);
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              // Монета линии графика (решение владельца: настройка
+              // графика — «осматривать другие монеты») — здесь, в
+              // настройках; Обзор подхватывает её при возврате.
+              Row(
+                children: [
+                  Text(
+                    t('chart_coin_label'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const Spacer(),
+                  DropdownButton<String>(
+                    value: PriceSource.chartCoins.containsKey(
+                            DisplayPrefs.chartCoin)
+                        ? DisplayPrefs.chartCoin
+                        : 'ETH',
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (final symbol in PriceSource.chartCoins.keys)
+                        DropdownMenuItem(
+                            value: symbol, child: Text(symbol)),
+                    ],
+                    onChanged: (symbol) {
+                      if (symbol == null ||
+                          symbol == DisplayPrefs.chartCoin) {
+                        return;
+                      }
+                      DisplayPrefs.setChartCoin(symbol);
                       setState(() {});
                     },
                   ),
@@ -303,7 +341,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           )
         else if (_sessionError != null)
           Text(
-            'Состояние сессии не прочитано: $_sessionError',
+            tf(
+              'session_state_error',
+              {'error': '$_sessionError'},
+            ),
             style: Theme.of(context)
                 .textTheme
                 .bodySmall!
@@ -312,22 +353,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         else
           _sessionStatusColumn(context),
         Text(
-          'Ручная блокировка выгружает ключи сессии из памяти ядра: '
-          'повторная разблокировка требует пароля кошелька.',
+          t('manual_lock_note'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const Divider(height: 20),
-        _honestRow(context, 'Авто-блокировка по бездействию',
-            'не реализовано в ядре (нет таймера бездействия) — '
-            'переключатель не добавляется'),
-        _honestRow(context, 'Биометрия',
-            'не реализовано в этой сборке (планируется в Android-группе)'),
-        _honestRow(context, 'Смена пароля',
-            'API смены пароля в ядре отсутствует; честный путь — экспорт '
-            'и импорт с новым паролем'),
-        _honestRow(context, 'Хранение секретов',
-            'seed и ключи — только в зашифрованном vault ядра; показ фразы '
-            'требует пароля'),
+        _honestRow(context, t('idle_lock_label'), t('idle_lock_note')),
+        _honestRow(context, t('biometry_label'), t('biometry_note')),
+        _honestRow(
+            context, t('password_change_label'), t('password_change_note')),
+        _honestRow(context, t('secrets_label'), t('secrets_note')),
       ],
     );
   }
@@ -344,8 +378,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             VStatusChip(
               sessionActive
-                  ? 'Ключи сессии в памяти ядра (${ruNetworkText(session.networkDisplay)})'
-                  : 'BTC заблокирован: ключи сессии не загружены',
+                  ? tf(
+                      'session_keys_active',
+                      {'network': ruNetworkText(session.networkDisplay) ?? 'BTC'},
+                    )
+                  : t('btc_locked_chip'),
               kind: sessionActive ? VChipKind.warning : VChipKind.success,
             ),
           ],
@@ -354,7 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: VButton.secondary(
-            _lockBusy ? 'Блокировка…' : 'Заблокировать BTC',
+            _lockBusy ? t('locking_now') : t('lock_btc_btn'),
             icon: Icons.lock_outline,
             onPressed: sessionActive && !_lockBusy ? _lockBtc : null,
           ),
@@ -392,12 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       icon: Icons.notifications_outlined,
       children: [
         Text(
-          'Уведомления не реализованы в этой сборке — переключателей '
-          'и имитации здесь нет. Если функция появится, допустимые '
-          'события (по спецификации): подтверждение входящей '
-          'транзакции, сбои и восстановление сетевого подключения, '
-          'завершение синхронизации, статус бэкапа. Маркетинг и '
-          'реклама исключены безусловно.',
+          t('notifications_note'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -417,7 +449,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(
               child: VButton.secondary(
-                'Создать',
+                t('wallets_create'),
                 icon: Icons.add_circle_outline,
                 onPressed: () async {
                   Navigator.of(context).push(MaterialPageRoute<void>(
@@ -430,7 +462,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: VButton.secondary(
-                'Импорт',
+                t('wallets_import'),
                 icon: Icons.restore_outlined,
                 onPressed: () async {
                   Navigator.of(context).push(MaterialPageRoute<void>(
@@ -447,7 +479,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Center(child: CircularProgressIndicator(strokeWidth: 2))
         else if (_walletsError != null)
           Text(
-            'Реестр не прочитан: $_walletsError',
+            tf(
+              'wallets_registry_error',
+              {'error': '$_walletsError'},
+            ),
             style: Theme.of(context)
                 .textTheme
                 .bodySmall!
@@ -455,8 +490,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           )
         else if (wallets == null || wallets.isEmpty)
           Text(
-            'Кошельков нет. Первый появится после создания или '
-            'восстановления фразы.',
+            t('wallets_empty'),
             style: Theme.of(context).textTheme.bodySmall,
           )
         else
@@ -486,13 +520,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const SizedBox(height: 2),
                     Text(
-                      'vault · создан '
-                          '${formatWalletDate(info.createdAtUnix.toInt())}',
+                      tf(
+                        'wallet_created',
+                        {
+                          'date':
+                              formatWalletDate(info.createdAtUnix.toInt()),
+                        },
+                      ),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'ID: ${info.id}',
+                      tf(
+                        'wallet_id',
+                        {'id': info.id},
+                      ),
                       style: const TextStyle(
                           fontFamily: kMonoFont, fontSize: 12),
                     ),
@@ -503,12 +545,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: 'Показать seed-фразу',
+                      tooltip: t('seed_reveal_tooltip'),
                       icon: const Icon(Icons.key_outlined),
                       onPressed: () => _revealMnemonic(info),
                     ),
                     IconButton(
-                      tooltip: 'Удалить кошелёк',
+                      tooltip: t('delete_wallet_tooltip'),
                       icon: const Icon(
                         Icons.delete_outline,
                         color: VColors.error,
@@ -537,7 +579,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: VButton.secondary(
-            'Бэкап и восстановление',
+            t('backups_btn'),
             icon: Icons.backup_outlined,
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute<void>(
@@ -550,7 +592,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: VButton.secondary(
-            'О VEYRO',
+            t('about_btn'),
             icon: Icons.info_outline,
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute<void>(

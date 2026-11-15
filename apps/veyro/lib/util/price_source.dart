@@ -17,12 +17,32 @@ import 'package:flutter/material.dart';
 import 'package:veyro/util/app_dirs.dart';
 
 /// Курс BTC и ETH по валютам отображения — ответ провайдера одним
-/// запросом (ids=bitcoin,ethereum).
+/// запросом; плюс цены прочих монет линии графика (id монеты → цена).
 class FiatRates {
   final Map<String, double> btc;
   final Map<String, double> eth;
 
-  const FiatRates({required this.btc, required this.eth});
+  /// Прочие монеты (из [PriceSource.chartCoins]): id → {валюта: цена}.
+  final Map<String, Map<String, double>> others;
+
+  const FiatRates({
+    required this.btc,
+    required this.eth,
+    this.others = const {},
+  });
+
+  /// Цена монеты по её CoinGecko id ('bitcoin', 'ethereum', ...).
+  double? priceOf(String coinId, String fiat) {
+    final code = fiat.toLowerCase();
+    switch (coinId) {
+      case 'bitcoin':
+        return btc[code];
+      case 'ethereum':
+        return eth[code];
+      default:
+        return others[coinId]?[code];
+    }
+  }
 }
 
 /// Кэш курсов + загрузчик. Точки замены для тестов — [loader] и
@@ -153,14 +173,17 @@ class PriceSource {
     }
   }
 
-  /// Реальный сетевой загрузчик: один запрос на все валюты и обе монеты.
+  /// Реальный сетевой загрузчик: один запрос на все валюты, обе базовые
+  /// монеты и монеты линии графика.
   static Future<FiatRates?> httpLoader() async {
     final client = HttpClient();
     try {
+      final ids = <String>{'bitcoin', 'ethereum', ...chartCoins.values}
+          .toList();
       final request = await client
           .getUrl(Uri.parse(
               'https://api.coingecko.com/api/v3/simple/price'
-              '?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp,rub'))
+              '?ids=${ids.join(',')}&vs_currencies=usd,eur,gbp,rub'))
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
             const Duration(seconds: 10),
@@ -173,11 +196,19 @@ class PriceSource {
         if (map == null) return {};
         return {
           for (final currency in const ['usd', 'eur', 'gbp', 'rub'])
-            if (map[currency] is num) currency: (map[currency] as num).toDouble(),
+            if (map[currency] is num)
+              currency: (map[currency] as num).toDouble(),
         };
       }
 
-      return FiatRates(btc: parse('bitcoin'), eth: parse('ethereum'));
+      return FiatRates(
+        btc: parse('bitcoin'),
+        eth: parse('ethereum'),
+        others: {
+          for (final id in ids)
+            if (id != 'bitcoin' && id != 'ethereum') id: parse(id),
+        },
+      );
     } catch (_) {
       return null;
     } finally {
@@ -195,6 +226,12 @@ class PriceSource {
   Future<double?> ethPriceIn(String fiat) async {
     final rates = await _freshRates(fiat);
     return rates?.eth[fiat.toLowerCase()];
+  }
+
+  /// Цена произвольной монеты линии графика (id из [chartCoins]).
+  Future<double?> coinPriceIn(String coinId, String fiat) async {
+    final rates = await _freshRates(fiat);
+    return rates?.priceOf(coinId, fiat.toLowerCase());
   }
 
   Future<FiatRates?> _freshRates(String fiat) async {

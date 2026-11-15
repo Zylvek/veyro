@@ -170,7 +170,7 @@ void main() {
       expect(find.textContaining('USD'), findsNothing);
       expect(find.textContaining('≈ '), findsNothing);
       expect(find.text('0'), findsOneWidget); // hero
-      expect(find.text('BTC'), findsNWidgets(2)); // суффикс hero + чип графика
+      expect(find.text('BTC'), findsOneWidget); // суффикс hero
       // Графика курса без данных нет.
       expect(find.byType(VSparkline), findsNothing);
     });
