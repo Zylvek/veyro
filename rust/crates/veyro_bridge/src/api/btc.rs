@@ -25,14 +25,15 @@ use chains::bitcoin::scan::{
 use chains::bitcoin::tx::{
     estimate_fee_rates_with_fallback, idempotent_broadcast, plan_transfer, SignedTransferBuilder,
 };
-use chains::electrum::{ElectrumGateway, Gateway};
+use chains::electrum::{BtcNetwork, ElectrumGateway, Gateway};
 use zeroize::Zeroizing;
 
 use key_manager::from_phrase;
 use wallet_core::WalletManager;
 
 use crate::btc_session::{
-    invalidate_utxos, network_from_code, snapshot, store_sync, with_lock, with_session, BtcSession,
+    invalidate_utxos, network_from_code, snapshot, store_gateway, store_sync, with_lock,
+    with_session, BtcSession,
 };
 use crate::production_kdf;
 
@@ -183,10 +184,44 @@ pub struct BtcSyncDto {
 /// `btc_send`).
 pub fn btc_sync(gap_limit: u32) -> Result<BtcSyncDto> {
     let (gateway, account_pub, network) = snapshot()?;
+    match attempt_sync(&gateway, &account_pub, network, gap_limit) {
+        Ok(dto) => Ok(dto),
+        Err(e) => {
+            // Транспорт/протокол иногда «отрезают» свежее соединение
+            // (flaky EOF у публичных серверов): пересобираем gateway с
+            // честным хэндшейк-бэкоффом и пробуем ровно один раз.
+            if !transient_sync_error(&e) {
+                return Err(anyhow!("{e}"));
+            }
+            // Reconnect with the honest handshake backoff and retry once.
+            let fresh = ElectrumGateway::connect(gateway.url(), network)
+                .map_err(|e| anyhow!("{e}"))?;
+            store_gateway(fresh)?;
+            let (gateway, account_pub, network) = snapshot()?;
+            attempt_sync(&gateway, &account_pub, network, gap_limit)
+        }
+    }
+}
 
-    let discovery = discover(&gateway, &account_pub, gap_limit).map_err(|e| anyhow!("{e}"))?;
-    let balance = wallet_balance(&gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
-    let utxos = collect_utxos(&gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
+fn transient_sync_error(e: &anyhow::Error) -> bool {
+    let text = format!("{e}").to_lowercase();
+    text.contains("electrum")
+        || text.contains("unexpected end of file")
+        || text.contains("eof while parsing")
+        || text.contains("all errored")
+        || text.contains("timed out")
+        || text.contains("connection")
+}
+
+fn attempt_sync(
+    gateway: &ElectrumGateway,
+    account_pub: &AccountPubkeys,
+    network: BtcNetwork,
+    gap_limit: u32,
+) -> Result<BtcSyncDto> {
+    let discovery = discover(gateway, account_pub, gap_limit).map_err(|e| anyhow!("{e}"))?;
+    let balance = wallet_balance(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
+    let utxos = collect_utxos(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
     let utxo_count = utxos.len() as u32;
     let used_addresses = discovery
         .slots()
@@ -200,18 +235,10 @@ pub fn btc_sync(gap_limit: u32) -> Result<BtcSyncDto> {
         })
         .collect();
 
-    let next_receive = derive_dto(
-        &account_pub,
-        BRANCH_EXTERNAL,
-        discovery.external.next_index(),
-        false,
-    )?;
-    let next_change = derive_dto(
-        &account_pub,
-        BRANCH_INTERNAL,
-        discovery.internal.next_index(),
-        false,
-    )?;
+    let next_receive =
+        derive_dto(account_pub, BRANCH_EXTERNAL, discovery.external.next_index(), false)?;
+    let next_change =
+        derive_dto(account_pub, BRANCH_INTERNAL, discovery.internal.next_index(), false)?;
 
     store_sync(discovery, utxos)?;
 

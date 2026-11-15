@@ -93,6 +93,17 @@ pub fn store_sync(discovery: Discovery, utxos: Vec<WalletUtxo>) -> Result<()> {
     Ok(())
 }
 
+/// Replace the session gateway (after a dead-connection reconnect) so all
+/// further calls reuse the fresh, protocol-verified connection.
+pub fn store_gateway(gateway: ElectrumGateway) -> Result<()> {
+    let mut guard = with_lock()?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| anyhow!("no BTC session — unlock a wallet first"))?;
+    session.gateway = gateway;
+    Ok(())
+}
+
 /// Invalidate stale spendables (after a successful send). The discovery data
 /// stays — receive addresses and history do not depend on UTXOs.
 pub fn invalidate_utxos() -> Result<()> {
