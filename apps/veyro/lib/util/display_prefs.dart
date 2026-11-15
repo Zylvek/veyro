@@ -13,12 +13,20 @@ class DisplayPrefs {
   static const String _kFiat = 'ui.fiat_currency';
   static const String _kHide = 'ui.hide_balances';
   static const String _kWallet = 'ui.selected_wallet_id';
+  static const String _kLanguage = 'ui.language';
+  static const String _kChartCoin = 'ui.chart_coin';
 
   /// Избранные тикеры.
   static Set<String> _favorites = {};
 
   /// Валюта фиата (источника курсов пока нет — только настройка).
   static String _fiatCurrency = 'USD';
+
+  /// Язык интерфейса (словарь lib/util/l10n.dart).
+  static String _language = 'ru';
+
+  /// Монета линии графика Обзора (тикер из [DisplayPrefs.chartCoins]).
+  static String _chartCoin = 'ETH';
 
   /// Режим скрытия сумм.
   static bool _hideBalances = false;
@@ -54,6 +62,10 @@ class DisplayPrefs {
     }
     final fiat = await dbGetSetting(key: _kFiat);
     _fiatCurrency = (fiat != null && fiat.isNotEmpty) ? fiat : 'USD';
+    final lang = await dbGetSetting(key: _kLanguage);
+    if (lang != null && languages.containsKey(lang)) _language = lang;
+    final chart = await dbGetSetting(key: _kChartCoin);
+    if (chart != null && chart.isNotEmpty) _chartCoin = chart;
     final hide = await dbGetSetting(key: _kHide);
     _hideBalances = hide == '1';
     _walletId = await dbGetSetting(key: _kWallet);
@@ -81,6 +93,26 @@ class DisplayPrefs {
   static Future<void> setFiatCurrency(String code) async {
     _fiatCurrency = code;
     await _write(_kFiat, code);
+  }
+
+  /// Языки интерфейса: код → нативное имя (как видит владелец).
+  static const Map<String, String> languages = {
+    'ru': 'Русский',
+    'en': 'English',
+  };
+
+  static String get language => _language;
+
+  static Future<void> setLanguage(String code) async {
+    _language = code;
+    await _write(_kLanguage, code);
+  }
+
+  static String get chartCoin => _chartCoin;
+
+  static Future<void> setChartCoin(String symbol) async {
+    _chartCoin = symbol;
+    await _write(_kChartCoin, symbol);
   }
 
   static bool get hideBalances => _hideBalances;

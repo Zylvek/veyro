@@ -232,6 +232,18 @@ class PriceSource {
 
   static const Set<String> _supported = {'usd', 'eur', 'gbp', 'rub'};
 
+  /// Монеты линии графика Обзора (решение владельца: настройка для
+  /// графика — «осматривать другие монеты»): тикер → CoinGecko id.
+  static const Map<String, String> chartCoins = {
+    'BTC': 'bitcoin',
+    'ETH': 'ethereum',
+    'SOL': 'solana',
+    'ADA': 'cardano',
+    'DOGE': 'dogecoin',
+    'LTC': 'litecoin',
+    'XRP': 'ripple',
+  };
+
   // ============================================================
   // Историческая линия курса (реальный график валюты на Обзоре).
   // По требованию владельца — линия ЭФИРА (как в референсе Nexus),

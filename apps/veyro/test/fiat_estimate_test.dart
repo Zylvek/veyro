@@ -165,11 +165,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Никаких выдуманных оценок: курса нет → сумма в BTC (нуль),
-      // трейлинг плитки пуст, эквивалент ETH скрыт.
+      // трейлинг плитки пуст, эквивалент ETH скрыт. Подпись выбранного
+      // чипа монеты графика ('ETH') — настройка, не фиат.
       expect(find.textContaining('USD'), findsNothing);
-      expect(find.textContaining('ETH'), findsNothing);
+      expect(find.textContaining('≈ '), findsNothing);
       expect(find.text('0'), findsOneWidget); // hero
-      expect(find.text('BTC'), findsOneWidget); // суффикс hero
+      expect(find.text('BTC'), findsNWidgets(2)); // суффикс hero + чип графика
       // Графика курса без данных нет.
       expect(find.byType(VSparkline), findsNothing);
     });

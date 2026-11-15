@@ -17,6 +17,7 @@ import 'package:veyro/src/rust/api/btc.dart' show btcLock;
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_names.dart';
@@ -215,14 +216,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildGeneral(BuildContext context) {
     return VCard(
-      title: 'Общие',
+      title: t('settings_general'),
       icon: Icons.tune_outlined,
       children: _prefsReady
           ? [
               Row(
                 children: [
-                  const Text('Валюта отображения:',
-                      style: TextStyle(fontSize: 13)),
+                  Text(
+                    t('display_currency'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
                   const Spacer(),
                   DropdownButton<String>(
                     value: DisplayPrefs.fiatCurrency,
@@ -240,26 +243,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+              // Язык интерфейса (решение владельца: «добавь поддержку
+              // других языков») — словарь lib/util/l10n.dart.
+              Row(
+                children: [
+                  Text(
+                    t('language_label'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const Spacer(),
+                  DropdownButton<String>(
+                    value: DisplayPrefs.language,
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (final entry in DisplayPrefs.languages.entries)
+                        DropdownMenuItem(
+                            value: entry.key, child: Text(entry.value)),
+                    ],
+                    onChanged: (code) {
+                      if (code == null) return;
+                      DisplayPrefs.setLanguage(code);
+                      setState(() {});
+                    },
+                  ),
+                ],
+              ),
               // Тумблер «Скрывать суммы» убран (решение владельца): эту
               // функцию делает глазик в шапке Обзора.
               if (DisplayPrefs.degraded)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: VStatusChip(
-                      'БД настроек недоступна: изменения действуют только '
-                      'текущую сессию',
+                      t('db_note'),
                       kind: VChipKind.warning,
                     ),
                   ),
                 ),
-              Text(
-                'Язык: русский — единственный в этой сборке. Выбор языка и '
-                'альтернативные форматы чисел не реализованы в ядре и '
-                'не имитируются.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
             ]
           : const [
               Padding(
@@ -272,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSecurity(BuildContext context) {
     return VCard(
-      title: 'Безопасность',
+      title: t('settings_security'),
       icon: Icons.shield_outlined,
       children: [
         if (!_sessionChecked)
@@ -367,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildNotifications(BuildContext context) {
     return VCard(
-      title: 'Уведомления',
+      title: t('settings_notifications'),
       icon: Icons.notifications_outlined,
       children: [
         Text(
@@ -389,7 +410,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildWallets(BuildContext context) {
     final wallets = _wallets;
     return VCard(
-      title: 'Кошельки',
+      title: t('settings_wallets'),
       icon: Icons.wallet_outlined,
       children: [
         Row(
@@ -510,7 +531,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildLinks(BuildContext context) {
     return VCard(
-      title: 'Разделы',
+      title: t('settings_sections'),
       icon: Icons.link_outlined,
       children: [
         Align(

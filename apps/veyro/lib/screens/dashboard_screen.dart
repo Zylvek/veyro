@@ -17,6 +17,7 @@ import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/price_source.dart';
 
 import 'asset_catalog_screen.dart' show AssetCatalogScreen, CoinIcon;
@@ -75,6 +76,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     '1Г': 365,
   };
 
+  /// Метки периодов идут через словарь (поддержка языков).
+  static const Map<String, String> _periodKeyToL10n = {
+    '1Д': 'period_1d',
+    '1Н': 'period_1w',
+    '1М': 'period_1m',
+    '1Г': 'period_1y',
+  };
+
+  /// Монета линии графика — настройка владельца в чипах графика
+  /// («осматривать другие монеты»); выбор хранится в DisplayPrefs.
+  String get _chartCoinId =>
+      PriceSource.chartCoins[DisplayPrefs.chartCoin] ?? 'ethereum';
+
   /// Реальная линия курса ЭФИРА (валюта отображения) за окно периода —
   /// график Обзора по требованию владельца, как в референсе Nexus.
   /// От прямого провайдера цен; null — данных нет, график скрыт.
@@ -128,7 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .ethPriceIn(fiat)
             .timeout(const Duration(seconds: 12));
         series = await PriceSource.instance
-            .marketSeries('ethereum', fiat, _periodDays[_period] ?? 30)
+            .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
             .timeout(const Duration(seconds: 12));
       } catch (_) {
         // сети нет → честные пустые поля (строки/график скрыты)
@@ -159,7 +173,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final days = _periodDays[_period] ?? 30;
     try {
       final series = await PriceSource.instance
-          .marketSeries('ethereum', fiat, days)
+          .marketSeries(_chartCoinId, fiat, days)
           .timeout(const Duration(seconds: 12));
       if (!mounted) return;
       setState(() => _marketPoints = series);
@@ -243,11 +257,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.all(16),
                         child: VEmptyState(
                           icon: Icons.cloud_off_outlined,
-                          title: 'Ядро недоступно',
-                          message: '$_error\nПроверьте установку и повторите.',
+                          title: t('core_unavailable'),
+                          message: '$_error\n${t('check_install')}',
                           action: FilledButton.tonal(
                             onPressed: _refresh,
-                            child: const Text('Повторить'),
+                            child: Text(t('retry')),
                           ),
                         ),
                       )
@@ -284,34 +298,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Верхняя панель как в референсе владельца: заголовок страницы слева,
-  /// справа — компактный выбор кошелька и переключатель скрытия сумм.
+  /// Верхняя панель: справа — компактный выбор кошелька и
+  /// переключатель скрытия сумм. Заголовок «Обзор» и подпись «Активы и
+  /// активность» убраны (решение владельца).
   Widget _buildTopPanel(BuildContext context) {
     final wallets = _wallets ?? const <WalletInfoDto>[];
     return Row(
       children: [
         const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Обзор',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.4,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Активы и активность',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: VColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
+          child: SizedBox.shrink(),
         ),
         Flexible(
           child: Card(
@@ -346,14 +341,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: WrapAlignment.end,
             children: [
               if (DisplayPrefs.degraded)
-                const VStatusChip(
-                  'БД настроек недоступна',
+                VStatusChip(
+                  t('db_unavailable'),
                   kind: VChipKind.warning,
                 ),
               IconButton(
                 tooltip: DisplayPrefs.hideBalances
-                    ? 'Показать суммы'
-                    : 'Скрыть суммы',
+                    ? t('show_amounts')
+                    : t('hide_amounts'),
                 icon: Icon(
                   DisplayPrefs.hideBalances
                       ? Icons.visibility_off_outlined
@@ -401,9 +396,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
-                  'Общий баланс',
-                  style: TextStyle(
+                Text(
+                  t('total_balance'),
+                  style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
                     color: VColors.textSecondary,
@@ -416,8 +411,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   alignment: WrapAlignment.end,
                   children: [
                     if (session != null && session.hasSpendables)
-                      const VStatusChip(
-                        'Есть синхронизированные средства',
+                      VStatusChip(
+                        t('synced_funds'),
                         kind: VChipKind.success,
                       ),
                   ],
@@ -467,6 +462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   : null,
             ),
             const SizedBox(height: 6),
+            _buildChartCoinChips(),
             _buildPeriodTabs(),
           ],
         ),
@@ -500,7 +496,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : Colors.transparent,
                 ),
                 child: Text(
-                  entry.key,
+                  t(_periodKeyToL10n[entry.key] ?? entry.key),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -513,6 +509,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  /// Чипы монеты линии графика (решение владельца: настройка для
+  /// графика — «осматривать другие монеты»); выбор сохраняется.
+  Widget _buildChartCoinChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final symbol in PriceSource.chartCoins.keys)
+            Padding(
+              padding: const EdgeInsets.only(right: 4, bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  if (symbol == DisplayPrefs.chartCoin) return;
+                  DisplayPrefs.setChartCoin(symbol);
+                  setState(() {});
+                  _loadMarketSeries();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 13, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: symbol == DisplayPrefs.chartCoin
+                        ? Colors.white.withValues(alpha: 0.09)
+                        : Colors.transparent,
+                  ),
+                  child: Text(
+                    symbol,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: symbol == DisplayPrefs.chartCoin
+                          ? VColors.textPrimary
+                          : VColors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -658,7 +700,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: VButton.secondary(
-            'Все монеты',
+            t('all_assets'),
             icon: Icons.grid_view_outlined,
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute<void>(
@@ -682,7 +724,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     return VCard(
       icon: Icons.receipt_long_outlined,
-      title: 'Последние транзакции',
+      title: t('recent_transactions'),
       children: [
         if (recent == null)
           const Padding(
@@ -693,7 +735,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           )
         else if (recent.isEmpty)
-          Text('Транзакций пока нет — всё чисто.',
+          Text(t('no_transactions'),
               style: Theme.of(context).textTheme.bodyMedium)
         else ...[
           for (final item in recent)

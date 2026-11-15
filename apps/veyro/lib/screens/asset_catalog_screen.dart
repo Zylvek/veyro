@@ -20,6 +20,7 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/l10n.dart';
 
 import 'asset_detail_screen.dart';
 import 'btc_screen.dart';
@@ -164,7 +165,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Активы')),
+      appBar: AppBar(title: Text(t('assets_title'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1000),
@@ -176,7 +177,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                   controller: _searchController,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search_outlined),
-                    labelText: 'Поиск: тикер, имя или сеть',
+                    labelText: t('search_hint'),
                     suffixIcon: _searchController.text.isEmpty
                         ? null
                         : IconButton(
@@ -271,9 +272,9 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                 child: RefreshIndicator(
                   onRefresh: _load,
                   child: _visibleAssets.isEmpty
-                      ? const VEmptyState(
+                      ? VEmptyState(
                           icon: Icons.search_off,
-                          title: 'Ничего не найдено',
+                          title: t('nothing_found'),
                           message: 'По запросу нет активов в реестре. '
                               'Измените фильтр или строку поиска.',
                         )
