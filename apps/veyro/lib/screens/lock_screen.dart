@@ -176,7 +176,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
             ? settings.serverUrl
             : null;
         final candidates = <String>{
-          if (persisted != null) persisted,
+          ?(persisted),
           ...serverCandidates(settings.networkCode),
         }.toList();
         Object? unlockError;
