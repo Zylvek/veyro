@@ -165,17 +165,49 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       } else {
         final settings = await loadSettings();
         if (!mounted) return;
-        // Автоподбор лучшего живого сервера (решение владельца):
-        // короткий пинг кандидатов, самый быстрый — подключаемся к нему.
-        final best = await probeBestServer(settings.networkCode)
-            .timeout(const Duration(seconds: 5), onTimeout: () => null);
-        await btcUnlock(
-          walletsDir: walletsDir(),
-          walletId: _wallet!.id,
-          password: password,
-          networkCode: settings.networkCode,
-          serverUrl: best ?? settings.serverUrl,
-        );
+        // Автоподбор живого Electrum-сервера (реальный server.version
+        // хэндшейк) + перебор кандидатов, если протокол на выбранном
+        // упал: «unexpected end of file» больше не рвет вход.
+        final probed = await probeBestServer(settings.networkCode)
+            .timeout(const Duration(seconds: 10), onTimeout: () => null);
+        final candidates = <String>[
+          if (probed != null) probed,
+          if (settings.serverUrl.isNotEmpty && settings.serverUrl != probed)
+            settings.serverUrl,
+          ...serverCandidates(settings.networkCode),
+        ].toSet().toList();
+
+        Object? unlockError;
+        var unlocked = false;
+        for (final server in candidates.take(4)) {
+          try {
+            debugPrint('veyro-flow: unlock via $server');
+            await btcUnlock(
+              walletsDir: walletsDir(),
+              walletId: _wallet!.id,
+              password: password,
+              networkCode: settings.networkCode,
+              serverUrl: server,
+            );
+            unlocked = true;
+            break;
+          } catch (e) {
+            unlockError = e;
+            final raw = e.toString();
+            final transient = raw.contains('electrum') ||
+                raw.contains('unexpected end of file') ||
+                raw.contains('all errored') ||
+                raw.contains('timed out') ||
+                raw.contains('connection');
+            // Неверный пароль и другие содержательные ошибки не
+            // повторяем — сразу наружу.
+            if (!transient) break;
+            invalidateProbe();
+          }
+        }
+        if (!unlocked) {
+          throw (unlockError ?? StateError('no electrum candidate'));
+        }
       }
       if (!mounted) return;
       try {

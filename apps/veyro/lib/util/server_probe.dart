@@ -1,17 +1,23 @@
 //! Автоматический подбор Electrum-сервера (решение владельца: никакой
 //! ручной настройки — «найди лучший для человека»). Перед каждым
-//! unlock BTC коротким TCP-коннектом пингуем известных кандидатов
-//! выбранной сети и берём самый быстрый живой (кэш 3 минуты, чтобы
-//! повторные входы не ждали).genesis-проверка ядра при unlock всё
-//! равно отвергнет сервер чужой сети — безопасность не зависит от подбора.
+//! unlock BTC кандидаты проверяются РЕАЛЬНЫМ Electrum-хэндшейком
+//! (server.version по TLS/plain, как это делает ядро), а не только
+//! TCP-коннектом: сервер, чей порт жив, но протокол падает
+//! («unexpected end of file»), честно отбраковывается. Кэш 3 минуты,
+//! чтобы повторные входы не ждали; сбрасывается после неудачного
+//! unlock (invalidateProbe). Genesis-проверка ядра при unlock всё
+//! равно отвергнет сервер чужой сети — безопасность не зависит от
+//! подбора.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:veyro/util/network_config.dart';
 
-/// Кандидаты Electrum-серверов по коду сети. Для каждого уже есть
-/// верифицированный дефолт (e2e_probe), плюс альтернативы.
+/// Кандидаты Electrum-серверов по коду сети. Для каждого есть
+/// верифицированный дефолт, плюс альтернативы.
 List<String> serverCandidates(int code) {
   switch (code) {
     case 0:
@@ -42,16 +48,15 @@ class _CacheEntry {
   const _CacheEntry(this.url, this.at);
 }
 
-/// Сброс кэша подбора: после неудачного unlock (TCP прошёл, а
-/// Electrum-протокол упал — «unexpected end of file») следующая попытка
-/// прониует кандидатов заново и возьмёт другого здорового сервера.
+/// Сброс кэша подбора: после неудачного unlock следующая попытка
+/// прониует кандидатов заново.
 void invalidateProbe() {
   _bestCache.clear();
 }
 
-/// Лучший живой сервер для сети: минимальная задержка TCP-коннекта
-/// среди кандидатов. null — никто не ответил (unlock честно выдаст
-/// ошибку подключения по дефолту).
+/// Лучший ЖИВЫЙ сервер для сети: минимальная задержка среди тех, кто
+/// ответил на Electrum-запрос server.version (то, что нужно протоколу).
+/// null — никто не ответил (unlock честно выдаст ошибку подключения).
 Future<String?> probeBestServer(int networkCode) async {
   final cached = _bestCache[networkCode];
   if (cached != null &&
@@ -65,7 +70,7 @@ Future<String?> probeBestServer(int networkCode) async {
     candidates.insert(0, def);
   }
   final latencies = await Future.wait(
-    candidates.map(_tcpLatency),
+    candidates.map(_electrumLatency),
   );
   String? best;
   int bestMs = 1 << 31;
@@ -82,23 +87,64 @@ Future<String?> probeBestServer(int networkCode) async {
   return best;
 }
 
-/// Задержка TCP-коннекта к host:port (3с таймаут); null — не отвечает.
-Future<int?> _tcpLatency(String url) async {
-  final match = RegExp(r'^(?:\w+)://([^:/]+):(\d+)').firstMatch(url);
+/// Полный Electrum-зонд: соединение (TLS для ssl://, сертификат
+/// проверяется системой) + запрос server.version; сервер жив, только
+/// если ответил протоколом. Возвращает суммарную задержку, null —
+/// мёртв/сломан.
+Future<int?> _electrumLatency(String url) async {
+  final match =
+      RegExp(r'^(?:ssl|tcp)://([^:/]+):(\d+)').firstMatch(url);
   if (match == null) return null;
   final host = match.group(1)!;
   final port = int.parse(match.group(2)!);
+  final secure = url.startsWith('ssl://');
   final watch = Stopwatch()..start();
+  Socket? socket;
+  StreamSubscription<Uint8List>? sub;
   try {
-    final socket = await Socket.connect(
-      host,
-      port,
-      timeout: const Duration(seconds: 3),
+    socket = secure
+        ? await SecureSocket.connect(
+            host,
+            port,
+            timeout: const Duration(milliseconds: 2500),
+            // Сертификат проверяется системным хранилищем: MITM не пропускаем.
+            onBadCertificate: (_) => false,
+          )
+        : await Socket.connect(
+            host,
+            port,
+            timeout: const Duration(milliseconds: 2500),
+          );
+    // Electrum — JSON-RPC по строкам; server.version самый дешёвый вызов.
+    socket.write(
+        '{"id":0,"method":"server.version","params":["veyro","1.4"]}\n');
+    final answered = Completer<bool>();
+    final buffer = <int>[];
+    sub = socket.listen(
+      (data) {
+        buffer.addAll(data);
+        final text = utf8.decode(buffer, allowMalformed: true);
+        if (text.contains('"result"') || text.contains('"error"')) {
+          if (!answered.isCompleted) answered.complete(true);
+        }
+      },
+      onDone: () {
+        if (!answered.isCompleted) answered.complete(false);
+      },
+      onError: (_) {
+        if (!answered.isCompleted) answered.complete(false);
+      },
+      cancelOnError: true,
     );
+    final ok = await answered.future
+        .timeout(const Duration(milliseconds: 2500), onTimeout: () => false);
     watch.stop();
     socket.destroy();
-    return watch.elapsedMilliseconds;
+    await sub.cancel();
+    return ok ? watch.elapsedMilliseconds : null;
   } catch (_) {
+    socket?.destroy();
+    await sub?.cancel();
     return null;
   }
 }
