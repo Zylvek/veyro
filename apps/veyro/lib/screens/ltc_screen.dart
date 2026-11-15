@@ -187,17 +187,18 @@ class _LtcScreenState extends State<LtcScreen> {
   /// происходит» решено честным прогрессом и границами).
   Future<void> _unlockViaCandidates(String password) async {
     final candidates = await ltcServers();
-    Object? unlockError;
+    final failures = <String>[];
     var unlocked = false;
     for (var i = 0; i < candidates.length; i++) {
       final server = candidates[i];
+      final host = Uri.tryParse(server)?.host ?? server;
       // Прогресс прямо на кнопке: какой сервер, какой по счёту.
       if (mounted) {
         setState(() {
           _busyLabel = tf('ltc_candidate_progress', {
             'n': '${i + 1}',
             'm': '${candidates.length}',
-            'host': Uri.parse(server).host,
+            'host': host,
           });
         });
       }
@@ -208,16 +209,16 @@ class _LtcScreenState extends State<LtcScreen> {
           walletId: widget.info.id,
           password: password,
           serverUrl: server,
-          // 90 c: handshake backoff + retries в ядре укладываются;
-          // зависший кандидат не задержит цикл навсегда.
-        ).timeout(const Duration(seconds: 90));
+          // 60 c: с быстрым коннектом ядра этого с запасом; зависший
+          // кандидат не задержит цикл навсегда.
+        ).timeout(const Duration(seconds: 60));
         unlocked = true;
         break;
       } on TimeoutException {
-        unlockError = StateError('timeout on $server (90 c)');
+        failures.add('$host: таймаут 60 c');
         await Future.delayed(const Duration(milliseconds: 800));
       } catch (e) {
-        unlockError = e;
+        failures.add('$host: ${_oneLine(_cleanError(e))}');
         final raw = e.toString();
         final transient = raw.contains('electrum') ||
             raw.contains('unexpected end of file') ||
@@ -231,8 +232,19 @@ class _LtcScreenState extends State<LtcScreen> {
       }
     }
     if (!unlocked) {
-      throw (unlockError ?? StateError('no electrum-ltc candidate'));
+      // Честно: что именно сказал каждый кандидат (по строке на сервер).
+      final summary = failures.join('\n');
+      throw (summary.isEmpty
+          ? StateError('no electrum-ltc candidate')
+          : StateError(summary));
     }
+  }
+
+  /// Одна строка на кандидата в сводной ошибке: без ссылок/переносов.
+  String _oneLine(String text) {
+    var t = text.replaceAll('\n', ' ').replaceAll('  ', ' ').trim();
+    if (t.length > 140) t = '${t.substring(0, 137)}…';
+    return t;
   }
 
   Future<void> _doSync() async {

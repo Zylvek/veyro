@@ -37,17 +37,17 @@ pub const HRP_MAINNET: &str = "ltc";
 pub const GENESIS_MAINNET_HEX: &str =
     "12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2";
 
-/// Public LTC Electrum servers (1209k.com monitoring + live verification
-/// 2026-11-15 through the real rustls client, same path as the app;
-/// protocol 1.4). Live probe rejects anything that does not answer or
-/// serves the wrong genesis. bysh.me and rentonisk speak the protocol but
-/// rustls rejects their certificates / drops fresh connections — excluded.
+/// Public LTC Electrum servers verified LIVE through the real rustls
+/// client (15.11.2026, twice; protocol 1.4 — all Fulcrum). Only servers
+/// that actually pass the app's TLS stack are listed: bysh.me /
+/// rentonisk / xurious / backup.electrum-ltc.org answer the protocol but
+/// rustls rejects their certificates (CaUsedAsEndEntity / UnsupportedCert-
+/// Version) — keeping them in the list only burns candidates and earns
+/// rate-limit bans from the live ones.
 pub const SERVERS_MAINNET: &[&str] = &[
     "ssl://electrum-ltc.petrkr.net:60002",
     "ssl://litecoin.stackwallet.com:20063",
     "ssl://electrum.petrkr.net:60002",
-    "ssl://electrum.ltc.xurious.com:50002",
-    "ssl://backup.electrum-ltc.org:50002",
 ];
 
 /// The smallest dust threshold the LTC flow uses (P2WPKH at 1 sat/vB is
