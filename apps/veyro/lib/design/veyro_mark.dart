@@ -8,7 +8,8 @@
 //! - [LogoLoader] — единый компонент с `mode`:
 //!   loading / appEntry / backgroundToLoading;
 //! - [VeyroMarkSpinner] — анимация 01, бесконечная загрузка;
-//! - [VeyroMarkIntro] — анимация 02, вход в приложение (2600 мс, −45°);
+//! - [VeyroMarkIntro] — анимация 02, вход в приложение (2600 мс):
+//!   круги докручиваются в противоположную сторону, сходятся в фон;
 //! - [VeyroMarkBackgroundToLoading] — анимация 03, из приглушённого
 //!   фона (0.18) в живую загрузку (1800 мс) без остановки вращения;
 //! - [VeyroMarkBackdrop] — приглушённый живой знак-фон экрана пароля;
@@ -97,10 +98,6 @@ class MarkOrbitState {
 class _MarkPainter extends CustomPainter {
   final double ax, ay, ar;
 
-  /// Поворот всего знака, градусы: +45 — норма (референс
-  /// transform="rotate(45)"), −45 — анимация 02 «вход в приложение».
-  final double angleDeg;
-
   /// Прозрачность знака — штампуется прямо в краску (без слоёв/фильтров).
   final double opacity;
 
@@ -108,18 +105,21 @@ class _MarkPainter extends CustomPainter {
     required this.ax,
     required this.ay,
     required this.ar,
-    this.angleDeg = 45,
     this.opacity = 1,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Координаты знака: −200..200, Y вверх (как в SVG-референсе).
+    // Координаты знака: −200..200, Y ВНИЗ — ровно как в SVG-референсе,
+    // поэтому направление орбиты, поворот 45° и ход градиента совпадают
+    // с сайтом владельца 1-в-1 (перевёрнутая ось крутила загрузку не в
+    // ту сторону — замечание владельца).
     final s = math.min(size.width, size.height) / 400.0;
     canvas.translate(size.width / 2, size.height / 2);
-    canvas.scale(s, -s);
-    // Весь знак повёрнут на 45° (и градиент вместе с ним).
-    canvas.rotate(angleDeg * math.pi / 180);
+    canvas.scale(s, s);
+    // Весь знак повёрнут на 45° (референс transform="rotate(45)"),
+    // градиент вращается вместе со знаком.
+    canvas.rotate(math.pi / 4);
 
     final path = _markPath(ax, ay, ar, -ax, -ay, ar);
     final paint = Paint()
@@ -139,7 +139,6 @@ class _MarkPainter extends CustomPainter {
       oldDelegate.ax != ax ||
       oldDelegate.ay != ay ||
       oldDelegate.ar != ar ||
-      oldDelegate.angleDeg != angleDeg ||
       oldDelegate.opacity != opacity;
 }
 
@@ -238,15 +237,30 @@ double _lerp(double a, double b, double t) => a + (b - a) * t;
 // Анимация 02: вход в приложение (режим app-entry).
 // ---------------------------------------------------------------------------
 
-/// Интро (референс anim2, 2600 мс): большие круги выезжают из-за краёв,
-/// делают один полный оборот, уменьшаются к знаку; знак повёрнут на
-/// −45°; после 62% прогресса плавно тает до 0.12 — на его фоне
-/// появляется UI экрана пароля. По завершении вызывается [onDone].
+/// Интро (референс anim2, 2600 мс, app-entry) — решение владельца
+/// «становятся как фон на экране пароля»: большие круги выезжают
+/// из-за края экрана, делают один полный оборот ПРОТИВ хода живой
+/// орбиты (в референсе у интро направление «противоположное») и
+/// уменьшаются, сходясь ТОЧНО в состояние живого фона
+/// (r 88, d 46, 0.18, поза по общим часам) — по завершении знак
+/// становится фоном формы без единого перескока.
+/// После 62% прогресса тает знак и [withReveal]-подложка — под ними
+/// проявляется UI экрана (референс anim2). По завершении — [onDone].
 class VeyroMarkIntro extends StatefulWidget {
   final double size;
+
+  /// Подложка цвета фона приложения, тающая после 62%: позволяет
+  /// класть интро поверх живого экрана — UI проявляется под знаком.
+  final bool withReveal;
+
   final VoidCallback? onDone;
 
-  const VeyroMarkIntro({super.key, this.size = 260, this.onDone});
+  const VeyroMarkIntro({
+    super.key,
+    this.size = 300,
+    this.withReveal = false,
+    this.onDone,
+  });
 
   @override
   State<VeyroMarkIntro> createState() => _VeyroMarkIntroState();
@@ -283,14 +297,17 @@ class _VeyroMarkIntroState extends State<VeyroMarkIntro>
         final p = math.min(_controller.value, 1.0);
         final eRot = _easeInOutCubic(p);
         final eSz = _easeOutCubic(p);
-        // Формулы владельца: старт из-за краёв (d 820, r 330).
-        final ang = -math.pi / 2 + eRot * math.pi * 2;
-        final d = _lerp(820, 78, eSz);
-        final r = _lerp(330, 150, eSz);
-        // Таяние знака после 62% прогресса (до 0.12, референс anim2).
+        // Круги крутятся НА живой орбите системы, но делают один
+        // полный оборот против её хода; в конце поза совпадает с позой
+        // фона в этот же момент (−2π ≡ 0) — переход без перескока.
+        // Старт из-за края экрана: d 820, r 330 (референс anim2).
+        final ang = _loadingState(_systemMs()).angle - eRot * math.pi * 2;
+        final d = _lerp(820, kBackdropDistance, eSz);
+        final r = _lerp(330, kBackdropRadius, eSz);
+        // После 62% знак тает до фона (0.18) — референс anim2.
         final fade =
-            p <= 0.62 ? 1.0 : _lerp(1.0, 0.12, (p - 0.62) / 0.38);
-        return SizedBox(
+            p <= 0.62 ? 1.0 : _lerp(1.0, kBackdropOpacity, (p - 0.62) / 0.38);
+        final mark = SizedBox(
           width: widget.size,
           height: widget.size,
           child: CustomPaint(
@@ -298,10 +315,26 @@ class _VeyroMarkIntroState extends State<VeyroMarkIntro>
               ax: math.cos(ang) * d,
               ay: math.sin(ang) * d,
               ar: r,
-              angleDeg: -45,
               opacity: fade,
             ),
           ),
+        );
+        if (!widget.withReveal) return mark;
+        // Подложка цвета приложения держит экран до 62%, затем тает —
+        // под ней проявляется UI (референс anim2: «UI появляется»).
+        final reveal =
+            p <= 0.62 ? 1.0 : math.max(0.0, 1 - (p - 0.62) / 0.38);
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: VColors.background.withValues(alpha: reveal),
+                ),
+              ),
+            ),
+            Center(child: mark),
+          ],
         );
       },
     );
@@ -446,7 +479,8 @@ enum LogoLoaderMode {
   /// Анимация 01 — бесконечная орбитальная загрузка.
   loading,
 
-  /// Анимация 02 — вход в приложение: 2600 мс, знак повёрнут на −45°,
+  /// Анимация 02 — вход в приложение: 2600 мс, круги докручиваются в
+  /// противоположную от загрузки сторону и сходятся в живой фон;
   /// по завершении вызывается [LogoLoader.onDone].
   appEntry,
 

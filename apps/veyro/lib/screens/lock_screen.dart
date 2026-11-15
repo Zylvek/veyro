@@ -201,21 +201,30 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Анимация 02: интро «вход в приложение» — показывается один раз
-    // за запуск, до фазы проверки сессии.
+    // Анимация 02 (app-entry) идёт ПОВЕРХ живого экрана и показывается
+    // один раз за запуск: подложка держит экран до 62%, затем тает и
+    // UI проявляется под тающим знаком; знак сходится ровно в фон
+    // формы (тот же размер, поза и общие часы) — перескока нет.
     if (_introActive) {
-      return Scaffold(
-        body: Center(
-          // Анимация 02 (app-entry): знак повёрнут на −45°, круги из-за
-          // краёв, оборот и сход; после 62% плавно тает — дальше форма.
-          child: LogoLoader(
-            mode: LogoLoaderMode.appEntry,
-            size: 260,
-            onDone: _finishIntro,
+      return Stack(
+        children: [
+          _phaseScreen(),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: VeyroMarkIntro(
+                size: 300,
+                withReveal: true,
+                onDone: _finishIntro,
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
+    return _phaseScreen();
+  }
+
+  Widget _phaseScreen() {
     switch (_phase) {
       case _LockPhase.checking:
         return const Scaffold(
@@ -240,19 +249,23 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         WidgetsBinding.instance.addPostFrameCallback((_) => _enterWelcome());
         return const Scaffold(body: SizedBox.shrink());
       case _LockPhase.needsPassword:
-        return _buildForm(context);
+        // Пока играет интро, знак-фон формы не ставим: интро сам
+        // сходится в него по общим часам (иначе знак был бы двойным).
+        return _buildForm(context, withBackdrop: !_introActive);
     }
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildForm(BuildContext context, {required bool withBackdrop}) {
     return Scaffold(
       body: AmbienceSurface(
         child: Stack(
           children: [
-            // Фон формы — приглушённый вращающийся знак (система 03).
-            const Positioned.fill(
-              child: Center(child: VeyroMarkBackdrop(size: 300)),
-            ),
+            // Фон формы — приглушённый вращающийся знак (система 03);
+            // он же — стартовое состояние анимации 03 при входе.
+            if (withBackdrop)
+              const Positioned.fill(
+                child: Center(child: VeyroMarkBackdrop(size: 300)),
+              ),
             SafeArea(
               child: Center(
                 child: SingleChildScrollView(
