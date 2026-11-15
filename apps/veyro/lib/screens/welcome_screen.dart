@@ -12,7 +12,6 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 
 import 'create_wallet_flow.dart';
-import 'import_backup_screens.dart';
 import 'import_wallet_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -119,13 +118,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             'Импорт кошелька из фразы',
                             icon: Icons.restore_outlined,
                             onPressed: () => _push(const ImportWalletScreen()),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton.icon(
-                            onPressed: () =>
-                                _push(const BackupImportScreen()),
-                            icon: const Icon(Icons.unarchive_outlined, size: 18),
-                            label: const Text('Импорт зашифрованного бэкапа'),
                           ),
                         ],
                       ),

@@ -24,8 +24,6 @@ import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
-import 'about_screen.dart';
-import 'backup_screen.dart';
 import 'create_wallet_flow.dart';
 import 'import_wallet_screen.dart';
 import 'portfolio_screen.dart';
@@ -210,8 +208,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSecurity(context),
               const SizedBox(height: 12),
               _buildNotifications(context),
-              const SizedBox(height: 12),
-              _buildLinks(context),
               const SizedBox(height: 8),
             ],
           ),
@@ -571,37 +567,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLinks(BuildContext context) {
-    return VCard(
-      title: t('settings_sections'),
-      icon: Icons.link_outlined,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: VButton.secondary(
-            t('backups_btn'),
-            icon: Icons.backup_outlined,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const BackupScreen(),
-              ));
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: VButton.secondary(
-            t('about_btn'),
-            icon: Icons.info_outline,
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => const AboutScreen(),
-              ));
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  /// Секция «Разделы» удалена (решение владельца: «полностью откажемся от
+  /// бекапов и О VEYRO — ненужное только место занимает»). Карточки
+  /// бэкапа и About вместе с их экранами вырезаны из приложения.
 }

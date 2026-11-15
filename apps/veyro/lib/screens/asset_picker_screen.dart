@@ -11,6 +11,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 
@@ -133,7 +134,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     final others = kAssetRegistry.where((a) => a.ticker != 'BTC').toList();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isReceive ? 'Получение — выбор актива' : 'Отправка — выбор актива'),
+        title: Text(widget.isReceive
+            ? t('receive_pick_title')
+            : t('send_pick_title')),
       ),
       body: Center(
         child: ConstrainedBox(
@@ -219,22 +222,34 @@ class _BtcTile extends StatelessWidget {
             spacing: 6,
             runSpacing: 4,
             children: [
-              VStatusChip(asset.lifecycle.label, kind: asset.lifecycle.chipKind),
+              VStatusChip(
+                asset.lifecycle.labelLocalized,
+                kind: asset.lifecycle.chipKind,
+              ),
               if (!sessionChecked)
-                const VStatusChip('Статус сессии: …', kind: VChipKind.neutral)
+                VStatusChip(t('session_pending_chip'), kind: VChipKind.neutral)
               else if (sessionError != null)
-                VStatusChip('Ядро недоступно', kind: VChipKind.warning)
+                VStatusChip(t('core_unavailable'), kind: VChipKind.warning)
               else if (unlocked)
                 VStatusChip(
-                    'Сессия: ${ruNetworkText(session!.networkDisplay)} — форма открыта',
+                    tf(
+                      'session_open_chip',
+                      {
+                        'network':
+                            ruNetworkText(session!.networkDisplay) ?? 'BTC'
+                      },
+                    ),
                     kind: VChipKind.success)
               else if (!hasWallets)
-                const VStatusChip('Нет кошельков — создать в «Кошельки»',
-                    kind: VChipKind.warning)
+                VStatusChip(t('no_wallets_chip'), kind: VChipKind.warning)
               else
                 VStatusChip(
-                    'Сессия закрыта — разблокировать: '
-                    '${walletName ?? 'кошелёк не выбран'}',
+                    tf(
+                      'session_closed_chip',
+                      {
+                        'wallet': walletName ?? t('wallet_not_chosen'),
+                      },
+                    ),
                     kind: VChipKind.info),
             ],
           ),
@@ -257,8 +272,10 @@ class _DisabledAssetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Receive/Send недоступны: адаптер этой сети не реализован '
-          'в ядре (${asset.lifecycle.label}).',
+      message: tf(
+        'disabled_adapter_tooltip',
+        {'status': asset.lifecycle.labelLocalized},
+      ),
       child: Opacity(
         opacity: 0.55,
         child: Card(
@@ -296,7 +313,7 @@ class _DisabledAssetTile extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 4,
                 children: [
-                  VStatusChip(asset.lifecycle.label,
+                  VStatusChip(asset.lifecycle.labelLocalized,
                       kind: asset.lifecycle.chipKind),
                 ],
               ),

@@ -144,13 +144,16 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   List<MapEntry<String, List<VeyroAsset>>> get _groupedAssets {
     final groups = <String, List<VeyroAsset>>{};
     for (final asset in _visibleAssets) {
-      final title = asset.implemented ? 'Реализованные' : asset.lifecycle.label;
+      final title =
+          asset.implemented ? t('filter_implemented') : asset.lifecycle.labelLocalized;
       groups.putIfAbsent(title, () => []).add(asset);
     }
     final ordered = <MapEntry<String, List<VeyroAsset>>>[];
     // Реализованные — всегда первой секцией.
-    if (groups.containsKey('Реализованные')) {
-      ordered.add(MapEntry('Реализованные', groups.remove('Реализованные')!));
+    final implementedTitle = t('filter_implemented');
+    if (groups.containsKey(implementedTitle)) {
+      ordered.add(MapEntry(
+          implementedTitle, groups.remove(implementedTitle)!));
     }
     final keys = groups.keys.toList()..sort();
     for (final key in keys) {
@@ -194,12 +197,15 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _filterChip('Все', CatalogFilter.all),
-                    _filterChip('Реализованные', CatalogFilter.implemented),
-                    _filterChip('Исследованные', CatalogFilter.researched),
-                    _filterChip('Особые статусы', CatalogFilter.special),
+                    _filterChip(t('filter_all'), CatalogFilter.all),
+                    _filterChip(
+                        t('filter_implemented'), CatalogFilter.implemented),
+                    _filterChip(
+                        t('filter_researched'), CatalogFilter.researched),
+                    _filterChip(
+                        t('filter_special'), CatalogFilter.special),
                     _toggleChip(
-                      'Группировать по статусу',
+                      t('group_by_status'),
                       _grouped,
                       onToggle: (v) => setState(() => _grouped = v),
                     ),
@@ -213,14 +219,14 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                             value: _sortAlphabetical,
                             underline: const SizedBox.shrink(),
                             isDense: true,
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: false,
-                                child: Text('Порядок матрицы'),
+                                child: Text(t('sort_matrix')),
                               ),
                               DropdownMenuItem(
                                 value: true,
-                                child: Text('A→Я по тикеру'),
+                                child: Text(t('sort_az')),
                               ),
                             ],
                             onChanged: (v) =>
@@ -235,19 +241,21 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Справочник статусов ${kAssetRegistry.length} активов. '
-                  'Балансы и транзакции — только реализованные активы; '
-                  'остальное — честные вердикты матрицы, без имитаций.',
+                  tf(
+                    'catalog_note',
+                    {'count': '${kAssetRegistry.length}'},
+                  ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               if (_prefsLoaded && DisplayPrefs.degraded)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: VStatusChip(
-                      'Настройки не сохраняются: БД недоступна',
+                      t('prefs_degraded_catalog'),
                       kind: VChipKind.warning,
                     ),
                   ),

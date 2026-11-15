@@ -250,6 +250,58 @@ const Map<String, Map<String, String>> _strings = {
   'also_extra': {'ru': '\n(также: {error})', 'en': '\n(also: {error})'},
   'address_unavailable': {'ru': 'Адрес недоступен.', 'en': 'Address is unavailable.'},
   'copied_snackbar': {'ru': '{label} скопировано', 'en': '{label} copied'},
+  // Каталог: фильтры и честная поясняющая строка.
+  'filter_all': {'ru': 'Все', 'en': 'All'},
+  'filter_implemented': {'ru': 'Реализованные', 'en': 'Implemented'},
+  'filter_researched': {'ru': 'Исследованные', 'en': 'Researched'},
+  'filter_special': {'ru': 'Особые статусы', 'en': 'Special statuses'},
+  'group_by_status': {'ru': 'Группировать по статусу', 'en': 'Group by status'},
+  'sort_matrix': {'ru': 'Порядок матрицы', 'en': 'Matrix order'},
+  'sort_az': {'ru': 'A→Я по тикеру', 'en': 'A→Z by ticker'},
+  'catalog_note': {
+    'ru': 'Справочник статусов {count} активов. Балансы и транзакции — '
+        'только реализованные активы; остальное — честные вердикты '
+        'матрицы, без имитаций.',
+    'en': 'Status reference for {count} assets. Balances and transactions '
+        '— implemented assets only; the rest is honest matrix verdicts, '
+        'no imitation.',
+  },
+  'prefs_degraded_catalog': {
+    'ru': 'Настройки не сохраняются: БД недоступна',
+    'en': 'Preferences are not persisted: DB unavailable',
+  },
+  // Статусы жизненного цикла реестра.
+  'lc_researched': {'ru': 'Исследовано', 'en': 'Researched'},
+  'lc_send_supported': {
+    'ru': 'Отправка проверена (testnet)',
+    'en': 'Sends verified (testnet)',
+  },
+  'lc_research_required': {'ru': 'Требует изучения', 'en': 'Needs research'},
+  'lc_blocked': {'ru': 'Заблокировано', 'en': 'Blocked'},
+  'lc_historical': {'ru': 'Исторический тикер', 'en': 'Historical ticker'},
+  // Выбор актива для отправки.
+  'send_pick_title': {'ru': 'Отправка — выбор актива', 'en': 'Send — pick an asset'},
+  'receive_pick_title': {'ru': 'Получение — выбор актива', 'en': 'Receive — pick an asset'},
+  'session_open_chip': {
+    'ru': 'Сессия: {network} — форма открыта',
+    'en': 'Session: {network} — form is open',
+  },
+  'no_wallets_chip': {
+    'ru': 'Нет кошельков — создать в «Кошельки»',
+    'en': 'No wallets — create one in "Wallets"',
+  },
+  'wallet_not_chosen': {'ru': 'кошелёк не выбран', 'en': 'no wallet selected'},
+  'session_closed_chip': {
+    'ru': 'Сессия закрыта — разблокировать: {wallet}',
+    'en': 'Session closed — unlock: {wallet}',
+  },
+  'session_pending_chip': {'ru': 'Статус сессии: …', 'en': 'Session status: …'},
+  'disabled_adapter_tooltip': {
+    'ru': 'Receive/Send недоступны: адаптер этой сети не реализован '
+        'в ядре ({status}).',
+    'en': 'Receive/Send unavailable: this network adapter is not '
+        'implemented in the core ({status}).',
+  },
 };
 
 /// Перевод с подстановкой переменных: t('wallet_deleted', {'name': x}).

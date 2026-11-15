@@ -83,16 +83,13 @@ void main() {
     expect(find.text('YOUR CRYPTO. YOUR CONTROL.'), findsOneWidget);
     expect(find.text('Создать кошелёк'), findsOneWidget);
     expect(find.text('Импорт кошелька из фразы'), findsOneWidget);
-    expect(find.text('Импорт зашифрованного бэкапа'), findsOneWidget);
+    // Бэкапы удалены из приложения (решение владельца: «полностью
+    // откажемся от бекапов — никому не надо, так и не безопасно»).
+    expect(find.textContaining('бэкап'), findsNothing);
 
     // Без кошельков кнопка входа не показывается; фейковых данных нет.
     expect(find.text('Войти в кошелёк'), findsNothing);
     expect(find.text('Баланс'), findsNothing);
-
-    // Кнопка импорта ведёт на реальный экран импорта бэкапа.
-    await tester.tap(find.text('Импорт зашифрованного бэкапа'));
-    await tester.pumpAndSettle();
-    expect(find.text('Полный путь к файлу .veybackup'), findsOneWidget);
   });
 
   testWidgets('Welcome: если кошельки есть — сразу перебрасывает в каркас',

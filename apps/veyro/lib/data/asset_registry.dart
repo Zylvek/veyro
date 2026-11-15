@@ -10,6 +10,7 @@
 //! (ui_spec_group2_test.dart).
 
 import 'package:veyro/design/components.dart';
+import 'package:veyro/util/l10n.dart';
 
 /// Жизненный цикл актив: только по вердиктам матрицы.
 enum AssetLifecycle {
@@ -31,6 +32,23 @@ enum AssetLifecycle {
   final String label;
   final VChipKind chipKind;
   const AssetLifecycle(this.label, this.chipKind);
+
+  /// Локализованная метка статуса (словарь l10n); [label] — русская
+  /// база для тестов и логов.
+  String get labelLocalized {
+    switch (this) {
+      case researched:
+        return t('lc_researched');
+      case sendSupported:
+        return t('lc_send_supported');
+      case researchRequired:
+        return t('lc_research_required');
+      case blocked:
+        return t('lc_blocked');
+      case historical:
+        return t('lc_historical');
+    }
+  }
 }
 
 /// Актив реестра. `note` — сжатая версия матричной строки; полные
