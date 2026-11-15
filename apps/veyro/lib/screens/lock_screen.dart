@@ -1,8 +1,7 @@
 //! Экран входа (решение владельца: «на весь экран окно пароля; как введу
-//! пароль — сразу на вкладку Обзора»). Полноэкранная разблокировка:
-//! пароль → btc_unlock (KDF в Rust, ключи не покидают ядро) → btc_sync
-//! (gap-limit 20; фазы честно показаны) → каркас на «Обзоре». Сессия уже
-//! активна — сразу в каркас. Кошельков нет — Welcome (создать/импорт).
+//! пароль — сразу на Обзор»). Полноэкранная разблокировка: пароль →
+//! btc_unlock (KDF в Rust, ключи не покидают ядро) → btc_sync → Обзор.
+//! Загрузка и фон — фирменная система лого-анимаций владельца (знак).
 //! Пароль нигде не хранится; лог не содержит секретов.
 
 import 'package:flutter/material.dart';
@@ -10,14 +9,15 @@ import 'package:flutter/material.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/ambience.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/format.dart';
 import 'package:veyro/util/server_probe.dart';
 import 'package:veyro/util/display_prefs.dart';
-import 'package:veyro/util/format.dart';
 import 'package:veyro/util/network_config.dart';
 
 import 'dashboard_screen.dart';
@@ -29,7 +29,8 @@ class LockScreen extends StatefulWidget {
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
   final Future<void> Function(String walletId, String password)? unlockAction;
 
-  const LockScreen({super.key, this.walletsLoader, this.sessionLoader, this.unlockAction});
+  const LockScreen(
+      {super.key, this.walletsLoader, this.sessionLoader, this.unlockAction});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -37,7 +38,7 @@ class LockScreen extends StatefulWidget {
 
 enum _LockPhase { checking, needsPassword, unlocking, enter, noWallets }
 
-class _LockScreenState extends State<LockScreen> {
+class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
   _LockPhase _phase = _LockPhase.checking;
   List<WalletInfoDto> _wallets = const [];
   WalletInfoDto? _wallet;
@@ -45,14 +46,25 @@ class _LockScreenState extends State<LockScreen> {
   String? _error;
   final _passwordController = TextEditingController();
 
+  /// Интро «вход в приложение» (система лого-анимаций, референс 02)
+  /// показывается один раз за запуск; «Другой кошелёк» его не повторяет.
+  static bool _introShown = false;
+  bool _introActive = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (!_introShown) {
+      _introShown = true;
+      _introActive = true;
+    }
     _check();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _passwordController.dispose();
     super.dispose();
   }
@@ -82,8 +94,6 @@ class _LockScreenState extends State<LockScreen> {
       if (!mounted) return;
       setState(() {
         _phase = _LockPhase.enter;
-        // Реестр не читается — вход всё равно честно возможен? Нет:
-        // без vault-директории кошельков нет.
         _error = 'Реестр кошельков недоступен: $e';
         _wallets = const [];
       });
@@ -106,6 +116,11 @@ class _LockScreenState extends State<LockScreen> {
       _phase =
           chosen == null ? _LockPhase.noWallets : _LockPhase.needsPassword;
     });
+  }
+
+  void _finishIntro() {
+    if (!mounted) return;
+    setState(() => _introActive = false);
   }
 
   void _enterShell() {
@@ -186,70 +201,31 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Анимация 02: интро «вход в приложение» — показывается один раз
+    // за запуск, до фазы проверки сессии.
+    if (_introActive) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              VeyroMarkIntro(size: 260, onDone: _finishIntro),
+            ],
+          ),
+        ),
+      );
+    }
     switch (_phase) {
       case _LockPhase.checking:
         return const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         );
       case _LockPhase.unlocking:
-        // Загрузка «как в играх»: полоса плавно набирает ход и
-        // замедляется к концу (без цифр — проценты не показываем).
-        // Реальный прогресс от ядра не отдаётся, поэтому шкала
-        // движется по таймеру и не доходит до конца.
-        return Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const VeyroLogo(size: 64),
-                const SizedBox(height: 34),
-                SizedBox(
-                  width: 340,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 0.94),
-                    duration: Duration(seconds: 14),
-                    curve: Curves.easeInToLinear,
-                    builder: (context, value, _) => Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius:
-                              BorderRadius.all(Radius.circular(7)),
-                          child: Stack(
-                            children: [
-                              Container(height: 12, color: VColors.elevated),
-                              FractionallySizedBox(
-                                widthFactor: value.clamp(0.0, 0.94),
-                                child: Container(
-                                  height: 12,
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        VColors.primaryGlow,
-                                        VColors.primary,
-                                        VColors.secondary,
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color:
-                                            Color(0x99638CFF),
-                                        blurRadius: 12,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // Загрузка — фирменная орбитальная анимация знака (система
+        // лого-анимаций владельца, референс 01): знак вращается,
+        // круги дышат радиусом и дистанцией.
+        return const Scaffold(
+          body: Center(child: VeyroMarkSpinner(size: 230)),
         );
       case _LockPhase.enter:
         // Мгновение до replace-навигации — экран входа уже не нужен.
@@ -265,90 +241,101 @@ class _LockScreenState extends State<LockScreen> {
   Widget _buildForm(BuildContext context) {
     return Scaffold(
       body: AmbienceSurface(
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: GlassPanel(
-                  borderRadius: const BorderRadius.all(Radius.circular(24)),
-                  sigma: 22,
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                    const Center(child: VeyroLogo(size: 72)),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'ВХОД',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 6,
-                        color: VColors.textPrimary,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Кошелёк «${_wallet?.name ?? '—'}»',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: VColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _passwordController,
-                      autofocus: true,
-                      obscureText: true,
-                      textInputAction: TextInputAction.done,
-                      autofillHints: const [AutofillHints.password],
-                      onChanged: (_) => setState(() {}),
-                      onSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Пароль кошелька',
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    VButton.primary(
-                      'Войти',
-                      icon: Icons.login,
-                      onPressed: _submit,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        style: TextStyle(color: VColors.error, fontSize: 13),
-                      ),
-                    ],
-                    if (_wallets.length > 1) ...[
-                      const SizedBox(height: 10),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () => _chooseWallet(context),
-                          icon: const Icon(Icons.swap_horiz, size: 18),
-                          label: const Text('Другой кошелёк'),
+        child: Stack(
+          children: [
+            // Фон формы — приглушённый вращающийся знак (система 03).
+            const Positioned.fill(
+              child: Center(child: VeyroMarkBackdrop(size: 300)),
+            ),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: GlassPanel(
+                      borderRadius:
+                          const BorderRadius.all(Radius.circular(24)),
+                      sigma: 22,
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Center(child: VeyroMark(size: 64)),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'ВХОД',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 6,
+                                color: VColors.textPrimary,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Кошелёк «${_wallet?.name ?? '—'}»',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: VColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            TextField(
+                              controller: _passwordController,
+                              autofocus: true,
+                              obscureText: true,
+                              textInputAction: TextInputAction.done,
+                              autofillHints: const [AutofillHints.password],
+                              onChanged: (_) => setState(() {}),
+                              onSubmitted: (_) => _submit(),
+                              decoration: const InputDecoration(
+                                labelText: 'Пароль кошелька',
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            VButton.primary(
+                              'Войти',
+                              icon: Icons.login,
+                              onPressed: _submit,
+                            ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                _error!,
+                                style: TextStyle(
+                                    color: VColors.error, fontSize: 13),
+                              ),
+                            ],
+                            if (_wallets.length > 1) ...[
+                              const SizedBox(height: 10),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: () => _chooseWallet(context),
+                                  icon:
+                                      const Icon(Icons.swap_horiz, size: 18),
+                                  label: const Text('Другой кошелёк'),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _chooseWallet(BuildContext context) async {
     final picked = await showDialog<WalletInfoDto>(

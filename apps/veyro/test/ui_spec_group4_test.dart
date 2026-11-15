@@ -116,7 +116,11 @@ void main() {
           unlockAction: unlockAction,
         ),
       ));
-      await tester.pumpAndSettle();
+      // Анимации знака бесконечные (орбитальный спиннер, фон) —
+      // pumpAndSettle здесь зависает по определению: качаем кадрами.
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
     }
 
     testWidgets('сессия уже активна: сразу каркас без формы входа',
@@ -152,7 +156,10 @@ void main() {
       expect(find.textContaining('Кошелёк «Основной»'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '1234');
       await tester.tap(find.text('Войти'));
-      await tester.pumpAndSettle();
+      // Орбитальный спиннер бесконечный — качаем кадрами.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       expect(unlockedFor, 'w1');
       // Сразу на каркас (Обзор).
       expect(find.byType(DashboardScreen), findsOneWidget);
@@ -169,7 +176,10 @@ void main() {
       );
       await tester.enterText(find.byType(TextField), '9999');
       await tester.tap(find.text('Войти'));
-      await tester.pumpAndSettle();
+      // Орбитальный спиннер бесконечный — качаем кадрами.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       expect(find.textContaining('Неверный пароль'), findsOneWidget);
       expect(find.byType(DashboardScreen), findsNothing);
       // Снова можно ввести.
