@@ -24,6 +24,8 @@ List<String> serverCandidates(int code) {
       return const [
         'ssl://fulcrum.bullbitcoin.com:50002',
         'ssl://electrum.blockstream.info:50002',
+        'ssl://E-x.not.fyi:50002',
+        'ssl://electrum.emzy.de:50002',
         'tcp://electrum.blockstream.info:50001',
       ];
     case 1:

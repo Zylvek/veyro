@@ -165,23 +165,28 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       } else {
         final settings = await loadSettings();
         if (!mounted) return;
-        // Автоподбор живого Electrum-сервера (реальный server.version
-        // хэндшейк) + перебор кандидатов, если протокол на выбранном
-        // упал: «unexpected end of file» больше не рвет вход.
-        final probed = await probeBestServer(settings.networkCode)
-            .timeout(const Duration(seconds: 10), onTimeout: () => null);
-        final candidates = <String>[
-          if (probed != null) probed,
-          if (settings.serverUrl.isNotEmpty && settings.serverUrl != probed)
-            settings.serverUrl,
+        // Публичные Electrum-серверы режут частые подключения, поэтому:
+        // 1) без параллельного прозвона перед входом (он сам по себе
+        //    может попасть под rate-limit);
+        // 2) кандидаты перебираются ПОСЛЕДОВАТЕЛЬНО, начиная с
+        //    последнего живого, с паузой между неуспешными попытками;
+        // 3) неверный пароль и прочие содержательные ошибки — сразу
+        //    наружу, без перебора.
+        final persisted = settings.serverUrl.isNotEmpty
+            ? settings.serverUrl
+            : null;
+        final candidates = <String>{
+          if (persisted != null) persisted,
           ...serverCandidates(settings.networkCode),
-        ].toSet().toList();
-
+        }.toList();
         Object? unlockError;
         var unlocked = false;
-        for (final server in candidates.take(4)) {
+        for (var attempt = 0;
+            attempt < candidates.length && attempt < 5;
+            attempt++) {
+          final server = candidates[attempt];
           try {
-            debugPrint('veyro-flow: unlock via $server');
+            debugPrint('veyro-flow: unlock via $server (attempt ${attempt + 1})');
             await btcUnlock(
               walletsDir: walletsDir(),
               walletId: _wallet!.id,
@@ -198,11 +203,11 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                 raw.contains('unexpected end of file') ||
                 raw.contains('all errored') ||
                 raw.contains('timed out') ||
-                raw.contains('connection');
-            // Неверный пароль и другие содержательные ошибки не
-            // повторяем — сразу наружу.
+                raw.contains('connection') ||
+                raw.contains('EOF');
             if (!transient) break;
-            invalidateProbe();
+            // Вежливая пауза — даёт честный шанс следующему кандидату.
+            await Future.delayed(const Duration(milliseconds: 1200));
           }
         }
         if (!unlocked) {
