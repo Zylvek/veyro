@@ -400,6 +400,10 @@ const Map<String, Map<String, String>> _strings = {
         'addresses are invisible to this wallet. Balance and history '
         'cover transparent (regular) ltc1… transactions only.',
   },
+  'ltc_mweb_short': {
+    'ru': 'MWEB-переводы этим кошельком не видны (только обычные ltc1…) — приходы через MWEB могут быть скрыты.',
+    'en': 'MWEB transfers are invisible to this wallet (regular ltc1… only) — incoming MWEB payments may be hidden.',
+  },
   'ltc_server_autopick_note': {
     'ru': 'Сервер Electrum-LTC подбирается автоматически из живых '
         'публичных (проверка genesis обязателен).',

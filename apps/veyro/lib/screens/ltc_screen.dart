@@ -31,7 +31,6 @@ import 'receive_screen.dart';
 import 'send_screen.dart';
 
 const _persistKey = 'ltc_last_sync';
-
 class LtcScreen extends StatefulWidget {
   final WalletInfoDto info;
 
@@ -494,11 +493,6 @@ class _LtcScreenState extends State<LtcScreen> {
                     const SizedBox(height: 10),
                     kvRow(t('utxo_available'), '${v.utxo}'),
                     kvRow(t('chain_height'), v.tip > 0 ? '${v.tip}' : '—'),
-                    Text(
-                      tf('server_status_row', {'value': v.server}),
-                      style: const TextStyle(
-                          color: VColors.textSecondary, fontSize: 11),
-                    ),
                     if (v.at != null) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -539,12 +533,6 @@ class _LtcScreenState extends State<LtcScreen> {
                         icon: const Icon(Icons.sync),
                         label: Text(t('refresh_btn')),
                       ),
-                      const SizedBox(height: 8),
-                      FilledButton.tonalIcon(
-                        onPressed: _busy ? null : _lock,
-                        icon: const Icon(Icons.lock_outline),
-                        label: Text(t('lock_btn')),
-                      ),
                     ] else
                       FilledButton(
                         onPressed: _busy ? null : () => _unlock(),
@@ -584,7 +572,7 @@ class _LtcScreenState extends State<LtcScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  t('ltc_mweb_warning'),
+                  t('ltc_mweb_short'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: VColors.textSecondary, fontSize: 11),
                 ),
@@ -608,20 +596,6 @@ class _LtcScreenState extends State<LtcScreen> {
       builder: (_) => HistoryScreen(walletCoin: WalletCoin.ltc),
     ));
     if (mounted) await _refresh(autosyncIfUnlocked: true);
-  }
-
-  Future<void> _lock() async {
-    try {
-      await ltcLock();
-      if (!mounted) return;
-      setState(() {
-        _state = null;
-        _sync = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
-    }
   }
 }
 
