@@ -11,6 +11,11 @@
 
 /// Кандидаты Electrum-серверов по коду сети. Для каждого есть
 /// верифицированный дефолт, плюс альтернативы.
+///
+/// ПОЛИТИКА TLS: plaintext `tcp://` кандидаты исключены — открытый канал
+/// не может быть подменен в смысле Fund-safety (genesis-проверка ядра
+/// отбивает чужую сеть), но scripthash'и/txid'ы в открытом эфире —
+/// деанонимизация владельца. Только сертификат-TLS.
 List<String> serverCandidates(int code) {
   switch (code) {
     case 0:
@@ -19,7 +24,6 @@ List<String> serverCandidates(int code) {
         'ssl://electrum.blockstream.info:50002',
         'ssl://E-x.not.fyi:50002',
         'ssl://electrum.emzy.de:50002',
-        'tcp://electrum.blockstream.info:50001',
       ];
     case 1:
       return const ['ssl://electrum.blockstream.info:60002'];

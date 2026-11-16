@@ -36,7 +36,9 @@ pub struct FeeRates {
 /// Convert the Electrum protocol unit (BTC per kilobyte) to sat/vbyte, floored
 /// at 1. A negative estimate means "unknown at this depth".
 pub fn sat_per_vb_from_btc_per_kb(btc_per_kb: f64) -> Result<u64, ChainError> {
-    if btc_per_kb < 0.0 {
+    // NaN/Inf не проходят проверку "< 0" ниже — отбиваем их явно: без
+    // этого NaN → cast → 0 → «комиссия 1 sat/vB» якобы живая оценка.
+    if !btc_per_kb.is_finite() || btc_per_kb < 0.0 {
         return Err(ChainError::FeeEstimateUnavailable(btc_per_kb));
     }
     // This float math is ONLY the protocol-unit conversion; its output is an
@@ -133,12 +135,23 @@ impl PlannedTransfer {
 }
 
 /// Fee for the shape "n inputs + recipient (+ change)" at `rate` sat/vB.
-fn shape_fee(n_inputs: usize, recipient_script_len: usize, has_change: bool, rate: u64) -> u64 {
+/// Арифметика checked: абсурдная ставка не имеет права завёртываться
+/// (u64 wrapping в release-профиле) в «выгодную» комиссию — только честная
+/// ошибка валидации.
+fn shape_fee(
+    n_inputs: usize,
+    recipient_script_len: usize,
+    has_change: bool,
+    rate: u64,
+) -> Result<u64, ChainError> {
     let mut lens = vec![recipient_script_len];
     if has_change {
         lens.push(22); // our change addresses are always P2WPKH (BIP84)
     }
-    estimate_vsize(n_inputs, &lens) * rate
+    let vsize = estimate_vsize(n_inputs, &lens);
+    vsize
+        .checked_mul(rate)
+        .ok_or_else(|| ChainError::InvalidAmount(format!("fee rate {rate} sat/vB is absurd")))
 }
 
 /// Plan a transfer from an ALREADY-parsed recipient script (the coin module
@@ -190,7 +203,7 @@ pub fn plan_transfer_script(
     let mut picked: Vec<&WalletUtxo> = Vec::new();
     let mut gathered: u64 = 0;
     let (fee, change_opt): (u64, Option<u64>) = loop {
-        let f_with_change = shape_fee(picked.len(), recipient_script_len, true, fee_sat_per_vb);
+        let f_with_change = shape_fee(picked.len(), recipient_script_len, true, fee_sat_per_vb)?;
         if gathered >= amount_sat.saturating_add(f_with_change) {
             let leftover = gathered - amount_sat - f_with_change;
             if leftover >= dust_sat {
@@ -200,7 +213,7 @@ pub fn plan_transfer_script(
         // No change output is viable (or change would be dust): the leftover
         // goes to the miner, the recipient keeps its exact amount. This is
         // the same equilibrium the reference Electrum client reaches.
-        let f_no_change = shape_fee(picked.len(), recipient_script_len, false, fee_sat_per_vb);
+        let f_no_change = shape_fee(picked.len(), recipient_script_len, false, fee_sat_per_vb)?;
         if gathered >= amount_sat.saturating_add(f_no_change) {
             break (f_no_change, None);
         }

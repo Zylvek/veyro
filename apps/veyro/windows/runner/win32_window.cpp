@@ -42,8 +42,14 @@ int Scale(int source, double scale_factor) {
 
 // Dynamically loads the |EnableNonClientDpiScaling| from the User32 module.
 // This API is only needed for PerMonitor V1 awareness mode.
+//
+// Security note: LoadLibraryEx with LOAD_LIBRARY_SEARCH_SYSTEM32 pins the
+// lookup to the system directory — the plain-name form
+// (`LoadLibraryA("User32.dll")`) is subject to DLL search-order hijacking
+// when a writable directory precedes System32 on the search path.
 void EnableFullDpiSupportIfAvailable(HWND hwnd) {
-  HMODULE user32_module = LoadLibraryA("User32.dll");
+  HMODULE user32_module = LoadLibraryExW(L"User32.dll", nullptr,
+                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
   if (!user32_module) {
     return;
   }

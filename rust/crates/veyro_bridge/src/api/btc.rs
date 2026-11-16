@@ -84,9 +84,19 @@ pub fn btc_unlock(
     };
 
     // 1. Decrypt inside Rust; only the derived seed stays (zeroized both in
-    //    the vault payload and in the session copy below).
+    //    the vault payload and in the session copy below). Неудачные
+    //    расшифровки троттлятся (per-wallet штраф): онлайн-перебор пароля
+    //    через собственную FFI-границу бессмыслен (defense-in-depth;
+    //    оффлайн-перебор держит сам Argon2id).
     let manager = WalletManager::open(&wallets_dir, production_kdf())?;
-    let secrets = manager.reveal_secrets(&wallet_id, &effective)?;
+    let secrets = match manager.reveal_secrets(&wallet_id, &effective) {
+        Ok(secrets) => secrets,
+        Err(e) => {
+            crate::unlock_throttle::register_failure(&wallet_id);
+            return Err(anyhow!("{e}"));
+        }
+    };
+    crate::unlock_throttle::register_success(&wallet_id);
     let mnemonic = from_phrase(&secrets.phrase)?;
     let seed = mnemonic.to_seed(&secrets.passphrase);
 

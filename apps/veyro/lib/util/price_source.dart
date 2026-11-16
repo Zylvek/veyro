@@ -190,8 +190,40 @@ class PriceSource {
 
   /// Реальный сетевой загрузчик: один запрос на все валюты, обе базовые
   /// монеты и монеты линии графика.
-  static Future<FiatRates?> httpLoader() async {
-    final client = HttpClient();
+  ///
+  /// Чтение тела ответа с жёстким лимитом байт. `null` — лимит превышен
+  /// (тело недоверенное: вздутый ответ провайдера/подменённого хоста не
+  /// конвертируется в OOM). Возвращает декодированную UTF-8 строку.
+  static Future<String?> _readLimited(HttpClientResponse response, int limit) async {
+    final raw = await _readLimitedRaw(response, limit);
+    if (raw == null) return null;
+    try {
+      return utf8.decode(raw);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Байтовая версия лимитированного чтения.
+  static Future<List<int>?> _readLimitedRaw(HttpClientResponse response, int limit) async {
+    final out = <int>[];
+    try {
+      await for (final chunk in response) {
+        out.addAll(chunk);
+        if (out.length > limit) return null;
+      }
+    } catch (_) {
+      return null;
+    }
+    return out;
+  }
+
+  /// Реальный сетевой загрузчик: один запрос на все валюты, обе базовые
+  /// монеты и монеты линии графика.
+  ///
+  /// Чтение тела с жёстким лимитом ([_readLimited]): тело от провайдера —
+  /// недоверенный вход, вздутый ответ не имеет права уводить процесс в OOM.
+  static Future<FiatRates?> httpLoader() async {    final client = HttpClient();
     try {
       final ids = <String>{
         'bitcoin',
@@ -210,7 +242,9 @@ class PriceSource {
         const Duration(seconds: 10),
       );
       if (response.statusCode != 200) return null;
-      final body = await response.transform(utf8.decoder).join();
+      // Лимит тела: подменённый/вздутый ответ не превращается в OOM.
+      final body = await _readLimited(response, 2 * 1024 * 1024);
+      if (body == null) return null;
       final json = jsonDecode(body) as Map<String, dynamic>;
       Map<String, double> parse(String coin) {
         final map = json[coin] as Map<String, dynamic>?;
@@ -323,8 +357,7 @@ class PriceSource {
   final Map<String, _SeriesEntry> _seriesCache = {};
 
   /// Реальный сетевой загрузчик исторической линии курса.
-  static Future<List<MarketPoint>?> httpMarketLoader(
-    String coinId,
+  static Future<List<MarketPoint>?> httpMarketLoader(    String coinId,
     String fiat,
     int days,
   ) async {
@@ -342,7 +375,10 @@ class PriceSource {
         const Duration(seconds: 10),
       );
       if (response.statusCode != 200) return null;
-      final body = await response.transform(utf8.decoder).join();
+      // Тот же лимит тела для исторической линии.
+      final bodyBytes = await _readLimitedRaw(response, 2 * 1024 * 1024);
+      if (bodyBytes == null) return null;
+      final body = utf8.decode(bodyBytes);
       final json = jsonDecode(body) as Map<String, dynamic>;
       final prices = json['prices'] as List?;
       if (prices == null) return null;

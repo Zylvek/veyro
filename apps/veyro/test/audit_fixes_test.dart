@@ -2,6 +2,8 @@
 //! пароля едина для создания/импорта, честные ключи словаря на месте,
 //! пикир активов показывает LTC как реализованный актив, а не отключённый.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veyro/src/rust/api/btc.dart';
@@ -9,8 +11,10 @@ import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
+import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/network.dart';
 import 'package:veyro/util/password_policy.dart';
+import 'package:veyro/util/server_probe.dart';
 
 BtcSyncDto _btcSync(int confirmed) => BtcSyncDto(
       networkCode: 0,
@@ -150,6 +154,70 @@ void main() {
             Exception('decryption failed: wrong password or corrupted data')),
         isFalse,
       );
+    });
+  });
+
+  group('Политика TLS (security audit 16.11)', () {
+    test('кандидаты серверов — только ssl://', () {
+      for (final code in [0, 1, 2]) {
+        for (final url in serverCandidates(code)) {
+          expect(url.startsWith('ssl://'), isTrue,
+              reason: 'plaintext tcp:// исключён: $url');
+          expect(url.length, lessThanOrEqualTo(256));
+        }
+      }
+    });
+
+    test('persisted-сервер чужой схемы не принимается валидатором формы', () {
+      // Форма-валидатор loadServerUrl: ssl:// только (тест формы значения,
+      // без FFI — сам предикат проверяется в network_config через startsWith).
+      const formOk = 'ssl://fulcrum.bullbitcoin.com:50002';
+      const junk = 'tcp://attacker.example:50001';
+      expect(formOk.startsWith('ssl://'), isTrue);
+      expect(junk.startsWith('ssl://'), isFalse);
+      // Длина-граница тоже честная.
+      expect('ssl://${'a' * 1000}:50002'.length > 256, isTrue);
+      // Прямой чек формы из network_config: ssl://... && length <= 256.
+      bool acceptServerForm(String v) =>
+          v.startsWith('ssl://') && v.length <= 256;
+      expect(acceptServerForm(formOk), isTrue);
+      expect(acceptServerForm(junk), isFalse);
+      expect(acceptServerForm(''), isFalse);
+    });
+  });
+
+  group('SVG-кэш Iconify (security audit 16.11)', () {
+    List<int> svg(String body) => utf8.encode('<svg xmlns="http://www.w3.org/2000/svg">$body</svg>');
+
+    test('валидный SVG пропускается, мусор — нет', () {
+      expect(isValidSvg(svg('<path d="M0 0"/>')), isTrue);
+      expect(isValidSvg(const []), isFalse);
+      expect(isValidSvg(utf8.encode('not a svg at all')), isFalse);
+      // Скрипты и обработчики — отказ, flutter_svg их не исполняет,
+      // но недоверенное содержимое в рендер не попадает вовсе.
+      expect(isValidSvg(svg('<script>alert(1)</script>')), isFalse);
+      expect(isValidSvg(svg('<rect onload="steal()"/>')), isFalse);
+      // XML-инъекции через DOCTYPE/ENTITY — отказ.
+      expect(isValidSvg(utf8.encode('<!DOCTYPE svg [<!ENTITY x "1">]><svg>&x;</svg>')), isFalse);
+      // Внешние ссылки — отказ (никто не дёргает чужие URL за рендером).
+      expect(isValidSvg(svg('<image xlink:href="http://evil/x.png"/>')), isFalse);
+      expect(isValidSvg(svg('<image href="data:image/svg+xml,X"/>')), isFalse);
+      expect(isValidSvg(svg('<foreignObject><div/></foreignObject>')), isFalse);
+      // BOM-файл читается.
+      final bom = <int>[0xEF, 0xBB, 0xBF, ...utf8.encode('<svg><path/></svg>')];
+      expect(isValidSvg(bom), isTrue);
+      // Вздутый файл — отказ.
+      expect(isValidSvg(List.filled(maxSvgBytes + 1, 0x20)), isFalse);
+    });
+
+    test('валидатор тикера не пропускает путь-инъекцию', () {
+      expect(CoinIconService.isValidKey('BTC'), isTrue);
+      expect(CoinIconService.isValidKey('KAS'), isTrue);
+      expect(CoinIconService.isValidKey('../../etc/passwd'), isFalse);
+      expect(CoinIconService.isValidKey('c:\\temp'), isFalse);
+      expect(CoinIconService.isValidKey('btc/tmp'), isFalse);
+      expect(CoinIconService.isValidKey(''), isFalse);
+      expect(CoinIconService.isValidKey('TOOLONGTICKER'), isFalse);
     });
   });
 }

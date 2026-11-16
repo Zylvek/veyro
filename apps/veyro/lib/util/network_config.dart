@@ -88,9 +88,16 @@ Future<int> loadNetworkCode() async {
 }
 
 /// Сервер из настроек или дефолт сети (пустая строка, если дефолта нет).
+///
+/// Защита от подменённой базы: persisted значение принимается ТОЛЬКО при
+/// честной форме `ssl://…` (см. политику TLS в server_probe); мусор,
+/// plaintext `tcp://` и прочие схемы молча заменяются дефолтом.
 Future<String> loadServerUrl(int code) async {
   final saved = await dbGetSetting(key: keyNodeEndpoint(code));
-  if (saved != null && saved.trim().isNotEmpty) return saved.trim();
+  if (saved != null) {
+    final v = saved.trim();
+    if (v.startsWith('ssl://') && v.length <= 256) return v;
+  }
   return defaultServerUrl(code) ?? '';
 }
 

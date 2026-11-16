@@ -222,6 +222,8 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         debugPrint('veyro-flow: post-login sync deferred: $e');
       }
       if (!mounted) return;
+      // Пароль выполннил работу: не держим его в поле ввода дольше нужного.
+      _passwordController.clear();
       setState(() => _phase = _LockPhase.enter);
       _enterShell();
     } catch (e) {

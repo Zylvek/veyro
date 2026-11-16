@@ -23,6 +23,7 @@ mod btc_session;
 mod frb_generated;
 mod ltc_session;
 mod session_password;
+mod unlock_throttle;
 
 use chains::ChainError;
 use crypto_vault::KdfParams;

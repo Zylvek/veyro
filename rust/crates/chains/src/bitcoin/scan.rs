@@ -67,6 +67,11 @@ impl Discovery {
 /// the gateway for the history of each. Stops each branch after `gap_limit`
 /// consecutive unused addresses past the last used one (hard-capped to guard
 /// against runaway servers/servers with lies).
+/// Строгий верхний предел gap_limit: UI использует 20 (BIP44), но bridge
+/// принимает u32 — недоверенный/ошибочный вызов с гигантским gап-лимитом
+/// не имеет права взрывать память батчами дериваций (DoS ядра).
+pub const MAX_GAP_LIMIT: u32 = 1_000;
+
 pub fn discover<A: AddressSource, G: Gateway + ?Sized>(
     gateway: &G,
     account: &A,
@@ -76,6 +81,11 @@ pub fn discover<A: AddressSource, G: Gateway + ?Sized>(
         return Err(ChainError::InvalidAmount(
             "gap limit must be at least 1".into(),
         ));
+    }
+    if gap_limit > MAX_GAP_LIMIT {
+        return Err(ChainError::InvalidAmount(format!(
+            "gap limit {gap_limit} exceeds the hard cap of {MAX_GAP_LIMIT}"
+        )));
     }
     let external = discover_branch(gateway, account, BRANCH_EXTERNAL, gap_limit)?;
     let internal = discover_branch(gateway, account, BRANCH_INTERNAL, gap_limit)?;
