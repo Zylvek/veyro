@@ -4,6 +4,8 @@
 //! курсов нет — фиатные суммы не отображаются (выдавать выдуманные
 //! значения запрещено спекой).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:veyro/data/asset_registry.dart';
@@ -11,7 +13,9 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
@@ -168,11 +172,116 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _marketPoints = series;
       });
       await _loadRecent();
+      // Фоновая догрузка монет прямо с Обзора (решение владельца: «чтобы
+      // посмотреть, есть ли монеты, не заходя на монету»): иконка загрузки
+      // на карточке, балансы подливаются в кэши тихо. Только в реальной
+      // сборке: тесты с инъекциями — без ядра, фоновые FFI-вызовы не для них.
+      if (widget.sessionLoader == null && widget.historyLoader == null) {
+        await _backgroundCoinSync();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
       });
+    }
+  }
+
+  bool _coinSyncRunning = false;
+
+  /// Тихое обновление балансов BTC/LTC: сессия открыта — синк; сессия
+  /// закрыта, но пароль кэширован ядром — тихий unlock на последнем живом
+  /// сервере и синк. Ни одного диалога: ошибки — только в debug-лог.
+  Future<void> _backgroundCoinSync() async {
+    if (_coinSyncRunning || !mounted) return;
+    _coinSyncRunning = true;
+    final wallet = _selected;
+    try {
+      // BTC: кэш свежее 5 минут — не тратим соединений.
+      final btcSession = await btcSessionState();
+      if (btcSession != null && !mounted) return;
+      if (btcSession != null) {
+        final fresh = BtcStateCache.instance.take();
+        if (fresh == null) {
+          BtcConnectState.instance.setBusy(true);
+          try {
+            final sync = await btcSync(gapLimit: 20);
+            if (mounted) BtcStateCache.instance.store(sync);
+          } catch (e) {
+            debugPrint('veyro-flow: btc background sync failed: $e');
+          } finally {
+            BtcConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      // LTC: закрытая сессия не помеха, если пароль кэширован ядром.
+      final ltcSession = await ltcSessionState();
+      if (!mounted) return;
+      if (ltcSession == null && wallet != null) {
+        var cached = false;
+        try {
+          cached = await sessionPasswordCached(walletId: wallet.id);
+        } catch (_) {}
+        if (cached) {
+          LtcConnectState.instance.setBusy(true);
+          try {
+            final servers = await ltcServers();
+            String? lastGood;
+            try {
+              lastGood = await dbGetSetting(key: 'ltc_last_good_server');
+            } catch (_) {}
+            final ordered = [...servers];
+            if (lastGood != null &&
+                lastGood.isNotEmpty &&
+                ordered.remove(lastGood)) {
+              ordered.insert(0, lastGood);
+            }
+            var unlocked = false;
+            for (final server in ordered.take(2)) {
+              try {
+                await ltcUnlock(
+                  walletsDir: walletsDir(),
+                  walletId: wallet.id,
+                  password: '',
+                  serverUrl: server,
+                ).timeout(const Duration(seconds: 45));
+                unlocked = true;
+                break;
+              } catch (e) {
+                debugPrint('veyro-flow: ltc bg unlock $server failed: $e');
+              }
+            }
+            if (unlocked) {
+              final sync = await ltcSync(gapLimit: 20);
+              if (mounted) LtcStateCache.instance.store(sync);
+              try {
+                await dbSetSetting(
+                    key: 'ltc_last_good_server', value: sync.serverUrl);
+              } catch (_) {}
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: ltc background sync failed: $e');
+          } finally {
+            LtcConnectState.instance.setBusy(false);
+          }
+        }
+      } else if (ltcSession != null) {
+        final fresh = LtcStateCache.instance.take();
+        if (fresh == null) {
+          LtcConnectState.instance.setBusy(true);
+          try {
+            final sync = await ltcSync(gapLimit: 20);
+            if (mounted) LtcStateCache.instance.store(sync);
+          } catch (e) {
+            debugPrint('veyro-flow: ltc background sync failed: $e');
+          } finally {
+            LtcConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      if (mounted) setState(() {});
+    } finally {
+      _coinSyncRunning = false;
     }
   }
 
@@ -707,70 +816,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         AnimatedBuilder(
           animation: LtcConnectState.instance,
-          builder: (context, _) => Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: _AssetAvatar(ltc),
-              title: const Text('Litecoin'),
-              subtitle: LtcConnectState.instance.busy
-                  ? Text(
-                      t('ltc_connecting_badge'),
-                      style: TextStyle(
-                        fontFamily: kMonoFont,
-                        fontSize: 11.5,
-                        color: VColors.warning,
+          builder: (context, _) {
+            final ltcBusy = LtcConnectState.instance.busy;
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: _AssetAvatar(ltc),
+                title: const Text('Litecoin'),
+                subtitle: ltcBusy
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t('ltc_connecting_badge'),
+                            style: TextStyle(
+                              fontFamily: kMonoFont,
+                              fontSize: 11.5,
+                              color: VColors.warning,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
+                        style: const TextStyle(
+                          fontFamily: kMonoFont,
+                          fontSize: 11.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
                       ),
-                    )
-                  : Text(
-                      '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
-                      style: const TextStyle(
-                        fontFamily: kMonoFont,
-                        fontSize: 11.5,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                trailing: ltcBusy
+                    ? const SizedBox(width: 46)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (ltcRate != null) ...[
+                            Text(
+                              _maskAmount(
+                                  formatFiat(ltcBalanceLit / 1e8 * ltcRate)),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                                color: VColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              DisplayPrefs.fiatCurrency.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (ltcSync != null &&
+                              ltcSync.unconfirmedDeltaSat.toInt() != 0)
+                            Text(
+                              '${signedSatToBtcString(ltcSync.unconfirmedDeltaSat.toInt())} LTC ${t('mempool_suffix')}',
+                              style: TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.warning,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (ltcRate != null) ...[
-                  Text(
-                    _maskAmount(formatFiat(ltcBalanceLit / 1e8 * ltcRate)),
-                    style: const TextStyle(
-                      fontFamily: kMonoFont,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                      color: VColors.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    DisplayPrefs.fiatCurrency.toUpperCase(),
-                    style: const TextStyle(
-                      fontFamily: kMonoFont,
-                      fontSize: 11,
-                      color: VColors.textSecondary,
-                    ),
-                  ),
-                ],
-                if (ltcSync != null &&
-                    ltcSync.unconfirmedDeltaSat.toInt() != 0)
-                  Text(
-                    '${signedSatToBtcString(ltcSync.unconfirmedDeltaSat.toInt())} LTC ${t('mempool_suffix')}',
-                    style: TextStyle(
-                      fontFamily: kMonoFont,
-                      fontSize: 11,
-                      color: VColors.warning,
-                    ),
-                  ),
-              ],
-            ),
-            // Тап по LTC → сразу центр управления (тот же принцип).
-            onTap: wallet == null
-                ? null
-                : () => _push(LtcScreen(info: wallet)),
-          ),
-        ),
+                // Тап по LTC → сразу центр управления (тот же принцип).
+                onTap: wallet == null
+                    ? null
+                    : () => _push(LtcScreen(info: wallet)),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 6),
         Align(

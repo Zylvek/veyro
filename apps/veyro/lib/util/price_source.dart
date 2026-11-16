@@ -91,8 +91,21 @@ class PriceSource {
       if (ratesJson is Map<String, dynamic> && ratesAt is num) {
         final btc = _decodePriceMap(ratesJson['btc']);
         final eth = _decodePriceMap(ratesJson['eth']);
-        if (btc.isNotEmpty || eth.isNotEmpty) {
-          _rates = FiatRates(btc: btc, eth: eth);
+        // Прочие монеты (LTC и линия графика) — на диске тоже: без них
+        // после перезапуска фиатные строки LTC честно пустовали, пока
+        // сеть не ответит (жалоба владельца).
+        final othersRaw = ratesJson['others'];
+        final others = <String, Map<String, double>>{};
+        if (othersRaw is Map<String, dynamic>) {
+          othersRaw.forEach((id, currencies) {
+            if (currencies is Map<String, dynamic>) {
+              final m = _decodePriceMap(currencies);
+              if (m.isNotEmpty) others[id] = m;
+            }
+          });
+        }
+        if (btc.isNotEmpty || eth.isNotEmpty || others.isNotEmpty) {
+          _rates = FiatRates(btc: btc, eth: eth, others: others);
           _at = DateTime.fromMillisecondsSinceEpoch(ratesAt.toInt());
         }
       }
@@ -153,7 +166,11 @@ class PriceSource {
       final at = _at;
       final payload = <String, dynamic>{
         if (rates != null && at != null) ...{
-          'rates': {'btc': rates.btc, 'eth': rates.eth},
+          'rates': {
+            'btc': rates.btc,
+            'eth': rates.eth,
+            'others': rates.others,
+          },
           'ratesAt': at.millisecondsSinceEpoch,
         },
         'series': {

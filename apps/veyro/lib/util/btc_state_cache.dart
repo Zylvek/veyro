@@ -7,6 +7,8 @@
 //! времени: если свежее ~2 минут, центр показывает их сразу, а свежую
 //! синхронизацию делает pull-to-refresh/кнопка.
 
+import 'package:flutter/foundation.dart';
+
 import 'package:veyro/src/rust/api/btc.dart';
 
 class BtcStateCache {
@@ -22,7 +24,7 @@ class BtcStateCache {
   }
 
   /// Свежий результат (не старше [maxAge]) или null.
-  BtcSyncDto? take({Duration maxAge = const Duration(minutes: 2)}) {
+  BtcSyncDto? take({Duration maxAge = const Duration(minutes: 5)}) {
     final last = _last;
     final at = _at;
     if (last == null || at == null) return null;
@@ -33,5 +35,21 @@ class BtcStateCache {
   void clear() {
     _last = null;
     _at = null;
+  }
+}
+
+/// Глобальное «синхронизируется ли BTC прямо сейчас» — бейдж на карточке
+/// Обзора (аналог LtcConnectState).
+class BtcConnectState extends ChangeNotifier {
+  BtcConnectState._();
+  static final BtcConnectState instance = BtcConnectState._();
+
+  bool _busy = false;
+  bool get busy => _busy;
+
+  void setBusy(bool value) {
+    if (_busy == value) return;
+    _busy = value;
+    notifyListeners();
   }
 }
