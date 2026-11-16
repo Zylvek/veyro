@@ -30,7 +30,7 @@ import 'history_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 
-const _persistKey = 'ltc_last_sync';
+const _persistKeyPrefix = 'ltc_last_sync';
 class LtcScreen extends StatefulWidget {
   final WalletInfoDto info;
 
@@ -69,7 +69,8 @@ class _LtcScreenState extends State<LtcScreen> {
 
   Future<void> _loadPersisted() async {
     try {
-      final raw = await dbGetSetting(key: _persistKey);
+      final raw = await dbGetSetting(
+          key: '$_persistKeyPrefix:${widget.info.id}');
       if (!mounted) return;
       setState(() {
         _persisted =
@@ -96,7 +97,8 @@ class _LtcScreenState extends State<LtcScreen> {
       },
     });
     try {
-      await dbSetSetting(key: _persistKey, value: payload);
+      await dbSetSetting(
+          key: '$_persistKeyPrefix:${widget.info.id}', value: payload);
     } catch (_) {}
     if (!mounted) return;
     setState(() {
