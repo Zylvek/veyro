@@ -14,6 +14,11 @@ String? ruNetworkText(String? display) {
   if (d.contains('litecoin') && d.contains('mainnet')) {
     return en ? 'Litecoin · mainnet' : 'Litecoin · основная сеть (mainnet)';
   }
+  if (d.contains('bitcoin cash') && d.contains('mainnet')) {
+    return en
+        ? 'Bitcoin Cash · mainnet'
+        : 'Bitcoin Cash · основная сеть (mainnet)';
+  }
   if (d.contains('mainnet')) {
     return en ? 'Bitcoin · mainnet' : 'Bitcoin · основная сеть (mainnet)';
   }

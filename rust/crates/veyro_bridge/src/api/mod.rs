@@ -3,8 +3,11 @@
 //! Everything `pub` in this module tree becomes a Dart function. Keep this
 //! surface thin: real logic lives in the core crates, which own the tests.
 
+pub mod bch;
 pub mod btc;
 pub mod ltc;
+pub mod rvn;
 pub mod session;
 pub mod storage;
 pub mod wallet;
+pub mod xec;

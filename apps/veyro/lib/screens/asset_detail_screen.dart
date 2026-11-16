@@ -16,17 +16,23 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
+import 'package:veyro/src/rust/api/bch.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/coin_balance_view.dart';
+import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network_names.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'btc_screen.dart';
+import 'bch_screen.dart';
 import 'ltc_screen.dart';
+import 'xec_screen.dart';
 import 'asset_catalog_screen.dart' show CoinIcon;
 
 class AssetDetailScreen extends StatefulWidget {
@@ -55,6 +61,8 @@ class AssetDetailScreen extends StatefulWidget {
 class _AssetDetailScreenState extends State<AssetDetailScreen> {
   BtcSessionStateDto? _session;
   LtcSessionStateDto? _ltcSession;
+  BchSessionStateDto? _bchSession;
+  XecSessionStateDto? _xecSession;
   bool _sessionChecked = false;
   List<WalletInfoDto>? _wallets;
   String? _walletError;
@@ -70,8 +78,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   Future<void> _load() async {
     await DisplayPrefs.ensureLoaded();
-    // Кошелёк нужен для активов с центром управления (BTC и LTC).
-    if (_asset.ticker == 'BTC' || _asset.ticker == 'LTC') {
+    // Кошелёк нужен для активов с центром управления (BTC/LTC/BCH/XEC).
+    if (_asset.ticker == 'BTC' || _asset.ticker == 'LTC' ||
+        _asset.ticker == 'BCH' || _asset.ticker == 'XEC') {
       try {
         final list = widget.walletLoader != null
             ? await widget.walletLoader!()
@@ -111,6 +120,56 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   Future<void> _loadSession() async {
     try {
+      if (_asset.ticker == 'BCH') {
+        try {
+          // Та же честная граница, что и у LTC.
+          final state = await bchSessionState().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () => throw StateError(t('ltc_session_timeout')),
+          );
+          if (!mounted) return;
+          setState(() {
+            _bchSession = state;
+            _session = null;
+            _sessionChecked = true;
+          });
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          setState(() {
+            _bchSession = null;
+            _session = null;
+            _sessionChecked = true;
+            _walletError ??= tf('ltc_session_read_error', {'error': '$e'});
+          });
+          return;
+        }
+      }
+      if (_asset.ticker == 'XEC') {
+        try {
+          // Та же честная граница, что и у LTC/BCH.
+          final state = await xecSessionState().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () => throw StateError(t('ltc_session_timeout')),
+          );
+          if (!mounted) return;
+          setState(() {
+            _xecSession = state;
+            _session = null;
+            _sessionChecked = true;
+          });
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          setState(() {
+            _xecSession = null;
+            _session = null;
+            _sessionChecked = true;
+            _walletError ??= tf('ltc_session_read_error', {'error': '$e'});
+          });
+          return;
+        }
+      }
       if (_asset.ticker == 'LTC') {
         try {
           // Честная граница ожидания: если ядро не отвечает — ошибка и
@@ -182,6 +241,26 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     }
   }
 
+  Future<void> _openXecWorkbench() async {
+    final wallet = _chosenWallet;
+    if (wallet == null) return;
+    await pushVeyro<void>(context, XecScreen(info: wallet));
+    // Возврат из центра управления — перечитать сессию (могли unlock/lock).
+    if (mounted) {
+      await _loadSession();
+    }
+  }
+
+  Future<void> _openBchWorkbench() async {
+    final wallet = _chosenWallet;
+    if (wallet == null) return;
+    await pushVeyro<void>(context, BchScreen(info: wallet));
+    // Возврат из центра управления — перечитать сессию (могли unlock/lock).
+    if (mounted) {
+      await _loadSession();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFavorite = DisplayPrefs.favorites.contains(_asset.ticker);
@@ -217,6 +296,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                 const SizedBox(height: 14),
               ] else if (_asset.ticker == 'LTC') ...[
                 _buildLtcCard(context),
+                const SizedBox(height: 14),
+              ] else if (_asset.ticker == 'BCH') ...[
+                _buildBchCard(context),
+                const SizedBox(height: 14),
+              ] else if (_asset.ticker == 'XEC') ...[
+                _buildXecCard(context),
                 const SizedBox(height: 14),
               ],
             ],
@@ -294,8 +379,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             t('session_closed_note'),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-        const Divider(height: 22),
-        Text(t('sync_note'), style: Theme.of(context).textTheme.bodySmall),
+        ?_coinBalanceRow(),
         const SizedBox(height: 12),
         if (_walletError != null) ...[
           Text(
@@ -312,7 +396,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           DropdownButtonFormField<String>(
             initialValue: _chosenWallet?.id,
             isExpanded: true,
-            decoration: InputDecoration(labelText: t('ltc_wallet_field')),
+            decoration: InputDecoration(labelText: tf('wallet_for_coin', {'coin': _asset.ticker})),
             items: [
               for (final w in _wallets!)
                 DropdownMenuItem(value: w.id, child: Text(w.name)),
@@ -326,7 +410,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           const SizedBox(height: 12),
         ],
         VButton.primary(
-          session != null ? t('open_ltc_center') : t('unlock_manage_ltc'),
+          session != null
+              ? t('open_coin_center')
+              : tf('unlock_for_coin', {'coin': 'LTC'}),
           icon: Icons.lock_open_outlined,
           onPressed: _chosenWallet == null ? null : _openLtcWorkbench,
         ),
@@ -334,7 +420,162 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
     );
   }
 
-  Widget _buildBtcCard(BuildContext context) {
+    Widget _buildBchCard(BuildContext context) {
+    final session = _bchSession;
+    return VCard(
+      icon: Icons.settings_backup_restore,
+      title: t('management_card'),
+      children: [
+        if (!_sessionChecked)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
+          )
+        else if (session != null) ...[
+          kvRow(
+            t('network_label'),
+            ruNetworkText(session.networkDisplay) ?? '—',
+          ),
+          VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
+          kvRow(t('account_row'), "m/44'/145'/${session.account}'"),
+        ] else
+          Text(
+            t('session_closed_note'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        // Кэш последнего синка жив и при закрытой сессии: баланс — из
+        // фонового синка Обзора, а не из активной сессии ядра.
+        ?_coinBalanceRow(),
+        const SizedBox(height: 12),
+        if (_walletError != null) ...[
+          Text(
+            tf('wallets_read_error', {'error': '$_walletError'}),
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: VColors.error),
+          ),
+        ] else if (_wallets != null && _wallets!.isEmpty) ...[
+          Text(
+            t('no_wallets_bch'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ] else if (_wallets != null && _wallets!.length > 1) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _chosenWallet?.id,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: tf('wallet_for_coin', {'coin': _asset.ticker})),
+            items: [
+              for (final w in _wallets!)
+                DropdownMenuItem(value: w.id, child: Text(w.name)),
+            ],
+            onChanged: (id) async {
+              final chosen = _wallets!.firstWhere((w) => w.id == id);
+              setState(() => _chosenWallet = chosen);
+              await DisplayPrefs.setWalletId(chosen.id);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        VButton.primary(
+          session != null
+              ? t('open_coin_center')
+              : tf('unlock_for_coin', {'coin': 'BCH'}),
+          icon: Icons.lock_open_outlined,
+          onPressed: _chosenWallet == null ? null : _openBchWorkbench,
+        ),
+      ],
+    );
+  }
+
+  /// Карточка управления XEC (зеркало BCH): живая сессия ядра и честный
+  /// кэш последнего синка.
+  Widget _buildXecCard(BuildContext context) {
+    final session = _xecSession;
+    return VCard(
+      icon: Icons.settings_backup_restore,
+      title: t('management_card'),
+      children: [
+        if (!_sessionChecked)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
+          )
+        else if (session != null) ...[
+          kvRow(
+            t('network_label'),
+            ruNetworkText(session.networkDisplay) ?? '—',
+          ),
+          VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
+          kvRow(t('account_row'), "m/44'/899'/${session.account}'"),
+        ] else
+          Text(
+            t('session_closed_note'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ?_coinBalanceRow(),
+        const SizedBox(height: 12),
+        if (_walletError != null) ...[
+          Text(
+            tf('wallets_read_error', {'error': '$_walletError'}),
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: VColors.error),
+          ),
+        ] else if (_wallets != null && _wallets!.isEmpty) ...[
+          Text(
+            t('no_wallets_xec'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ] else if (_wallets != null && _wallets!.length > 1) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _chosenWallet?.id,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: tf('wallet_for_coin', {'coin': _asset.ticker}),
+            ),
+            items: [
+              for (final w in _wallets!)
+                DropdownMenuItem(value: w.id, child: Text(w.name)),
+            ],
+            onChanged: (id) async {
+              final chosen = _wallets!.firstWhere((w) => w.id == id);
+              setState(() => _chosenWallet = chosen);
+              await DisplayPrefs.setWalletId(chosen.id);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        VButton.primary(
+          session != null
+              ? t('open_coin_center')
+              : tf('unlock_for_coin', {'coin': 'XEC'}),
+          icon: Icons.lock_open_outlined,
+          onPressed: _chosenWallet == null ? null : _openXecWorkbench,
+        ),
+      ],
+    );
+  }
+
+  /// Живой баланс монеты на странице деталей: последний синк ЭТОГО кошелька
+  /// из кэшей. Данных нет — строка скрыта (без выдуманных нулей).
+  Widget? _coinBalanceRow() {
+    final walletId = _chosenWallet?.id;
+    if (walletId == null) return null;
+    final view = coinBalanceView(_asset.ticker, walletId);
+    if (view == null) return null;
+    final value = switch (_asset.ticker) {
+      'XEC' => '${satToXecString(view.availableSat)} XEC',
+      _ => '${satToBtcString(view.availableSat)} ${_asset.ticker}',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: kvRow(t('cache_balance_row'), value),
+    );
+  }
+
+Widget _buildBtcCard(BuildContext context) {
     final session = _session;
     return VCard(
       icon: Icons.settings_backup_restore,

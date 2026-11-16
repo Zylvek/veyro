@@ -14,6 +14,9 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/storage.dart';
@@ -24,6 +27,9 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network.dart';
+import 'package:veyro/util/bch_state_cache.dart';
+import 'package:veyro/util/rvn_state_cache.dart';
+import 'package:veyro/util/xec_state_cache.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/price_source.dart';
 
@@ -33,6 +39,9 @@ import 'asset_detail_screen.dart';
 import 'asset_picker_screen.dart';
 import 'btc_screen.dart';
 import 'history_screen.dart';
+import 'bch_screen.dart';
+import 'rvn_screen.dart';
+import 'xec_screen.dart';
 import 'ltc_screen.dart';
 import 'tx_details_screen.dart';
 
@@ -71,6 +80,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Курс LTC (строка карточки «Активы»); null — честно скрыта.
   double? _ltcRate;
+  double? _bchRate;
+  double? _xecRate;
+  double? _rvnRate;
 
   /// Курс выбранной монеты графика (id из PriceSource.chartCoins) —
   /// для подписи «≈ N {монета}» (решение владельца). Нет курса — нет
@@ -145,6 +157,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double? rate;
       double? chartCoinRate;
       double? ltcRate;
+      double? bchRate;
+      double? xecRate;
+      double? rvnRate;
       List<MarketPoint>? series;
       try {
         final fiat = DisplayPrefs.fiatCurrency;
@@ -157,6 +172,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .timeout(const Duration(seconds: 12));
         ltcRate = await source
             .coinPriceIn('litecoin', fiat)
+            .timeout(const Duration(seconds: 12));
+        bchRate = await source
+            .coinPriceIn('bitcoin-cash', fiat)
+            .timeout(const Duration(seconds: 12));
+        xecRate = await source
+            .coinPriceIn('ecash', fiat)
+            .timeout(const Duration(seconds: 12));
+        rvnRate = await source
+            .coinPriceIn('ravencoin', fiat)
             .timeout(const Duration(seconds: 12));
         series = await PriceSource.instance
             .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
@@ -172,6 +196,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _fiatRate = rate;
         _chartCoinRate = chartCoinRate;
         _ltcRate = ltcRate;
+        _bchRate = bchRate;
+        _xecRate = xecRate;
+        _rvnRate = rvnRate;
         _marketPoints = series;
       });
       await _loadRecent();
@@ -291,6 +318,225 @@ class _DashboardScreenState extends State<DashboardScreen> {
             debugPrint('veyro-flow: ltc background sync failed: $e');
           } finally {
             LtcConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      // BCH: та же дисциплина тихого синка, что у LTC (пароль кэш + серверы).
+      final bchSessionLive = await bchSessionState();
+      if (!mounted) return;
+      if (bchSessionLive == null && wallet != null) {
+        var cachedBch = false;
+        try {
+          cachedBch = await sessionPasswordCached(walletId: wallet.id);
+        } catch (_) {}
+        if (cachedBch) {
+          BchConnectState.instance.setBusy(true);
+          try {
+            final servers = await bchServers();
+            String? lastGoodBch;
+            try {
+              lastGoodBch = await dbGetSetting(key: 'bch_last_good_server');
+            } catch (_) {}
+            final ordered = [...servers];
+            if (lastGoodBch != null &&
+                lastGoodBch.isNotEmpty &&
+                ordered.remove(lastGoodBch)) {
+              ordered.insert(0, lastGoodBch);
+            }
+            var unlockedB = false;
+            for (final server in ordered.take(2)) {
+              try {
+                await bchUnlock(
+                  walletsDir: walletsDir(),
+                  walletId: wallet.id,
+                  password: '',
+                  serverUrl: server,
+                ).timeout(const Duration(seconds: 45));
+                unlockedB = true;
+                break;
+              } catch (e) {
+                debugPrint('veyro-flow: bch bg unlock $server failed: $e');
+              }
+            }
+            if (unlockedB) {
+              final syncB = await bchSync(gapLimit: kDefaultGapLimit);
+              if (mounted) {
+                BchStateCache.instance.store(syncB, walletId: wallet.id);
+                try {
+                  await dbSetSetting(
+                    key: 'bch_last_good_server',
+                    value: syncB.serverUrl,
+                  );
+                } catch (_) {}
+              }
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: bch background sync failed: $e');
+          } finally {
+            BchConnectState.instance.setBusy(false);
+          }
+        }
+      } else if (bchSessionLive != null) {
+        final freshB = wallet == null
+            ? null
+            : BchStateCache.instance.take(walletId: wallet.id);
+        if (freshB == null) {
+          BchConnectState.instance.setBusy(true);
+          try {
+            final syncB = await bchSync(gapLimit: kDefaultGapLimit);
+            if (mounted && wallet != null) {
+              BchStateCache.instance.store(syncB, walletId: wallet.id);
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: bch background sync failed: $e');
+          } finally {
+            BchConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      // XEC: та же дисциплина тихого синка, что у BCH (пароль кэш + серверы).
+      final xecSessionLive = await xecSessionState();
+      if (!mounted) return;
+      if (xecSessionLive == null && wallet != null) {
+        var cachedXec = false;
+        try {
+          cachedXec = await sessionPasswordCached(walletId: wallet.id);
+        } catch (_) {}
+        if (cachedXec) {
+          XecConnectState.instance.setBusy(true);
+          try {
+            final servers = await xecServers();
+            String? lastGoodXec;
+            try {
+              lastGoodXec = await dbGetSetting(key: 'xec_last_good_server');
+            } catch (_) {}
+            final ordered = [...servers];
+            if (lastGoodXec != null &&
+                lastGoodXec.isNotEmpty &&
+                ordered.remove(lastGoodXec)) {
+              ordered.insert(0, lastGoodXec);
+            }
+            var unlockedX = false;
+            for (final server in ordered.take(2)) {
+              try {
+                await xecUnlock(
+                  walletsDir: walletsDir(),
+                  walletId: wallet.id,
+                  password: '',
+                  serverUrl: server,
+                ).timeout(const Duration(seconds: 45));
+                unlockedX = true;
+                break;
+              } catch (e) {
+                debugPrint('veyro-flow: xec bg unlock $server failed: $e');
+              }
+            }
+            if (unlockedX) {
+              final syncX = await xecSync(gapLimit: kDefaultGapLimit);
+              if (mounted) {
+                XecStateCache.instance.store(syncX, walletId: wallet.id);
+                try {
+                  await dbSetSetting(
+                    key: 'xec_last_good_server',
+                    value: syncX.serverUrl,
+                  );
+                } catch (_) {}
+              }
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: xec background sync failed: $e');
+          } finally {
+            XecConnectState.instance.setBusy(false);
+          }
+        }
+      } else if (xecSessionLive != null) {
+        final freshX = wallet == null
+            ? null
+            : XecStateCache.instance.take(walletId: wallet.id);
+        if (freshX == null) {
+          XecConnectState.instance.setBusy(true);
+          try {
+            final syncX = await xecSync(gapLimit: kDefaultGapLimit);
+            if (mounted && wallet != null) {
+              XecStateCache.instance.store(syncX, walletId: wallet.id);
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: xec background sync failed: $e');
+          } finally {
+            XecConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      // RVN: та же дисциплина тихого синка, что у XEC (пароль кэш + серверы).
+      final rvnSessionLive = await rvnSessionState();
+      if (!mounted) return;
+      if (rvnSessionLive == null && wallet != null) {
+        var cachedRvn = false;
+        try {
+          cachedRvn = await sessionPasswordCached(walletId: wallet.id);
+        } catch (_) {}
+        if (cachedRvn) {
+          RvnConnectState.instance.setBusy(true);
+          try {
+            final servers = await rvnServers();
+            String? lastGoodRvn;
+            try {
+              lastGoodRvn = await dbGetSetting(key: 'rvn_last_good_server');
+            } catch (_) {}
+            final ordered = [...servers];
+            if (lastGoodRvn != null &&
+                lastGoodRvn.isNotEmpty &&
+                ordered.remove(lastGoodRvn)) {
+              ordered.insert(0, lastGoodRvn);
+            }
+            var unlockedR = false;
+            for (final server in ordered.take(2)) {
+              try {
+                await rvnUnlock(
+                  walletsDir: walletsDir(),
+                  walletId: wallet.id,
+                  password: '',
+                  serverUrl: server,
+                ).timeout(const Duration(seconds: 45));
+                unlockedR = true;
+                break;
+              } catch (e) {
+                debugPrint('veyro-flow: rvn bg unlock $server failed: $e');
+              }
+            }
+            if (unlockedR) {
+              final syncR = await rvnSync(gapLimit: kDefaultGapLimit);
+              if (mounted) {
+                RvnStateCache.instance.store(syncR, walletId: wallet.id);
+                try {
+                  await dbSetSetting(
+                    key: 'rvn_last_good_server',
+                    value: syncR.serverUrl,
+                  );
+                } catch (_) {}
+              }
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: rvn background sync failed: $e');
+          } finally {
+            RvnConnectState.instance.setBusy(false);
+          }
+        }
+      } else if (rvnSessionLive != null) {
+        final freshR = wallet == null
+            ? null
+            : RvnStateCache.instance.take(walletId: wallet.id);
+        if (freshR == null) {
+          RvnConnectState.instance.setBusy(true);
+          try {
+            final syncR = await rvnSync(gapLimit: kDefaultGapLimit);
+            if (mounted && wallet != null) {
+              RvnStateCache.instance.store(syncR, walletId: wallet.id);
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: rvn background sync failed: $e');
+          } finally {
+            RvnConnectState.instance.setBusy(false);
           }
         }
       }
@@ -440,19 +686,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Верхняя панель: справа — компактный выбор кошелька и
-  /// переключатель скрытия сумм. Заголовок «Обзор» и подпись «Активы и
-  /// активность» убраны (решение владельца).
+  /// переключатель скрытия сумм. Селектор НЕ растягивается на пол-экрана
+  /// (решение владельца 17.11.2026: «почему верхняя плашка уехала на всю
+  /// длину»): карта подстраивается под имя кошелька (потолок 320 —
+  /// длинные имена), иконки — прижаты к правому краю через Spacer.
   Widget _buildTopPanel(BuildContext context) {
     final wallets = _wallets ?? const <WalletInfoDto>[];
     return Row(
       children: [
-        Flexible(
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
           child: Card(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedId,
-                isExpanded: true,
                 isDense: true,
                 decoration: const InputDecoration(
                   border: InputBorder.none,
@@ -473,13 +721,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.end,
-            children: [
+        const Spacer(),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
               if (DisplayPrefs.degraded)
                 VStatusChip(t('db_unavailable'), kind: VChipKind.warning),
               IconButton(
@@ -510,7 +757,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
             ],
-          ),
         ),
       ],
     );
@@ -739,6 +985,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       animation: Listenable.merge([
         BtcConnectState.instance,
         LtcConnectState.instance,
+        BchConnectState.instance,
+        XecConnectState.instance,
+        RvnConnectState.instance,
       ]),
       builder: (context, _) => _buildAssetsCardBody(context),
     );
@@ -747,6 +996,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildAssetsCardBody(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
     final ltc = kAssetRegistry.firstWhere((a) => a.ticker == 'LTC');
+    final bch = kAssetRegistry.firstWhere((a) => a.ticker == 'BCH');
+    final xec = kAssetRegistry.firstWhere((a) => a.ticker == 'XEC');
+    final rvn = kAssetRegistry.firstWhere((a) => a.ticker == 'RVN');
     final wallet = _selected;
     // Сумма монеты — реальный подтверждённый баланс из последней
     // синхронизации ЭТОГО кошелька (кэш ключён по id; без данных — 0).
@@ -926,6 +1178,291 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: wallet == null
                     ? null
                     : () => _push(LtcScreen(info: wallet)),
+              ),
+            );
+          },
+        ),
+        AnimatedBuilder(
+          animation: BchConnectState.instance,
+          builder: (context, _) {
+            final bchBusy = BchConnectState.instance.busy;
+            final bchSync = wallet == null
+                ? null
+                : BchStateCache.instance.take(walletId: wallet.id);
+            final bchBalance = bchSync == null
+                ? 0
+                : (bchSync.unconfirmedDeltaSat.toInt() < 0
+                      ? bchSync.confirmedSat.toInt() +
+                            bchSync.unconfirmedDeltaSat.toInt()
+                      : bchSync.confirmedSat.toInt());
+            final bchRate = _bchRate;
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: _AssetAvatar(bch),
+                title: const Text('Bitcoin Cash'),
+                subtitle: bchBusy
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t('bch_connecting_badge'),
+                            style: TextStyle(
+                              fontFamily: kMonoFont,
+                              fontSize: 11.5,
+                              color: VColors.warning,
+                            ),
+                          ),
+                        ],
+                      )
+                    : VAnimatedText(
+                        '${_maskAmount(satToBtcString(bchBalance))} BCH',
+                        style: const TextStyle(
+                          fontFamily: kMonoFont,
+                          fontSize: 11.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                trailing: bchBusy
+                    ? const SizedBox(width: 46)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (bchRate != null) ...[
+                            VAnimatedText(
+                              _maskAmount(
+                                formatFiat(bchBalance / 1e8 * bchRate),
+                              ),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                                color: VColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              DisplayPrefs.fiatCurrency.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (bchSync != null &&
+                              bchSync.unconfirmedDeltaSat.toInt() != 0)
+                            Text(
+                              '${_maskAmount(signedSatToBtcString(bchSync.unconfirmedDeltaSat.toInt()))} BCH ${t('mempool_suffix')}',
+                              style: TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.warning,
+                              ),
+                            ),
+                        ],
+                      ),
+                onTap: wallet == null
+                    ? null
+                    : () => _push(BchScreen(info: wallet)),
+              ),
+            );
+          },
+        ),
+        AnimatedBuilder(
+          animation: XecConnectState.instance,
+          builder: (context, _) {
+            final xecBusy = XecConnectState.instance.busy;
+            final xecSync = wallet == null
+                ? null
+                : XecStateCache.instance.take(walletId: wallet.id);
+            final xecBalance = xecSync == null
+                ? 0
+                : (xecSync.unconfirmedDeltaSat.toInt() < 0
+                      ? xecSync.confirmedSat.toInt() +
+                            xecSync.unconfirmedDeltaSat.toInt()
+                      : xecSync.confirmedSat.toInt());
+            final xecRate = _xecRate;
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: _AssetAvatar(xec),
+                title: const Text('eCash'),
+                subtitle: xecBusy
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t('xec_connecting_badge'),
+                            style: TextStyle(
+                              fontFamily: kMonoFont,
+                              fontSize: 11.5,
+                              color: VColors.warning,
+                            ),
+                          ),
+                        ],
+                      )
+                    : VAnimatedText(
+                        '${_maskAmount(satToXecString(xecBalance))} XEC',
+                        style: const TextStyle(
+                          fontFamily: kMonoFont,
+                          fontSize: 11.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                trailing: xecBusy
+                    ? const SizedBox(width: 46)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (xecRate != null) ...[
+                            VAnimatedText(
+                              _maskAmount(
+                                formatFiat(xecBalance / 100 * xecRate),
+                              ),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                                color: VColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              DisplayPrefs.fiatCurrency.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (xecSync != null &&
+                              xecSync.unconfirmedDeltaSat.toInt() != 0)
+                            Text(
+                              '${_maskAmount(signedSatToXecString(xecSync.unconfirmedDeltaSat.toInt()))} XEC ${t('mempool_suffix')}',
+                              style: TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.warning,
+                              ),
+                            ),
+                        ],
+                      ),
+                onTap: wallet == null
+                    ? null
+                    : () => _push(XecScreen(info: wallet)),
+              ),
+            );
+          },
+        ),
+        // RVN: карточка появляется автоматом при честном переводе
+        // статуса реестра (после живого тест-цикла — правило паспорта).
+        AnimatedBuilder(
+          animation: RvnConnectState.instance,
+          builder: (context, _) {
+            if (!rvn.implemented) return const SizedBox.shrink();
+            final rvnBusy = RvnConnectState.instance.busy;
+            final rvnSync = wallet == null
+                ? null
+                : RvnStateCache.instance.take(walletId: wallet.id);
+            final rvnBalance = rvnSync == null
+                ? 0
+                : (rvnSync.unconfirmedDeltaSat.toInt() < 0
+                      ? rvnSync.confirmedSat.toInt() +
+                            rvnSync.unconfirmedDeltaSat.toInt()
+                      : rvnSync.confirmedSat.toInt());
+            final rvnRate = _rvnRate;
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: _AssetAvatar(rvn),
+                title: const Text('Ravencoin'),
+                subtitle: rvnBusy
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t('rvn_connecting_badge'),
+                            style: TextStyle(
+                              fontFamily: kMonoFont,
+                              fontSize: 11.5,
+                              color: VColors.warning,
+                            ),
+                          ),
+                        ],
+                      )
+                    : VAnimatedText(
+                        '${_maskAmount(satToBtcString(rvnBalance))} RVN',
+                        style: const TextStyle(
+                          fontFamily: kMonoFont,
+                          fontSize: 11.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                trailing: rvnBusy
+                    ? const SizedBox(width: 46)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (rvnRate != null) ...[
+                            VAnimatedText(
+                              _maskAmount(
+                                formatFiat(rvnBalance / 1e8 * rvnRate),
+                              ),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                                color: VColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              DisplayPrefs.fiatCurrency.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (rvnSync != null &&
+                              rvnSync.unconfirmedDeltaSat.toInt() != 0)
+                            Text(
+                              '${_maskAmount(signedSatToBtcString(rvnSync.unconfirmedDeltaSat.toInt()))} RVN ${t('mempool_suffix')}',
+                              style: TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.warning,
+                              ),
+                            ),
+                        ],
+                      ),
+                onTap: wallet == null
+                    ? null
+                    : () => _push(RvnScreen(info: wallet)),
               ),
             );
           },

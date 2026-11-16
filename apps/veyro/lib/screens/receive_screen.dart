@@ -12,6 +12,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/coin.dart';
@@ -62,6 +65,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         network = state?.networkDisplay;
       } else if (widget.coin == WalletCoin.ltc) {
         network = (await ltcSessionState())?.networkDisplay;
+      } else if (widget.coin == WalletCoin.bch) {
+        network = (await bchSessionState())?.networkDisplay;
+      } else if (widget.coin == WalletCoin.xec) {
+        network = (await xecSessionState())?.networkDisplay;
+      } else if (widget.coin == WalletCoin.rvn) {
+        network = (await rvnSessionState())?.networkDisplay;
       } else {
         network = (await btcSessionState())?.networkDisplay;
       }
@@ -77,6 +86,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         address = (await widget.addressLoader!()).address;
       } else if (widget.coin == WalletCoin.ltc) {
         address = (await ltcReceiveAddress()).address;
+      } else if (widget.coin == WalletCoin.bch) {
+        address = (await bchReceiveAddress()).address;
+      } else if (widget.coin == WalletCoin.xec) {
+        address = (await xecReceiveAddress()).address;
+      } else if (widget.coin == WalletCoin.rvn) {
+        address = (await rvnReceiveAddress()).address;
       } else {
         address = (await btcReceiveAddress()).address;
       }
@@ -100,11 +115,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     final network = _networkDisplay;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.coin == WalletCoin.ltc
-              ? t('receive_title_ltc')
-              : t('receive_title'),
-        ),
+        title: Text(switch (widget.coin) {
+          WalletCoin.ltc => t('receive_title_ltc'),
+          WalletCoin.bch => t('receive_title_bch'),
+          WalletCoin.xec => t('receive_title_xec'),
+          WalletCoin.rvn => t('receive_title_rvn'),
+          _ => t('receive_title'),
+        }),
       ),
       body: Center(
         child: ConstrainedBox(

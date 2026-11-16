@@ -58,7 +58,13 @@ class TxConfirmScreen extends StatelessWidget {
                   _row(
                     context,
                     t('asset_label'),
-                    coin == WalletCoin.ltc ? 'Litecoin (LTC)' : 'Bitcoin (BTC)',
+                    switch (coin) {
+                      WalletCoin.ltc => 'Litecoin (LTC)',
+                      WalletCoin.bch => 'Bitcoin Cash (BCH)',
+                      WalletCoin.xec => 'eCash (XEC)',
+                      WalletCoin.rvn => 'Ravencoin (RVN)',
+                      _ => 'Bitcoin (BTC)',
+                    },
                   ),
                   _row(
                     context,
@@ -83,13 +89,15 @@ class TxConfirmScreen extends StatelessWidget {
                   VMonoCopyRow(label: t('recipient_card'), value: recipient),
                   const SizedBox(height: 12),
                   VAmount(
-                    satToBtcString(amountSat),
-                    suffix: coin == WalletCoin.ltc ? 'LTC' : 'BTC',
+                    coin == WalletCoin.xec
+                        ? satToXecString(amountSat)
+                        : satToBtcString(amountSat),
+                    suffix: coin.unit,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${groupDigits(amountSat)} '
-                    '${coin == WalletCoin.ltc ? t('ltc_unit') : t('sats')}',
+                    '${coin == WalletCoin.btc || coin == WalletCoin.rvn || coin == WalletCoin.xec ? t('sats') : coin.unit}',
                     style: Theme.of(context).textTheme.bodySmall!
                         .copyWith(color: VColors.textSecondary),
                   ),
@@ -103,9 +111,7 @@ class TxConfirmScreen extends StatelessWidget {
                   _row(
                     context,
                     t('speed_label'),
-                    coin == WalletCoin.ltc
-                        ? '$rateSatVb lit/vB'
-                        : '$rateSatVb sat/vB',
+                    '$rateSatVb ${coin == WalletCoin.btc ? 'sat/vB' : 'sat/B'}',
                   ),
                   const SizedBox(height: 8),
                   Text(

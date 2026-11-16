@@ -6,11 +6,14 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
+import 'api/bch.dart';
 import 'api/btc.dart';
 import 'api/ltc.dart';
+import 'api/rvn.dart';
 import 'api/session.dart';
 import 'api/storage.dart';
 import 'api/wallet.dart';
+import 'api/xec.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -34,7 +37,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  BchAddressDto dco_decode_bch_address_dto(dynamic raw);
+
+  @protected
+  BchFeeRatesDto dco_decode_bch_fee_rates_dto(dynamic raw);
+
+  @protected
+  BchHistoryDto dco_decode_bch_history_dto(dynamic raw);
+
+  @protected
+  BchHistoryItemDto dco_decode_bch_history_item_dto(dynamic raw);
+
+  @protected
+  BchSendResultDto dco_decode_bch_send_result_dto(dynamic raw);
+
+  @protected
+  BchSessionStateDto dco_decode_bch_session_state_dto(dynamic raw);
+
+  @protected
+  BchSyncDto dco_decode_bch_sync_dto(dynamic raw);
+
+  @protected
+  BchTxStatusDto dco_decode_bch_tx_status_dto(dynamic raw);
+
+  @protected
+  BchUnlockDto dco_decode_bch_unlock_dto(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  BchSessionStateDto dco_decode_box_autoadd_bch_session_state_dto(dynamic raw);
 
   @protected
   BtcSessionStateDto dco_decode_box_autoadd_btc_session_state_dto(dynamic raw);
@@ -43,10 +76,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LtcSessionStateDto dco_decode_box_autoadd_ltc_session_state_dto(dynamic raw);
 
   @protected
+  RvnSessionStateDto dco_decode_box_autoadd_rvn_session_state_dto(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  XecSessionStateDto dco_decode_box_autoadd_xec_session_state_dto(dynamic raw);
 
   @protected
   BtcAddressDto dco_decode_btc_address_dto(dynamic raw);
@@ -85,6 +124,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<BchAddressDto> dco_decode_list_bch_address_dto(dynamic raw);
+
+  @protected
+  List<BchHistoryItemDto> dco_decode_list_bch_history_item_dto(dynamic raw);
+
+  @protected
   List<BtcAddressDto> dco_decode_list_btc_address_dto(dynamic raw);
 
   @protected
@@ -100,7 +145,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<RvnAddressDto> dco_decode_list_rvn_address_dto(dynamic raw);
+
+  @protected
+  List<RvnHistoryItemDto> dco_decode_list_rvn_history_item_dto(dynamic raw);
+
+  @protected
   List<WalletInfoDto> dco_decode_list_wallet_info_dto(dynamic raw);
+
+  @protected
+  List<XecAddressDto> dco_decode_list_xec_address_dto(dynamic raw);
+
+  @protected
+  List<XecHistoryItemDto> dco_decode_list_xec_history_item_dto(dynamic raw);
 
   @protected
   LtcAddressDto dco_decode_ltc_address_dto(dynamic raw);
@@ -133,6 +190,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  BchSessionStateDto? dco_decode_opt_box_autoadd_bch_session_state_dto(
+    dynamic raw,
+  );
+
+  @protected
   BtcSessionStateDto? dco_decode_opt_box_autoadd_btc_session_state_dto(
     dynamic raw,
   );
@@ -143,10 +205,47 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RvnSessionStateDto? dco_decode_opt_box_autoadd_rvn_session_state_dto(
+    dynamic raw,
+  );
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
+  XecSessionStateDto? dco_decode_opt_box_autoadd_xec_session_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  RvnAddressDto dco_decode_rvn_address_dto(dynamic raw);
+
+  @protected
+  RvnFeeRatesDto dco_decode_rvn_fee_rates_dto(dynamic raw);
+
+  @protected
+  RvnHistoryDto dco_decode_rvn_history_dto(dynamic raw);
+
+  @protected
+  RvnHistoryItemDto dco_decode_rvn_history_item_dto(dynamic raw);
+
+  @protected
+  RvnSendResultDto dco_decode_rvn_send_result_dto(dynamic raw);
+
+  @protected
+  RvnSessionStateDto dco_decode_rvn_session_state_dto(dynamic raw);
+
+  @protected
+  RvnSyncDto dco_decode_rvn_sync_dto(dynamic raw);
+
+  @protected
+  RvnTxStatusDto dco_decode_rvn_tx_status_dto(dynamic raw);
+
+  @protected
+  RvnUnlockDto dco_decode_rvn_unlock_dto(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -164,13 +263,76 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WalletInfoDto dco_decode_wallet_info_dto(dynamic raw);
 
   @protected
+  XecAddressDto dco_decode_xec_address_dto(dynamic raw);
+
+  @protected
+  XecFeeRatesDto dco_decode_xec_fee_rates_dto(dynamic raw);
+
+  @protected
+  XecHistoryDto dco_decode_xec_history_dto(dynamic raw);
+
+  @protected
+  XecHistoryItemDto dco_decode_xec_history_item_dto(dynamic raw);
+
+  @protected
+  XecSendResultDto dco_decode_xec_send_result_dto(dynamic raw);
+
+  @protected
+  XecSessionStateDto dco_decode_xec_session_state_dto(dynamic raw);
+
+  @protected
+  XecSyncDto dco_decode_xec_sync_dto(dynamic raw);
+
+  @protected
+  XecTxStatusDto dco_decode_xec_tx_status_dto(dynamic raw);
+
+  @protected
+  XecUnlockDto dco_decode_xec_unlock_dto(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  BchAddressDto sse_decode_bch_address_dto(SseDeserializer deserializer);
+
+  @protected
+  BchFeeRatesDto sse_decode_bch_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  BchHistoryDto sse_decode_bch_history_dto(SseDeserializer deserializer);
+
+  @protected
+  BchHistoryItemDto sse_decode_bch_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BchSendResultDto sse_decode_bch_send_result_dto(SseDeserializer deserializer);
+
+  @protected
+  BchSessionStateDto sse_decode_bch_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BchSyncDto sse_decode_bch_sync_dto(SseDeserializer deserializer);
+
+  @protected
+  BchTxStatusDto sse_decode_bch_tx_status_dto(SseDeserializer deserializer);
+
+  @protected
+  BchUnlockDto sse_decode_bch_unlock_dto(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  BchSessionStateDto sse_decode_box_autoadd_bch_session_state_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BtcSessionStateDto sse_decode_box_autoadd_btc_session_state_dto(
@@ -183,10 +345,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RvnSessionStateDto sse_decode_box_autoadd_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  XecSessionStateDto sse_decode_box_autoadd_xec_session_state_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BtcAddressDto sse_decode_btc_address_dto(SseDeserializer deserializer);
@@ -229,6 +401,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<BchAddressDto> sse_decode_list_bch_address_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BchHistoryItemDto> sse_decode_list_bch_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<BtcAddressDto> sse_decode_list_btc_address_dto(
     SseDeserializer deserializer,
   );
@@ -252,7 +434,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<RvnAddressDto> sse_decode_list_rvn_address_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<RvnHistoryItemDto> sse_decode_list_rvn_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<WalletInfoDto> sse_decode_list_wallet_info_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<XecAddressDto> sse_decode_list_xec_address_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<XecHistoryItemDto> sse_decode_list_xec_history_item_dto(
     SseDeserializer deserializer,
   );
 
@@ -291,6 +493,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  BchSessionStateDto? sse_decode_opt_box_autoadd_bch_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BtcSessionStateDto? sse_decode_opt_box_autoadd_btc_session_state_dto(
     SseDeserializer deserializer,
   );
@@ -301,10 +508,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RvnSessionStateDto? sse_decode_opt_box_autoadd_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
+  XecSessionStateDto? sse_decode_opt_box_autoadd_xec_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RvnAddressDto sse_decode_rvn_address_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnFeeRatesDto sse_decode_rvn_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnHistoryDto sse_decode_rvn_history_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnHistoryItemDto sse_decode_rvn_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RvnSendResultDto sse_decode_rvn_send_result_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnSessionStateDto sse_decode_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RvnSyncDto sse_decode_rvn_sync_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnTxStatusDto sse_decode_rvn_tx_status_dto(SseDeserializer deserializer);
+
+  @protected
+  RvnUnlockDto sse_decode_rvn_unlock_dto(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -322,6 +570,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WalletInfoDto sse_decode_wallet_info_dto(SseDeserializer deserializer);
 
   @protected
+  XecAddressDto sse_decode_xec_address_dto(SseDeserializer deserializer);
+
+  @protected
+  XecFeeRatesDto sse_decode_xec_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  XecHistoryDto sse_decode_xec_history_dto(SseDeserializer deserializer);
+
+  @protected
+  XecHistoryItemDto sse_decode_xec_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  XecSendResultDto sse_decode_xec_send_result_dto(SseDeserializer deserializer);
+
+  @protected
+  XecSessionStateDto sse_decode_xec_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  XecSyncDto sse_decode_xec_sync_dto(SseDeserializer deserializer);
+
+  @protected
+  XecTxStatusDto sse_decode_xec_tx_status_dto(SseDeserializer deserializer);
+
+  @protected
+  XecUnlockDto sse_decode_xec_unlock_dto(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -334,7 +613,55 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_bch_address_dto(BchAddressDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bch_fee_rates_dto(
+    BchFeeRatesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bch_history_dto(BchHistoryDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bch_history_item_dto(
+    BchHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bch_send_result_dto(
+    BchSendResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bch_session_state_dto(
+    BchSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bch_sync_dto(BchSyncDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bch_tx_status_dto(
+    BchTxStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bch_unlock_dto(BchUnlockDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_bch_session_state_dto(
+    BchSessionStateDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_btc_session_state_dto(
@@ -349,10 +676,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_rvn_session_state_dto(
+    RvnSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_xec_session_state_dto(
+    XecSessionStateDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_btc_address_dto(BtcAddressDto self, SseSerializer serializer);
@@ -409,6 +748,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_bch_address_dto(
+    List<BchAddressDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_bch_history_item_dto(
+    List<BchHistoryItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_btc_address_dto(
     List<BtcAddressDto> self,
     SseSerializer serializer,
@@ -439,8 +790,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_rvn_address_dto(
+    List<RvnAddressDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_rvn_history_item_dto(
+    List<RvnHistoryItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_wallet_info_dto(
     List<WalletInfoDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_xec_address_dto(
+    List<XecAddressDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_xec_history_item_dto(
+    List<XecHistoryItemDto> self,
     SseSerializer serializer,
   );
 
@@ -490,6 +865,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_bch_session_state_dto(
+    BchSessionStateDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_btc_session_state_dto(
     BtcSessionStateDto? self,
     SseSerializer serializer,
@@ -502,10 +883,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_rvn_session_state_dto(
+    RvnSessionStateDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_xec_session_state_dto(
+    XecSessionStateDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_address_dto(RvnAddressDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rvn_fee_rates_dto(
+    RvnFeeRatesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_history_dto(RvnHistoryDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rvn_history_item_dto(
+    RvnHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_send_result_dto(
+    RvnSendResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_session_state_dto(
+    RvnSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_sync_dto(RvnSyncDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rvn_tx_status_dto(
+    RvnTxStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rvn_unlock_dto(RvnUnlockDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
@@ -521,6 +956,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wallet_info_dto(WalletInfoDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_xec_address_dto(XecAddressDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_xec_fee_rates_dto(
+    XecFeeRatesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_xec_history_dto(XecHistoryDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_xec_history_item_dto(
+    XecHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_xec_send_result_dto(
+    XecSendResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_xec_session_state_dto(
+    XecSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_xec_sync_dto(XecSyncDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_xec_tx_status_dto(
+    XecTxStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_xec_unlock_dto(XecUnlockDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

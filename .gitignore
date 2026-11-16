@@ -1,22 +1,76 @@
-# Rust
-target/
+# ===================================================================
+# VEYRO — некастодиальный мультивалютный кошелёк
+# Секреты/ключи/кошельки в репозиторий НЕ попадают никогда.
+# ===================================================================
 
-# Flutter (появятся на Phase 6)
+# --- Секреты (жёсткий запрет) ---
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+keystore.*
+secrets.*
+*.secret
+wallets/
+wallets_dir/
+*.vault
+*.mnemonic
+*.dat.bak
+
+# --- Rust ---
+rust/target/
+target/
+**/*.rs.bk
+*.pdb
+
+# --- Flutter / Dart ---
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
 build/
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+*.syms
+coverage/
 
-# Локальные артефакты
+# --- Локальные артефакты / кэши ---
 *.tmp
-tmp/
 *.log
+tmp/
+tmp_*/
+dist/
+icon-cache/
+*.local.json
+veyro.db-journal
 
-# IDE
+# --- IDE / ОС ---
 .idea/
 .vscode/
 *.iml
-
-# ОС
+*.ipr
+*.iws
 Thumbs.db
 .DS_Store
+desktop.ini
+
+# --- Инструменты агента/сессии ---
+.opencode/
+.claude/
+*.code-workspace
+
+# --- Генерируемая Dart-обвязка не исключается: она часть контракта моста ---
+
+# --- Внутренние стратегические доки (решение владельца 17.11.2026:
+#     в репозитории только исследования docs/coins) ---
+docs/MASTER_PROMPT.md
+docs/ROADMAP.md
+docs/PROJECT_STATUS.md
+docs/PHASE4_BTC_PLAN.md
+docs/UI_SPEC.md
+docs/ARCHITECTURE.md
+docs/COIN_COMPATIBILITY.md
+docs/security/

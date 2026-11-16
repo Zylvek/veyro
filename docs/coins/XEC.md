@@ -85,7 +85,8 @@
 |---|---|---|
 | Собственный узел Bitcoin ABC + RPC | ✅ | RPC 8332 / 18332 / 18443; P2P 8333 / 18333 / 18444; диск — «НЕ ПОДТВЕРЖДЕНО» |
 | **Chronik (REST, встроен в узел ABC)** | ✅ | Официальные публичные эндпоинты: `chronik.e.cash` (официальная документация e.cash), `chronik.be.cash/xec`, `chronik1.e.cash`, `chronik2.e.cash`. Операции: адреса, история, транзакции, **broadcast** |
-| **Electrum-протокол** | ✅ | Официальные серверы Electrum ABC: `electrum.bitcoinabc.org`, `electrum.fabien.cash`, `fulcrum.pierre.cash`, `electrum.pierre.cash` — порты 50001 (TCP) / 50002 (TLS). Клиент Electrum ABC 5.5.2 (MIT) |
+| **Electrum-протокол** | ✅ | Официальные серверы Electrum ABC: `electrum.bitcoinabc.org`, `electrum.fabien.cash`, `fulcrum.pierre.cash`, `electrum.pierre.cash` — порты 50001 (TCP) / 50002 (TLS). Клиент Electrum ABC 5.5.2 (MIT). Testnet3 (официальный servers_testnet.json ElectrumABC): `telectrum.bitcoinabc.org` — TLS 60002; проверен живым коннектом 16.11.2026 (genesis testnet3 сошёлся бит-в-бит) |
+| **Testnet-фаусет** | ✅ | Официальный: https://texplorer.e.cash/testnet-faucet (эндпоинт: `https://testnet-faucet.fabien.cash/claim/<ectest-адрес>` → JSON {amount, address, txid}); выдача подтверждена живой отправкой 16.11.2026 |
 | Эксплорер | ✅ | https://explorer.e.cash (официальный) |
 
 ⚠️ Приватность: публичные Chronik/Electrum-серверы видят IP и запрашиваемые адреса. Рекомендация VEYRO: поддержка прокси/Tor + возможность указать пользовательский сервер.
@@ -128,9 +129,9 @@
 | Импорт WIF | ✅ | префикс 0x80 |
 | Получение (receive, QR) | ✅ | cashaddr `ecash:q...` (+ опция legacy-адреса) |
 | Баланс/история | ✅ | Chronik REST (официальный) или Electrum ABC |
-| Сборка + подпись транзакции | ⚠️ | нет готового Rust-крейта: собственный sighash-модуль (SIGHASH_ALL\|FORKID, дайджест UAHF) поверх rust-bitcoin; либо адаптация bitcoin_base (Dart) |
-| Broadcast | ✅ | Chronik (POST broadcast) или Electrum (`blockchain.transaction.broadcast`) |
-| Полный цикл без серверов VEYRO | ✅ | через официальные публичные Chronik/Electrum |
+| Сборка + подпись транзакции | ✅ | собственный sighash-модуль (SIGHASH_ALL\|FORKID, дайджест UAHF) поверх rust-bitcoin — **подтверждён живой отправкой на testnet3 16.11.2026** (txid c161ec5d9c16931afe08d0e48d309b77af15fcb1bd801e9106363d0432215bc3, подтверждён на высоте 1 740 474) |
+| Broadcast | ✅ | Electrum (`blockchain.transaction.broadcast`) — живой broadcast testnet3 16.11.2026; Chronik — резервный путь |
+| Полный цикл без серверов VEYRO | ✅ | **живой цикл testnet3 пройден 16.11.2026**: коннект TLS (telectrum.bitcoinabc.org:60002) → genesis-чек → деривация m/44'/1' (ectest) → gap-скан → баланс → история с направлениями → план (self-send 998 192 сат + change 1 392) → подпись UAHF → бродкаст → mempool → подтверждение. Основной статус: Send supported (mainnet-live и app-цикл не заявлены) |
 
 ## 9. Безопасность, лимиты, блокеры
 
@@ -152,7 +153,11 @@
 - нерешённого UX двойной деривации (899 vs 1899);
 - зависимости экосистемы от одной команды (Bitcoin ABC).
 
-До повышения до «Full support»: реализация и тесты кастомного модуля на testnet3 XEC (`ectest`), фиксация решения по деривациям, проверка апгрейда 15.05.2027.
+Прогресс к «Full support» (16.11.2026):
+- ✅ реализация и живой тест кастомного модуля на testnet3 XEC (`ectest`) — полный цикл пройден: коннект → деривация m/44'/'1' → скан/баланс/история → план → подпись UAHF (ALL\|FORKID) → бродкаст → подтверждение (txid c161ec5d…2215bc3, высота 1 740 474, explorer texplorer.e.cash);
+- ✅ решение по деривациям: основной путь m/44'/899' (Electrum ABC официально, mainnet), testnet m/44'/1'; Cashtab m/44'/1899' — опция импорта;
+- ✅ обнаруженные в живом цикле дефекты ядра устранены: Electrum-оценка комиссии ABC-семейства возвращает policy-заглушку (10 coins/kB → 1e6 sat/vB) — санитайзер XEC_MAX_SANE_SAT_VB=100 переводит её в честный fallback; формулировка «нет транзакции» тестнет-сервера ("no transaction matching") добавлена в is_missing_tx_error;
+- ⬜ проверка апгрейда 15.05.2027 (последнее условие паспорта).
 
 ## 11. Источники
 

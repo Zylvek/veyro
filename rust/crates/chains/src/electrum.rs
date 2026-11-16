@@ -363,6 +363,7 @@ pub fn is_missing_tx_error(e: &electrum_client::Error) -> bool {
     t.contains("no such")
         || t.contains("unknown transaction")
         || t.contains("not found")
+        || t.contains("no transaction matching")
         || t.contains("tx not in block chain")
 }
 

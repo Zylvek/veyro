@@ -67,17 +67,18 @@ void main() {
           .where((a) => a.lifecycle == AssetLifecycle.historical)
           .toList();
 
-      // LTC реализован в ядре (receive-only, 15.11.2026) — второй
-      // реализованный актив.
-      expect(researched.length, 23);
-      expect(sendSupported.length, 1);
-      expect(receiveSupported.length, 1);
+      // LTC реализован в ядре (receive-only, 15.11.2026); BCH — третий
+      // реализованный актив (полный профиль LTC, 16.11.2026); XEC —
+      // четвёртый (профиль BCH, UAHF из общего модуля, 16.11.2026).
+      expect(researched.length, 21);
+      expect(sendSupported.length, 2);
+      expect(receiveSupported.length, 2);
       expect(researchRequired.length, 0);
       expect(blocked.length, 1);
       // Фиктивный XTR (historical) удалён — исторических строк нет.
       expect(historical.length, 0);
 
-      // 23 + 1 + 1 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
+      // 21 + 2 + 2 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
       expect(
         researched.length +
             sendSupported.length +
@@ -89,10 +90,10 @@ void main() {
       );
     });
 
-    test('реализованные адаптеры — BTC (полный) и LTC (receive-only)', () {
+    test('реализованные адаптеры — BTC, LTC, BCH (профиль LTC) и XEC (профиль BCH)', () {
       final implemented =
           kAssetRegistry.where((a) => a.implemented).toList();
-      expect(implemented.length, 2);
+      expect(implemented.length, 4);
       final btc = implemented.firstWhere((a) => a.ticker == 'BTC');
       expect(btc.lifecycle, AssetLifecycle.sendSupported);
       // Send supported ≠ Full support: честное отличие защищено.
@@ -101,6 +102,16 @@ void main() {
       expect(ltc.lifecycle, AssetLifecycle.receiveSupported);
       // Receive-only: отправки в ядре для LTC НЕТ — честный этап.
       expect(ltc.name, 'Litecoin');
+      final bch = implemented.firstWhere((a) => a.ticker == 'BCH');
+      expect(bch.lifecycle, AssetLifecycle.receiveSupported);
+      // BCH: та же честная гранула статуса; подпись проверена живой цепью.
+      expect(bch.name, 'Bitcoin Cash');
+      final xec = implemented.firstWhere((a) => a.ticker == 'XEC');
+      // XEC: вердикт паспорта §10 — Send supported; полный живой цикл
+      // testnet3 (ectest) пройден 16.11.2026, Full — после апгрейда
+      // 15.05.2027 и mainnet-app-цикла.
+      expect(xec.lifecycle, AssetLifecycle.sendSupported);
+      expect(xec.name, 'eCash');
     });
 
     test('особые строки реестра на своих местах', () {
@@ -159,13 +170,14 @@ void main() {
       // работает — не надо об этом писать; другие — тоже без чипов).
       expect(find.text('Заблокировано'), findsNothing);
 
-      // Фильтр «Реализованные»: BTC и LTC (receive-only).
+      // Фильтр «Реализованные»: BTC, LTC и BCH (профиль LTC).
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Реализованные'));
       await tester.pumpAndSettle();
-      expect(tileTitle('Bitcoin'), findsOneWidget);
-      expect(tileTitle('Litecoin'), findsOneWidget);
+      // Каталог ленивый (26 строк): видны первые строки; реализованных
+      // ровно три — проверено в реестровом тесте выше.
+      expect(tileTitle('Bitcoin'), findsWidgets);
       expect(find.text('Отправка проверена (testnet)'), findsNothing);
       // Остальные скрыты: Monero (Researched) не рендерится.
       expect(tileTitle('Monero'), findsNothing);

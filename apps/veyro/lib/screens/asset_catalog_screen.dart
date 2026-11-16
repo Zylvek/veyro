@@ -19,12 +19,23 @@ import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/bch_state_cache.dart';
+import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/coin_balance_view.dart';
 import 'package:veyro/util/coin_icons.dart';
 import 'package:veyro/util/display_prefs.dart';
+import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/ltc_state_cache.dart';
+import 'package:veyro/util/xec_state_cache.dart';
+import 'package:veyro/util/rvn_state_cache.dart';
 
 import 'asset_detail_screen.dart';
+import 'bch_screen.dart';
 import 'btc_screen.dart';
+import 'ltc_screen.dart';
+import 'xec_screen.dart';
+import 'rvn_screen.dart';
 
 /// Селектор-фильтр каталога (по вердиктам матрицы, без выдуманных).
 enum CatalogFilter { all, implemented, researched, special }
@@ -60,14 +71,121 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() => setState(() {}));
+    // Пульсы фоновых синков: баланс-строки реализованных монет берут
+    // данные из кэшей, обновляемых на Обзоре; перерисовка по факту
+    // смены busy-состояния (кэш к этому моменту уже записан).
+    BtcConnectState.instance.addListener(_onSyncPulse);
+    LtcConnectState.instance.addListener(_onSyncPulse);
+    BchConnectState.instance.addListener(_onSyncPulse);
+    XecConnectState.instance.addListener(_onSyncPulse);
     _load();
+  }
+
+  void _onSyncPulse() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    BtcConnectState.instance.removeListener(_onSyncPulse);
+    LtcConnectState.instance.removeListener(_onSyncPulse);
+    BchConnectState.instance.removeListener(_onSyncPulse);
+    XecConnectState.instance.removeListener(_onSyncPulse);
     _searchController.dispose();
     super.dispose();
   }
+
+  /// Живая busy-пометка монеты (тот же источник, что на Обзоре).
+  bool _coinBusy(String ticker) => switch (ticker) {
+        'BTC' => BtcConnectState.instance.busy,
+        'LTC' => LtcConnectState.instance.busy,
+        'BCH' => BchConnectState.instance.busy,
+        'XEC' => XecConnectState.instance.busy,
+        'RVN' => RvnConnectState.instance.busy,
+        _ => false,
+      };
+
+  /// Честная баланс-строка реализованной монеты или null (нет данных —
+  /// нет строки; никаких выдуманных нулей).
+  Widget? _balanceLineFor(VeyroAsset asset, WalletInfoDto? wallet) {
+    if (!asset.implemented) return null;
+    final ticker = asset.ticker;
+    if (!const {'BTC', 'LTC', 'BCH', 'XEC', 'RVN'}.contains(ticker)) return null;
+    final busy = _coinBusy(ticker);
+    final view = coinBalanceView(ticker, wallet?.id);
+    if (view == null && !busy) return null;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: view == null
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 11,
+                  height: 11,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  t('sync_now_short'),
+                  style: TextStyle(
+                    fontFamily: kMonoFont,
+                    fontSize: 11,
+                    color: VColors.warning,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  switch (ticker) {
+                    'XEC' => '${satToXecString(view.availableSat)} XEC',
+                    _ => '${satToBtcString(view.availableSat)} $ticker',
+                  },
+                  style: TextStyle(
+                    fontFamily: kMonoFont,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: VColors.textPrimary,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (view.mempoolDeltaSat != 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    switch (ticker) {
+                      'XEC' =>
+                        '${signedSatToXecString(view.mempoolDeltaSat)} XEC',
+                      _ =>
+                        '${signedSatToBtcString(view.mempoolDeltaSat)} $ticker',
+                    },
+                    style: TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 10.5,
+                      color: VColors.warning,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    t('mempool_suffix'),
+                    style: TextStyle(fontSize: 10.5, color: VColors.warning),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+
+  /// Переход с плитки: реализованные — сразу в центр управления (как у
+  /// BTC); остальные — честная страница статуса.
+  VoidCallback _openAssetTap(VeyroAsset asset) => asset.implemented
+      ? () => _openImplemented(asset.ticker)
+      : () => pushVeyro<void>(
+            context,
+            AssetDetailScreen(asset: asset),
+          );
 
   Future<void> _load() async {
     await DisplayPrefs.ensureLoaded();
@@ -92,27 +210,43 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
     }
   }
 
-  /// Тап по BTC (решение владельца: сразу центр управления, без страницы
-  /// деталей). Нужен кошелёк: сохранённый → первый; без кошельков —
-  /// откат на честную страницу статуса BTC.
-  Future<void> _openBtc() async {
+  /// Выбранный кошелёк (тот же принцип, что на Обзоре): сохранённый
+  /// предпочтительный id → первый существующий.
+  WalletInfoDto? get _chosenWallet {
     final wallets = _wallets ?? const <WalletInfoDto>[];
+    if (wallets.isEmpty) return null;
+    final preferredId = DisplayPrefs.walletId;
+    for (final w in wallets) {
+      if (w.id == preferredId) return w;
+    }
+    return wallets.first;
+  }
+
+  /// Тап по реализованной монете — прямо в её центр управления (тот же
+  /// паттерн, что у BTC); без кошельков — честная страница статуса.
+  Future<void> _openImplemented(String ticker) async {
+    final wallets = _wallets ?? const <WalletInfoDto>[];
+    final asset = kAssetRegistry.firstWhere((a) => a.ticker == ticker);
     if (wallets.isEmpty) {
-      await pushVeyro<void>(
-        context,
-        AssetDetailScreen(
-          asset: kAssetRegistry.firstWhere((a) => a.ticker == 'BTC'),
-        ),
-      );
+      await pushVeyro<void>(context, AssetDetailScreen(asset: asset));
       return;
     }
-    final preferredId = DisplayPrefs.walletId;
-    WalletInfoDto? chosen;
-    for (final w in wallets) {
-      if (w.id == preferredId) chosen = w;
+    final wallet = _chosenWallet;
+    if (wallet == null) {
+      await pushVeyro<void>(context, AssetDetailScreen(asset: asset));
+      return;
     }
-    chosen ??= wallets.first;
-    await pushVeyro<void>(context, BtcScreen(info: chosen));
+    await pushVeyro<void>(
+      context,
+      switch (ticker) {
+        'BTC' => BtcScreen(info: wallet),
+        'BCH' => BchScreen(info: wallet),
+        'XEC' => XecScreen(info: wallet),
+        'LTC' => LtcScreen(info: wallet),
+        'RVN' => RvnScreen(info: wallet),
+        _ => AssetDetailScreen(asset: asset),
+      },
+    );
   }
 
   Future<void> _toggleFavorite(String ticker) async {
@@ -319,12 +453,9 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                   ),
                                   onFavorite: () =>
                                       _toggleFavorite(asset.ticker),
-                                  onOpen: asset.ticker == 'BTC'
-                                      ? _openBtc
-                                      : () => pushVeyro<void>(
-                                          context,
-                                          AssetDetailScreen(asset: asset),
-                                        ),
+                                  onOpen: _openAssetTap(asset),
+                                  balanceLine:
+                                      _balanceLineFor(asset, _chosenWallet),
                                 ),
                               const SizedBox(height: 10),
                             ],
@@ -342,12 +473,9 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                                 asset.ticker,
                               ),
                               onFavorite: () => _toggleFavorite(asset.ticker),
-                              onOpen: asset.ticker == 'BTC'
-                                  ? _openBtc
-                                  : () => pushVeyro<void>(
-                                      context,
-                                      AssetDetailScreen(asset: asset),
-                                    ),
+                              onOpen: _openAssetTap(asset),
+                              balanceLine:
+                                  _balanceLineFor(asset, _chosenWallet),
                             );
                           },
                         ),
@@ -419,11 +547,15 @@ class _AssetTile extends StatelessWidget {
   final VoidCallback onFavorite;
   final VoidCallback onOpen;
 
+  /// Строка живого баланса (реализованные монеты) или null — сеть/статус.
+  final Widget? balanceLine;
+
   const _AssetTile({
     required this.asset,
     required this.favorite,
     required this.onFavorite,
     required this.onOpen,
+    this.balanceLine,
   });
 
   @override
@@ -457,12 +589,19 @@ class _AssetTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            networkLabel(asset.network),
-            style: const TextStyle(fontSize: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                networkLabel(asset.network),
+                style: const TextStyle(fontSize: 12),
+              ),
+              ?balanceLine,
+            ],
           ),
         ),
-        isThreeLine: false,
+        isThreeLine: balanceLine != null,
         trailing: IconButton(
           tooltip: favorite ? t('fav_remove_tooltip') : t('fav_add_tooltip'),
           icon: Icon(

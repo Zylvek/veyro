@@ -478,6 +478,97 @@ const Map<String, Map<String, String>> _strings = {
   },
   'server_status_row': {'ru': 'Сервер: {value}', 'en': 'Server: {value}'},
   'ltc_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
+  // BCH (профиль LTC: тот же Electrum-транспорт, cashaddr, подпись UAHF).
+  'bch_connecting': {'ru': 'Подключение BCH…', 'en': 'Connecting BCH…'},
+  'bch_unlock_title': {
+    'ru': 'Разблокировать {name} для BCH',
+    'en': 'Unlock {name} for BCH',
+  },
+  'unlock_bch_btn': {'ru': 'Разблокировать BCH', 'en': 'Unlock BCH'},
+  'bch_backoff_wait': {
+    'ru': 'Пауза {sec} с — даём серверам выдохнуть (частые попытки копят блокировки)',
+    'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
+  },
+  'bch_candidate_progress': {
+    'ru': 'Подключение: сервер {n} из {m} — {host}…',
+    'en': 'Connecting: server {n} of {m} — {host}…',
+  },
+  'bch_syncing_addresses_long': {
+    'ru': 'Ищем адреса вашего кошелька в цепи BCH (gap-скан)…',
+    'en': 'Searching your wallet addresses in the BCH chain (gap scan)…',
+  },
+  'bch_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
+  'no_wallets_bch': {'ru': 'Кошельков нет — создайте на экране кошельков (BCH использует тот же seed).', 'en': 'No wallets — create one on the wallets screen (BCH shares the same seed).'},
+  'bch_tokens_short': {
+    'ru': 'BCH-кошелёк не тратит CashTokens; токеновые UTXO не видны как BCH.',
+    'en': 'This BCH wallet does not spend CashTokens; token UTXOs are not shown as BCH.',
+  },
+  'receive_title_bch': {'ru': 'Получение BCH', 'en': 'Receive BCH'},
+  'history_title_xec': {'ru': 'История XEC', 'en': 'XEC History'},
+  'tx_fee_row_xec': {
+    'ru': 'Комиссия сети: {xec} XEC ({sats} сат)',
+    'en': 'Network fee: {xec} XEC ({sats} sats)',
+  },
+  'send_title_xec': {'ru': 'Отправить XEC', 'en': 'Send XEC'},
+  'send_title_ltc': {'ru': 'Отправить LTC', 'en': 'Send LTC'},
+  'send_title_bch': {'ru': 'Отправить BCH', 'en': 'Send BCH'},
+  'available_row_xec': {'ru': 'Доступно: {value} XEC', 'en': 'Available: {value} XEC'},
+  // XEC/eCash (профиль BCH: тот же Electrum-транспорт, cashaddr ecash, подпись UAHF).
+  'xec_connecting': {'ru': 'Подключение XEC…', 'en': 'Connecting XEC…'},
+  'xec_unlock_title': {
+    'ru': 'Разблокировать {name} для XEC',
+    'en': 'Unlock {name} for XEC',
+  },
+  'unlock_xec_btn': {'ru': 'Разблокировать XEC', 'en': 'Unlock XEC'},
+  'xec_backoff_wait': {
+    'ru': 'Пауза {sec} с — даём серверам выдохнуть (частые попытки копят блокировки)',
+    'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
+  },
+  'xec_candidate_progress': {
+    'ru': 'Подключение: сервер {n} из {m} — {host}…',
+    'en': 'Connecting: server {n} of {m} — {host}…',
+  },
+  'xec_syncing_addresses_long': {
+    'ru': 'Ищем адреса вашего кошелька в цепи eCash (gap-скан)…',
+    'en': 'Searching your wallet addresses in the eCash chain (gap scan)…',
+  },
+  'xec_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
+  'no_wallets_xec': {'ru': 'Кошельков нет — создайте на экране кошельков (XEC использует тот же seed).', 'en': 'No wallets — create one on the wallets screen (XEC shares the same seed).'},
+  'xec_stake_short': {
+    'ru': 'eCash не тратит stake-выплаты отдельным скриптом; приходят в обычной истории.',
+    'en': 'eCash staking payouts arrive in the regular address history.',
+  },
+  'receive_title_xec': {'ru': 'Получение XEC', 'en': 'Receive XEC'},
+  // RVN/Ravencoin (профиль LTC-legacy: Electrum TLS, base58 P2PKH, чистая
+  // ECDSA-подпись без forkid; деривация m/44'/175' — официальный узел).
+  'rvn_connecting': {'ru': 'Подключение RVN…', 'en': 'Connecting RVN…'},
+  'rvn_unlock_title': {
+    'ru': 'Разблокировать {name} для RVN',
+    'en': 'Unlock {name} for RVN',
+  },
+  'unlock_rvn_btn': {'ru': 'Разблокировать RVN', 'en': 'Unlock RVN'},
+  'rvn_backoff_wait': {
+    'ru': 'Пауза {sec} с — даём серверам выдохнуть (частые попытки копят блокировки)',
+    'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
+  },
+  'rvn_candidate_progress': {
+    'ru': 'Подключение: сервер {n} из {m} — {host}…',
+    'en': 'Connecting: server {n} of {m} — {host}…',
+  },
+  'rvn_syncing_addresses_long': {
+    'ru': 'Ищем адреса вашего кошелька в цепи Ravencoin (gap-скан)…',
+    'en': 'Searching your wallet addresses in the Ravencoin chain (gap scan)…',
+  },
+  'rvn_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
+  'no_wallets_rvn': {'ru': 'Кошельков нет — создайте на экране кошельков (RVN использует тот же seed).', 'en': 'No wallets — create one on the wallets screen (RVN shares the same seed).'},
+  'receive_title_rvn': {'ru': 'Получение RVN', 'en': 'Receive RVN'},
+  'history_title_rvn': {'ru': 'История RVN', 'en': 'RVN History'},
+  'send_title_rvn': {'ru': 'Отправить RVN', 'en': 'Send RVN'},
+  'available_row_rvn': {'ru': 'Доступно: {value} RVN', 'en': 'Available: {value} RVN'},
+  'tx_fee_row_rvn': {
+    'ru': 'Комиссия сети: {rvn} RVN ({sats} сат)',
+    'en': 'Network fee: {rvn} RVN ({sats} sats)',
+  },
   'connecting_title': {'ru': 'Подключение', 'en': 'Connecting'},
   'balance_asof_row': {
     'ru': 'Данные: {value} (прошлая синхронизация)',
@@ -1032,8 +1123,16 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Настройки сети недоступны: {error}',
     'en': 'Network settings unavailable: {error}',
   },
+  'tx_fee_row_bch': {
+    'ru': 'Комиссия сети: {bch} BCH ({sats} сат)',
+    'en': 'Network fee: {bch} BCH ({sats} sats)',
+  },
+  'history_title_bch': {'ru': 'История BCH', 'en': 'BCH History'},
+  'open_coin_center': {'ru': 'Открыть центр управления', 'en': 'Open control center'},
+  'unlock_for_coin': {'ru': 'Разблокировать {coin}', 'en': 'Unlock {coin}'},
+  'wallet_for_coin': {'ru': 'Кошелёк для {coin}', 'en': 'Wallet for {coin}'},
+  'cache_balance_row': {'ru': 'Баланс (последний синк)', 'en': 'Balance (last sync)'},
 };
-
 /// Перевод с подстановкой переменных: t('wallet_deleted', {'name': x}).
 String tf(String key, Map<String, String> vars) {
   var value = t(key);

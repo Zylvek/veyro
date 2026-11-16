@@ -23,6 +23,56 @@ String satToBtcString(int sat) {
   return frac.isEmpty ? '$whole' : '$whole.$frac';
 }
 
+/// Масштаб XEC: 1 XEC = 100 сатоши (паспорт XEC §1; реденоминация
+/// 2021: 1 BCHA = 10^6 XEC, отображение 2 знака).
+const int satPerXec = 100;
+
+/// Сатоши → строка XEC (целочисленно, 2 отображаемых знака).
+/// Пример: 5 000 000 → "50000", 5 010 000 → "50100", 123 → "1.23".
+String satToXecString(int sat) {
+  if (sat < 0) {
+    throw ArgumentError('sat must be non-negative, got $sat');
+  }
+  final whole = sat ~/ satPerXec;
+  final frac = (sat % satPerXec).toString().padLeft(2, '0');
+  final trimmed = frac.replaceAll(_trailingZeros, '');
+  return trimmed.isEmpty ? '$whole' : '$whole.$trimmed';
+}
+
+/// Со знаком для истории XEC: `+1.23` / `-1.23` / `0`.
+String signedSatToXecString(int signedSat) {
+  if (signedSat > 0) return '+${satToXecString(signedSat)}';
+  if (signedSat < 0) return '-${satToXecString(-signedSat)}';
+  return '0';
+}
+
+/// Разбор строки XEC в сатоши. Максимум 2 десятичных знака (1 XEC =
+/// 100 сат — 3-й знак уже не выражается сатоши). null — некорректно.
+int? parseXecToSat(String input) {
+  final s = input.trim().replaceAll('\u00A0', '').replaceAll(' ', '');
+  if (s.isEmpty) return null;
+  final parts = s.split('.');
+  if (parts.length > 2) return null;
+  final whole = parts[0];
+  final frac = parts.length == 2 ? parts[1] : '';
+  if (whole.isEmpty && frac.isEmpty) return null;
+  if (whole.isNotEmpty && !_digits.hasMatch(whole)) return null;
+  if (frac.isNotEmpty && !_digits.hasMatch(frac)) return null;
+  if (frac.length > 2) return null; // точность XEC = 2 знака
+
+  final int wholePart;
+  if (whole.isEmpty) {
+    wholePart = 0;
+  } else {
+    wholePart = int.tryParse(whole) ?? -1;
+    if (wholePart < 0) return null; // переполнение/огромное число
+    // Целая часть * 100 не должна переполнить int64:
+    if (wholePart > (0x7FFFFFFFFFFFFFFF ~/ satPerXec)) return null;
+  }
+  final fracPart = frac.isEmpty ? 0 : int.parse(frac.padRight(2, '0'));
+  return wholePart * satPerXec + fracPart;
+}
+
 /// Со знаком для истории: `+0.0015` / `-0.0015` / `0`.
 String signedSatToBtcString(int signedSat) {
   if (signedSat > 0) return '+${satToBtcString(signedSat)}';

@@ -333,7 +333,10 @@ class PriceSource {
     'ADA': 'cardano',
     'DOGE': 'dogecoin',
     'LTC': 'litecoin',
+    'BCH': 'bitcoin-cash',
     'XRP': 'ripple',
+    'XEC': 'ecash',
+    'RVN': 'ravencoin',
   };
 
   // ============================================================

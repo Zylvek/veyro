@@ -30,3 +30,30 @@ String? explorerTxUrl(int networkCode, String txid) {
 String? ltcTxUrl(String txid) {
   return 'https://litecoinspace.org/tx/$txid';
 }
+
+/// Имя explorer'а для BCH mainnet (паспорт BCH §5).
+const String kBchExplorerName = 'explorer.bitcoin.com';
+
+/// URL транзакции BCH mainnet (паспорт BCH §5: explorer.bitcoin.com).
+String? bchTxUrl(String txid) {
+  return 'https://explorer.bitcoin.com/bch/tx/$txid';
+}
+
+/// Имя explorer'а для XEC (eCash) mainnet (паспорт XEC §11: официальный
+/// explorer.e.cash).
+const String kXecExplorerName = 'explorer.e.cash';
+
+/// URL транзакции XEC mainnet.
+String? xecTxUrl(String txid) {
+  return 'https://explorer.e.cash/tx/$txid';
+}
+
+/// Имя community-explorer'а для RVN mainnet (паспорт RVN §5: канонический
+/// официальный не зафиксирован; ravencoin.network — устоявшееся
+/// community-решение).
+const String kRvnExplorerName = 'ravencoin.network';
+
+/// URL транзакции RVN mainnet.
+String? rvnTxUrl(String txid) {
+  return 'https://ravencoin.network/tx/$txid';
+}

@@ -3,11 +3,14 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/bch.dart';
 import 'api/btc.dart';
 import 'api/ltc.dart';
+import 'api/rvn.dart';
 import 'api/session.dart';
 import 'api/storage.dart';
 import 'api/wallet.dart';
+import 'api/xec.dart';
 
 import 'dart:async';
 import 'dart:convert';
@@ -71,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1907079523;
+  int get rustContentHash => 1191904953;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -83,6 +86,35 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<BchFeeRatesDto> crateApiBchBchFees();
+
+  Future<BchHistoryDto> crateApiBchBchHistory();
+
+  Future<void> crateApiBchBchLock();
+
+  Future<BchAddressDto> crateApiBchBchReceiveAddress();
+
+  Future<BchSendResultDto> crateApiBchBchSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  });
+
+  Future<List<String>> crateApiBchBchServers();
+
+  Future<BchSessionStateDto?> crateApiBchBchSessionState();
+
+  Future<BchSyncDto> crateApiBchBchSync({required int gapLimit});
+
+  Future<BchTxStatusDto> crateApiBchBchTxStatus({required String txid});
+
+  Future<BchUnlockDto> crateApiBchBchUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  });
+
   Future<List<String>> crateApiWalletBip39Wordlist();
 
   Future<BtcFeeRatesDto> crateApiBtcBtcFees();
@@ -180,6 +212,35 @@ abstract class RustLibApi extends BaseApi {
     required String password,
   });
 
+  Future<RvnFeeRatesDto> crateApiRvnRvnFees();
+
+  Future<RvnHistoryDto> crateApiRvnRvnHistory();
+
+  Future<void> crateApiRvnRvnLock();
+
+  Future<RvnAddressDto> crateApiRvnRvnReceiveAddress();
+
+  Future<RvnSendResultDto> crateApiRvnRvnSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  });
+
+  Future<List<String>> crateApiRvnRvnServers();
+
+  Future<RvnSessionStateDto?> crateApiRvnRvnSessionState();
+
+  Future<RvnSyncDto> crateApiRvnRvnSync({required int gapLimit});
+
+  Future<RvnTxStatusDto> crateApiRvnRvnTxStatus({required String txid});
+
+  Future<RvnUnlockDto> crateApiRvnRvnUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  });
+
   Future<bool> crateApiSessionSessionPasswordCached({required String walletId});
 
   Future<void> crateApiSessionSessionPasswordEraseFor({
@@ -190,6 +251,35 @@ abstract class RustLibApi extends BaseApi {
     required String walletsDir,
     required String id,
     required String password,
+  });
+
+  Future<XecFeeRatesDto> crateApiXecXecFees();
+
+  Future<XecHistoryDto> crateApiXecXecHistory();
+
+  Future<void> crateApiXecXecLock();
+
+  Future<XecAddressDto> crateApiXecXecReceiveAddress();
+
+  Future<XecSendResultDto> crateApiXecXecSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  });
+
+  Future<List<String>> crateApiXecXecServers();
+
+  Future<XecSessionStateDto?> crateApiXecXecSessionState();
+
+  Future<XecSyncDto> crateApiXecXecSync({required int gapLimit});
+
+  Future<XecTxStatusDto> crateApiXecXecTxStatus({required String txid});
+
+  Future<XecUnlockDto> crateApiXecXecUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
   });
 }
 
@@ -202,7 +292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<List<String>> crateApiWalletBip39Wordlist() {
+  Future<BchFeeRatesDto> crateApiBchBchFees() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -211,6 +301,298 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_fee_rates_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchFeesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchFeesConstMeta =>
+      const TaskConstMeta(debugName: "bch_fees", argNames: []);
+
+  @override
+  Future<BchHistoryDto> crateApiBchBchHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_history_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchHistoryConstMeta =>
+      const TaskConstMeta(debugName: "bch_history", argNames: []);
+
+  @override
+  Future<void> crateApiBchBchLock() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchLockConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchLockConstMeta =>
+      const TaskConstMeta(debugName: "bch_lock", argNames: []);
+
+  @override
+  Future<BchAddressDto> crateApiBchBchReceiveAddress() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_address_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchReceiveAddressConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchReceiveAddressConstMeta =>
+      const TaskConstMeta(debugName: "bch_receive_address", argNames: []);
+
+  @override
+  Future<BchSendResultDto> crateApiBchBchSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(recipient, serializer);
+          sse_encode_u_64(amountSat, serializer);
+          sse_encode_u_64(feeSatPerByte, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_send_result_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchSendConstMeta,
+        argValues: [recipient, amountSat, feeSatPerByte],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchSendConstMeta => const TaskConstMeta(
+    debugName: "bch_send",
+    argNames: ["recipient", "amountSat", "feeSatPerByte"],
+  );
+
+  @override
+  Future<List<String>> crateApiBchBchServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiBchBchServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchServersConstMeta =>
+      const TaskConstMeta(debugName: "bch_servers", argNames: []);
+
+  @override
+  Future<BchSessionStateDto?> crateApiBchBchSessionState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_bch_session_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchSessionStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchSessionStateConstMeta =>
+      const TaskConstMeta(debugName: "bch_session_state", argNames: []);
+
+  @override
+  Future<BchSyncDto> crateApiBchBchSync({required int gapLimit}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(gapLimit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchSyncConstMeta,
+        argValues: [gapLimit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchSyncConstMeta =>
+      const TaskConstMeta(debugName: "bch_sync", argNames: ["gapLimit"]);
+
+  @override
+  Future<BchTxStatusDto> crateApiBchBchTxStatus({required String txid}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(txid, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_tx_status_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchTxStatusConstMeta,
+        argValues: [txid],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchTxStatusConstMeta =>
+      const TaskConstMeta(debugName: "bch_tx_status", argNames: ["txid"]);
+
+  @override
+  Future<BchUnlockDto> crateApiBchBchUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_String(walletId, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(serverUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bch_unlock_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiBchBchUnlockConstMeta,
+        argValues: [walletsDir, walletId, password, serverUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiBchBchUnlockConstMeta => const TaskConstMeta(
+    debugName: "bch_unlock",
+    argNames: ["walletsDir", "walletId", "password", "serverUrl"],
+  );
+
+  @override
+  Future<List<String>> crateApiWalletBip39Wordlist() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
             port: port_,
           );
         },
@@ -237,7 +619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 12,
             port: port_,
           );
         },
@@ -264,7 +646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 13,
             port: port_,
           );
         },
@@ -291,7 +673,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 14,
             port: port_,
           );
         },
@@ -318,7 +700,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 15,
             port: port_,
           );
         },
@@ -352,7 +734,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 16,
             port: port_,
           );
         },
@@ -381,7 +763,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 17,
             port: port_,
           );
         },
@@ -409,7 +791,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 18,
             port: port_,
           );
         },
@@ -437,7 +819,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 19,
             port: port_,
           );
         },
@@ -475,7 +857,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 20,
             port: port_,
           );
         },
@@ -519,7 +901,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 21,
             port: port_,
           );
         },
@@ -548,7 +930,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 22,
             port: port_,
           );
         },
@@ -576,7 +958,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 23,
             port: port_,
           );
         },
@@ -604,7 +986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 24,
             port: port_,
           );
         },
@@ -631,7 +1013,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 25,
             port: port_,
           );
         },
@@ -663,7 +1045,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 26,
             port: port_,
           );
         },
@@ -696,7 +1078,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 27,
             port: port_,
           );
         },
@@ -723,7 +1105,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 28,
             port: port_,
           );
         },
@@ -750,7 +1132,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 29,
             port: port_,
           );
         },
@@ -777,7 +1159,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 30,
             port: port_,
           );
         },
@@ -804,7 +1186,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 31,
             port: port_,
           );
         },
@@ -838,7 +1220,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 32,
             port: port_,
           );
         },
@@ -867,7 +1249,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 33,
             port: port_,
           );
         },
@@ -894,7 +1276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 34,
             port: port_,
           );
         },
@@ -922,7 +1304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 35,
             port: port_,
           );
         },
@@ -950,7 +1332,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 36,
             port: port_,
           );
         },
@@ -986,7 +1368,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1026,7 +1408,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1063,7 +1445,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1085,6 +1467,298 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<RvnFeeRatesDto> crateApiRvnRvnFees() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 40,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_fee_rates_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnFeesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnFeesConstMeta =>
+      const TaskConstMeta(debugName: "rvn_fees", argNames: []);
+
+  @override
+  Future<RvnHistoryDto> crateApiRvnRvnHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 41,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_history_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnHistoryConstMeta =>
+      const TaskConstMeta(debugName: "rvn_history", argNames: []);
+
+  @override
+  Future<void> crateApiRvnRvnLock() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 42,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnLockConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnLockConstMeta =>
+      const TaskConstMeta(debugName: "rvn_lock", argNames: []);
+
+  @override
+  Future<RvnAddressDto> crateApiRvnRvnReceiveAddress() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 43,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_address_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnReceiveAddressConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnReceiveAddressConstMeta =>
+      const TaskConstMeta(debugName: "rvn_receive_address", argNames: []);
+
+  @override
+  Future<RvnSendResultDto> crateApiRvnRvnSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(recipient, serializer);
+          sse_encode_u_64(amountSat, serializer);
+          sse_encode_u_64(feeSatPerByte, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 44,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_send_result_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnSendConstMeta,
+        argValues: [recipient, amountSat, feeSatPerByte],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnSendConstMeta => const TaskConstMeta(
+    debugName: "rvn_send",
+    argNames: ["recipient", "amountSat", "feeSatPerByte"],
+  );
+
+  @override
+  Future<List<String>> crateApiRvnRvnServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 45,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiRvnRvnServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnServersConstMeta =>
+      const TaskConstMeta(debugName: "rvn_servers", argNames: []);
+
+  @override
+  Future<RvnSessionStateDto?> crateApiRvnRvnSessionState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 46,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_rvn_session_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnSessionStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnSessionStateConstMeta =>
+      const TaskConstMeta(debugName: "rvn_session_state", argNames: []);
+
+  @override
+  Future<RvnSyncDto> crateApiRvnRvnSync({required int gapLimit}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(gapLimit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnSyncConstMeta,
+        argValues: [gapLimit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnSyncConstMeta =>
+      const TaskConstMeta(debugName: "rvn_sync", argNames: ["gapLimit"]);
+
+  @override
+  Future<RvnTxStatusDto> crateApiRvnRvnTxStatus({required String txid}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(txid, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 48,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_tx_status_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnTxStatusConstMeta,
+        argValues: [txid],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnTxStatusConstMeta =>
+      const TaskConstMeta(debugName: "rvn_tx_status", argNames: ["txid"]);
+
+  @override
+  Future<RvnUnlockDto> crateApiRvnRvnUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_String(walletId, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(serverUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rvn_unlock_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRvnRvnUnlockConstMeta,
+        argValues: [walletsDir, walletId, password, serverUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRvnRvnUnlockConstMeta => const TaskConstMeta(
+    debugName: "rvn_unlock",
+    argNames: ["walletsDir", "walletId", "password", "serverUrl"],
+  );
+
+  @override
   Future<bool> crateApiSessionSessionPasswordCached({
     required String walletId,
   }) {
@@ -1096,7 +1770,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1129,7 +1803,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1166,7 +1840,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1186,6 +1860,298 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     argNames: ["walletsDir", "id", "password"],
   );
 
+  @override
+  Future<XecFeeRatesDto> crateApiXecXecFees() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 53,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_fee_rates_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecFeesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecFeesConstMeta =>
+      const TaskConstMeta(debugName: "xec_fees", argNames: []);
+
+  @override
+  Future<XecHistoryDto> crateApiXecXecHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 54,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_history_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecHistoryConstMeta =>
+      const TaskConstMeta(debugName: "xec_history", argNames: []);
+
+  @override
+  Future<void> crateApiXecXecLock() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 55,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecLockConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecLockConstMeta =>
+      const TaskConstMeta(debugName: "xec_lock", argNames: []);
+
+  @override
+  Future<XecAddressDto> crateApiXecXecReceiveAddress() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 56,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_address_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecReceiveAddressConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecReceiveAddressConstMeta =>
+      const TaskConstMeta(debugName: "xec_receive_address", argNames: []);
+
+  @override
+  Future<XecSendResultDto> crateApiXecXecSend({
+    required String recipient,
+    required BigInt amountSat,
+    required BigInt feeSatPerByte,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(recipient, serializer);
+          sse_encode_u_64(amountSat, serializer);
+          sse_encode_u_64(feeSatPerByte, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 57,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_send_result_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecSendConstMeta,
+        argValues: [recipient, amountSat, feeSatPerByte],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecSendConstMeta => const TaskConstMeta(
+    debugName: "xec_send",
+    argNames: ["recipient", "amountSat", "feeSatPerByte"],
+  );
+
+  @override
+  Future<List<String>> crateApiXecXecServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 58,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiXecXecServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecServersConstMeta =>
+      const TaskConstMeta(debugName: "xec_servers", argNames: []);
+
+  @override
+  Future<XecSessionStateDto?> crateApiXecXecSessionState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 59,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_xec_session_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecSessionStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecSessionStateConstMeta =>
+      const TaskConstMeta(debugName: "xec_session_state", argNames: []);
+
+  @override
+  Future<XecSyncDto> crateApiXecXecSync({required int gapLimit}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(gapLimit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 60,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecSyncConstMeta,
+        argValues: [gapLimit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecSyncConstMeta =>
+      const TaskConstMeta(debugName: "xec_sync", argNames: ["gapLimit"]);
+
+  @override
+  Future<XecTxStatusDto> crateApiXecXecTxStatus({required String txid}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(txid, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 61,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_tx_status_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecTxStatusConstMeta,
+        argValues: [txid],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecTxStatusConstMeta =>
+      const TaskConstMeta(debugName: "xec_tx_status", argNames: ["txid"]);
+
+  @override
+  Future<XecUnlockDto> crateApiXecXecUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String serverUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_String(walletId, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(serverUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 62,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_xec_unlock_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiXecXecUnlockConstMeta,
+        argValues: [walletsDir, walletId, password, serverUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiXecXecUnlockConstMeta => const TaskConstMeta(
+    debugName: "xec_unlock",
+    argNames: ["walletsDir", "walletId", "password", "serverUrl"],
+  );
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1199,9 +2165,158 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BchAddressDto dco_decode_bch_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return BchAddressDto(
+      address: dco_decode_String(arr[0]),
+      branch: dco_decode_u_32(arr[1]),
+      index: dco_decode_u_32(arr[2]),
+      path: dco_decode_String(arr[3]),
+      used: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  BchFeeRatesDto dco_decode_bch_fee_rates_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BchFeeRatesDto(
+      fastSatVb: dco_decode_u_64(arr[0]),
+      normalSatVb: dco_decode_u_64(arr[1]),
+      slowSatVb: dco_decode_u_64(arr[2]),
+      fallback: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  BchHistoryDto dco_decode_bch_history_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BchHistoryDto(
+      items: dco_decode_list_bch_history_item_dto(arr[0]),
+      totalEntries: dco_decode_i_64(arr[1]),
+      truncated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  BchHistoryItemDto dco_decode_bch_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return BchHistoryItemDto(
+      txid: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      direction: dco_decode_String(arr[2]),
+      receivedSat: dco_decode_u_64(arr[3]),
+      sentNetSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  BchSendResultDto dco_decode_bch_send_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return BchSendResultDto(
+      txid: dco_decode_String(arr[0]),
+      rawHex: dco_decode_String(arr[1]),
+      alreadyKnown: dco_decode_bool(arr[2]),
+      recipient: dco_decode_String(arr[3]),
+      amountSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_u_64(arr[5]),
+      sizeBytes: dco_decode_u_64(arr[6]),
+      feeSatPerByte: dco_decode_u_64(arr[7]),
+      changeAddress: dco_decode_opt_String(arr[8]),
+      changeSat: dco_decode_opt_box_autoadd_u_64(arr[9]),
+      status: dco_decode_String(arr[10]),
+    );
+  }
+
+  @protected
+  BchSessionStateDto dco_decode_bch_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BchSessionStateDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      account: dco_decode_u_32(arr[2]),
+      accountXpub: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  BchSyncDto dco_decode_bch_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return BchSyncDto(
+      confirmedSat: dco_decode_u_64(arr[0]),
+      unconfirmedDeltaSat: dco_decode_i_64(arr[1]),
+      utxoCount: dco_decode_u_32(arr[2]),
+      usedAddresses: dco_decode_list_bch_address_dto(arr[3]),
+      nextReceive: dco_decode_bch_address_dto(arr[4]),
+      nextChange: dco_decode_bch_address_dto(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      serverUrl: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
+  BchTxStatusDto dco_decode_bch_tx_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BchTxStatusDto(
+      state: dco_decode_String(arr[0]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[1]),
+      confirmations: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      txid: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  BchUnlockDto dco_decode_bch_unlock_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return BchUnlockDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      serverVersion: dco_decode_String(arr[2]),
+      protocolMin: dco_decode_String(arr[3]),
+      protocolMax: dco_decode_String(arr[4]),
+      genesisHashHex: dco_decode_String(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      accountXpub: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  BchSessionStateDto dco_decode_box_autoadd_bch_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bch_session_state_dto(raw);
   }
 
   @protected
@@ -1217,6 +2332,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RvnSessionStateDto dco_decode_box_autoadd_rvn_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_rvn_session_state_dto(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1226,6 +2347,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_u_64(raw);
+  }
+
+  @protected
+  XecSessionStateDto dco_decode_box_autoadd_xec_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_xec_session_state_dto(raw);
   }
 
   @protected
@@ -1400,6 +2527,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BchAddressDto> dco_decode_list_bch_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bch_address_dto).toList();
+  }
+
+  @protected
+  List<BchHistoryItemDto> dco_decode_list_bch_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bch_history_item_dto).toList();
+  }
+
+  @protected
   List<BtcAddressDto> dco_decode_list_btc_address_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_btc_address_dto).toList();
@@ -1430,9 +2569,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RvnAddressDto> dco_decode_list_rvn_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_rvn_address_dto).toList();
+  }
+
+  @protected
+  List<RvnHistoryItemDto> dco_decode_list_rvn_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_rvn_history_item_dto).toList();
+  }
+
+  @protected
   List<WalletInfoDto> dco_decode_list_wallet_info_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_wallet_info_dto).toList();
+  }
+
+  @protected
+  List<XecAddressDto> dco_decode_list_xec_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_xec_address_dto).toList();
+  }
+
+  @protected
+  List<XecHistoryItemDto> dco_decode_list_xec_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_xec_history_item_dto).toList();
   }
 
   @protected
@@ -1585,6 +2748,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BchSessionStateDto? dco_decode_opt_box_autoadd_bch_session_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_bch_session_state_dto(raw);
+  }
+
+  @protected
   BtcSessionStateDto? dco_decode_opt_box_autoadd_btc_session_state_dto(
     dynamic raw,
   ) {
@@ -1605,6 +2778,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RvnSessionStateDto? dco_decode_opt_box_autoadd_rvn_session_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_rvn_session_state_dto(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
@@ -1614,6 +2797,159 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
+  }
+
+  @protected
+  XecSessionStateDto? dco_decode_opt_box_autoadd_xec_session_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_xec_session_state_dto(raw);
+  }
+
+  @protected
+  RvnAddressDto dco_decode_rvn_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return RvnAddressDto(
+      address: dco_decode_String(arr[0]),
+      branch: dco_decode_u_32(arr[1]),
+      index: dco_decode_u_32(arr[2]),
+      path: dco_decode_String(arr[3]),
+      used: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  RvnFeeRatesDto dco_decode_rvn_fee_rates_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return RvnFeeRatesDto(
+      fastSatVb: dco_decode_u_64(arr[0]),
+      normalSatVb: dco_decode_u_64(arr[1]),
+      slowSatVb: dco_decode_u_64(arr[2]),
+      fallback: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  RvnHistoryDto dco_decode_rvn_history_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return RvnHistoryDto(
+      items: dco_decode_list_rvn_history_item_dto(arr[0]),
+      totalEntries: dco_decode_i_64(arr[1]),
+      truncated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  RvnHistoryItemDto dco_decode_rvn_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return RvnHistoryItemDto(
+      txid: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      direction: dco_decode_String(arr[2]),
+      receivedSat: dco_decode_u_64(arr[3]),
+      sentNetSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  RvnSendResultDto dco_decode_rvn_send_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return RvnSendResultDto(
+      txid: dco_decode_String(arr[0]),
+      rawHex: dco_decode_String(arr[1]),
+      alreadyKnown: dco_decode_bool(arr[2]),
+      recipient: dco_decode_String(arr[3]),
+      amountSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_u_64(arr[5]),
+      sizeBytes: dco_decode_u_64(arr[6]),
+      feeSatPerByte: dco_decode_u_64(arr[7]),
+      changeAddress: dco_decode_opt_String(arr[8]),
+      changeSat: dco_decode_opt_box_autoadd_u_64(arr[9]),
+      status: dco_decode_String(arr[10]),
+    );
+  }
+
+  @protected
+  RvnSessionStateDto dco_decode_rvn_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return RvnSessionStateDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      account: dco_decode_u_32(arr[2]),
+      accountXpub: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  RvnSyncDto dco_decode_rvn_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return RvnSyncDto(
+      confirmedSat: dco_decode_u_64(arr[0]),
+      unconfirmedDeltaSat: dco_decode_i_64(arr[1]),
+      utxoCount: dco_decode_u_32(arr[2]),
+      usedAddresses: dco_decode_list_rvn_address_dto(arr[3]),
+      nextReceive: dco_decode_rvn_address_dto(arr[4]),
+      nextChange: dco_decode_rvn_address_dto(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      serverUrl: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
+  RvnTxStatusDto dco_decode_rvn_tx_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return RvnTxStatusDto(
+      state: dco_decode_String(arr[0]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[1]),
+      confirmations: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      txid: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  RvnUnlockDto dco_decode_rvn_unlock_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return RvnUnlockDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      serverVersion: dco_decode_String(arr[2]),
+      protocolMin: dco_decode_String(arr[3]),
+      protocolMax: dco_decode_String(arr[4]),
+      genesisHashHex: dco_decode_String(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      accountXpub: dco_decode_String(arr[7]),
+    );
   }
 
   @protected
@@ -1654,6 +2990,149 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  XecAddressDto dco_decode_xec_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return XecAddressDto(
+      address: dco_decode_String(arr[0]),
+      branch: dco_decode_u_32(arr[1]),
+      index: dco_decode_u_32(arr[2]),
+      path: dco_decode_String(arr[3]),
+      used: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  XecFeeRatesDto dco_decode_xec_fee_rates_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return XecFeeRatesDto(
+      fastXecVb: dco_decode_u_64(arr[0]),
+      normalXecVb: dco_decode_u_64(arr[1]),
+      slowXecVb: dco_decode_u_64(arr[2]),
+      fallback: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  XecHistoryDto dco_decode_xec_history_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return XecHistoryDto(
+      items: dco_decode_list_xec_history_item_dto(arr[0]),
+      totalEntries: dco_decode_i_64(arr[1]),
+      truncated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  XecHistoryItemDto dco_decode_xec_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return XecHistoryItemDto(
+      txid: dco_decode_String(arr[0]),
+      height: dco_decode_i_64(arr[1]),
+      direction: dco_decode_String(arr[2]),
+      receivedSat: dco_decode_u_64(arr[3]),
+      sentNetSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  XecSendResultDto dco_decode_xec_send_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return XecSendResultDto(
+      txid: dco_decode_String(arr[0]),
+      rawHex: dco_decode_String(arr[1]),
+      alreadyKnown: dco_decode_bool(arr[2]),
+      recipient: dco_decode_String(arr[3]),
+      amountSat: dco_decode_u_64(arr[4]),
+      feeSat: dco_decode_u_64(arr[5]),
+      sizeBytes: dco_decode_u_64(arr[6]),
+      feeSatPerByte: dco_decode_u_64(arr[7]),
+      changeAddress: dco_decode_opt_String(arr[8]),
+      changeSat: dco_decode_opt_box_autoadd_u_64(arr[9]),
+      status: dco_decode_String(arr[10]),
+    );
+  }
+
+  @protected
+  XecSessionStateDto dco_decode_xec_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return XecSessionStateDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      account: dco_decode_u_32(arr[2]),
+      accountXpub: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  XecSyncDto dco_decode_xec_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return XecSyncDto(
+      confirmedSat: dco_decode_u_64(arr[0]),
+      unconfirmedDeltaSat: dco_decode_i_64(arr[1]),
+      utxoCount: dco_decode_u_32(arr[2]),
+      usedAddresses: dco_decode_list_xec_address_dto(arr[3]),
+      nextReceive: dco_decode_xec_address_dto(arr[4]),
+      nextChange: dco_decode_xec_address_dto(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      serverUrl: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
+  XecTxStatusDto dco_decode_xec_tx_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return XecTxStatusDto(
+      state: dco_decode_String(arr[0]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[1]),
+      confirmations: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      txid: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  XecUnlockDto dco_decode_xec_unlock_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return XecUnlockDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      serverVersion: dco_decode_String(arr[2]),
+      protocolMin: dco_decode_String(arr[3]),
+      protocolMax: dco_decode_String(arr[4]),
+      genesisHashHex: dco_decode_String(arr[5]),
+      tipHeight: dco_decode_u_32(arr[6]),
+      accountXpub: dco_decode_String(arr[7]),
+    );
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -1668,9 +3147,192 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BchAddressDto sse_decode_bch_address_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_branch = sse_decode_u_32(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_used = sse_decode_bool(deserializer);
+    return BchAddressDto(
+      address: var_address,
+      branch: var_branch,
+      index: var_index,
+      path: var_path,
+      used: var_used,
+    );
+  }
+
+  @protected
+  BchFeeRatesDto sse_decode_bch_fee_rates_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fastSatVb = sse_decode_u_64(deserializer);
+    var var_normalSatVb = sse_decode_u_64(deserializer);
+    var var_slowSatVb = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    return BchFeeRatesDto(
+      fastSatVb: var_fastSatVb,
+      normalSatVb: var_normalSatVb,
+      slowSatVb: var_slowSatVb,
+      fallback: var_fallback,
+    );
+  }
+
+  @protected
+  BchHistoryDto sse_decode_bch_history_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_bch_history_item_dto(deserializer);
+    var var_totalEntries = sse_decode_i_64(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return BchHistoryDto(
+      items: var_items,
+      totalEntries: var_totalEntries,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
+  BchHistoryItemDto sse_decode_bch_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_receivedSat = sse_decode_u_64(deserializer);
+    var var_sentNetSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    return BchHistoryItemDto(
+      txid: var_txid,
+      height: var_height,
+      direction: var_direction,
+      receivedSat: var_receivedSat,
+      sentNetSat: var_sentNetSat,
+      feeSat: var_feeSat,
+    );
+  }
+
+  @protected
+  BchSendResultDto sse_decode_bch_send_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_rawHex = sse_decode_String(deserializer);
+    var var_alreadyKnown = sse_decode_bool(deserializer);
+    var var_recipient = sse_decode_String(deserializer);
+    var var_amountSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_u_64(deserializer);
+    var var_sizeBytes = sse_decode_u_64(deserializer);
+    var var_feeSatPerByte = sse_decode_u_64(deserializer);
+    var var_changeAddress = sse_decode_opt_String(deserializer);
+    var var_changeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return BchSendResultDto(
+      txid: var_txid,
+      rawHex: var_rawHex,
+      alreadyKnown: var_alreadyKnown,
+      recipient: var_recipient,
+      amountSat: var_amountSat,
+      feeSat: var_feeSat,
+      sizeBytes: var_sizeBytes,
+      feeSatPerByte: var_feeSatPerByte,
+      changeAddress: var_changeAddress,
+      changeSat: var_changeSat,
+      status: var_status,
+    );
+  }
+
+  @protected
+  BchSessionStateDto sse_decode_bch_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_account = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return BchSessionStateDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      account: var_account,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
+  BchSyncDto sse_decode_bch_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_confirmedSat = sse_decode_u_64(deserializer);
+    var var_unconfirmedDeltaSat = sse_decode_i_64(deserializer);
+    var var_utxoCount = sse_decode_u_32(deserializer);
+    var var_usedAddresses = sse_decode_list_bch_address_dto(deserializer);
+    var var_nextReceive = sse_decode_bch_address_dto(deserializer);
+    var var_nextChange = sse_decode_bch_address_dto(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    return BchSyncDto(
+      confirmedSat: var_confirmedSat,
+      unconfirmedDeltaSat: var_unconfirmedDeltaSat,
+      utxoCount: var_utxoCount,
+      usedAddresses: var_usedAddresses,
+      nextReceive: var_nextReceive,
+      nextChange: var_nextChange,
+      tipHeight: var_tipHeight,
+      serverUrl: var_serverUrl,
+    );
+  }
+
+  @protected
+  BchTxStatusDto sse_decode_bch_tx_status_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_confirmations = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_txid = sse_decode_String(deserializer);
+    return BchTxStatusDto(
+      state: var_state,
+      height: var_height,
+      confirmations: var_confirmations,
+      txid: var_txid,
+    );
+  }
+
+  @protected
+  BchUnlockDto sse_decode_bch_unlock_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_serverVersion = sse_decode_String(deserializer);
+    var var_protocolMin = sse_decode_String(deserializer);
+    var var_protocolMax = sse_decode_String(deserializer);
+    var var_genesisHashHex = sse_decode_String(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return BchUnlockDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      serverVersion: var_serverVersion,
+      protocolMin: var_protocolMin,
+      protocolMax: var_protocolMax,
+      genesisHashHex: var_genesisHashHex,
+      tipHeight: var_tipHeight,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  BchSessionStateDto sse_decode_box_autoadd_bch_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bch_session_state_dto(deserializer));
   }
 
   @protected
@@ -1690,6 +3352,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RvnSessionStateDto sse_decode_box_autoadd_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_rvn_session_state_dto(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
@@ -1699,6 +3369,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
+  XecSessionStateDto sse_decode_box_autoadd_xec_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_xec_session_state_dto(deserializer));
   }
 
   @protected
@@ -1911,6 +3589,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BchAddressDto> sse_decode_list_bch_address_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BchAddressDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bch_address_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BchHistoryItemDto> sse_decode_list_bch_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BchHistoryItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bch_history_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<BtcAddressDto> sse_decode_list_btc_address_dto(
     SseDeserializer deserializer,
   ) {
@@ -1974,6 +3680,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<RvnAddressDto> sse_decode_list_rvn_address_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RvnAddressDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rvn_address_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<RvnHistoryItemDto> sse_decode_list_rvn_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RvnHistoryItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_rvn_history_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<WalletInfoDto> sse_decode_list_wallet_info_dto(
     SseDeserializer deserializer,
   ) {
@@ -1983,6 +3717,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <WalletInfoDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_wallet_info_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<XecAddressDto> sse_decode_list_xec_address_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <XecAddressDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_xec_address_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<XecHistoryItemDto> sse_decode_list_xec_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <XecHistoryItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_xec_history_item_dto(deserializer));
     }
     return ans_;
   }
@@ -2174,6 +3936,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BchSessionStateDto? sse_decode_opt_box_autoadd_bch_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bch_session_state_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   BtcSessionStateDto? sse_decode_opt_box_autoadd_btc_session_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -2200,6 +3975,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RvnSessionStateDto? sse_decode_opt_box_autoadd_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_rvn_session_state_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2219,6 +4007,194 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  XecSessionStateDto? sse_decode_opt_box_autoadd_xec_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_xec_session_state_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  RvnAddressDto sse_decode_rvn_address_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_branch = sse_decode_u_32(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_used = sse_decode_bool(deserializer);
+    return RvnAddressDto(
+      address: var_address,
+      branch: var_branch,
+      index: var_index,
+      path: var_path,
+      used: var_used,
+    );
+  }
+
+  @protected
+  RvnFeeRatesDto sse_decode_rvn_fee_rates_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fastSatVb = sse_decode_u_64(deserializer);
+    var var_normalSatVb = sse_decode_u_64(deserializer);
+    var var_slowSatVb = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    return RvnFeeRatesDto(
+      fastSatVb: var_fastSatVb,
+      normalSatVb: var_normalSatVb,
+      slowSatVb: var_slowSatVb,
+      fallback: var_fallback,
+    );
+  }
+
+  @protected
+  RvnHistoryDto sse_decode_rvn_history_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_rvn_history_item_dto(deserializer);
+    var var_totalEntries = sse_decode_i_64(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return RvnHistoryDto(
+      items: var_items,
+      totalEntries: var_totalEntries,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
+  RvnHistoryItemDto sse_decode_rvn_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_receivedSat = sse_decode_u_64(deserializer);
+    var var_sentNetSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    return RvnHistoryItemDto(
+      txid: var_txid,
+      height: var_height,
+      direction: var_direction,
+      receivedSat: var_receivedSat,
+      sentNetSat: var_sentNetSat,
+      feeSat: var_feeSat,
+    );
+  }
+
+  @protected
+  RvnSendResultDto sse_decode_rvn_send_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_rawHex = sse_decode_String(deserializer);
+    var var_alreadyKnown = sse_decode_bool(deserializer);
+    var var_recipient = sse_decode_String(deserializer);
+    var var_amountSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_u_64(deserializer);
+    var var_sizeBytes = sse_decode_u_64(deserializer);
+    var var_feeSatPerByte = sse_decode_u_64(deserializer);
+    var var_changeAddress = sse_decode_opt_String(deserializer);
+    var var_changeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return RvnSendResultDto(
+      txid: var_txid,
+      rawHex: var_rawHex,
+      alreadyKnown: var_alreadyKnown,
+      recipient: var_recipient,
+      amountSat: var_amountSat,
+      feeSat: var_feeSat,
+      sizeBytes: var_sizeBytes,
+      feeSatPerByte: var_feeSatPerByte,
+      changeAddress: var_changeAddress,
+      changeSat: var_changeSat,
+      status: var_status,
+    );
+  }
+
+  @protected
+  RvnSessionStateDto sse_decode_rvn_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_account = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return RvnSessionStateDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      account: var_account,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
+  RvnSyncDto sse_decode_rvn_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_confirmedSat = sse_decode_u_64(deserializer);
+    var var_unconfirmedDeltaSat = sse_decode_i_64(deserializer);
+    var var_utxoCount = sse_decode_u_32(deserializer);
+    var var_usedAddresses = sse_decode_list_rvn_address_dto(deserializer);
+    var var_nextReceive = sse_decode_rvn_address_dto(deserializer);
+    var var_nextChange = sse_decode_rvn_address_dto(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    return RvnSyncDto(
+      confirmedSat: var_confirmedSat,
+      unconfirmedDeltaSat: var_unconfirmedDeltaSat,
+      utxoCount: var_utxoCount,
+      usedAddresses: var_usedAddresses,
+      nextReceive: var_nextReceive,
+      nextChange: var_nextChange,
+      tipHeight: var_tipHeight,
+      serverUrl: var_serverUrl,
+    );
+  }
+
+  @protected
+  RvnTxStatusDto sse_decode_rvn_tx_status_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_confirmations = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_txid = sse_decode_String(deserializer);
+    return RvnTxStatusDto(
+      state: var_state,
+      height: var_height,
+      confirmations: var_confirmations,
+      txid: var_txid,
+    );
+  }
+
+  @protected
+  RvnUnlockDto sse_decode_rvn_unlock_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_serverVersion = sse_decode_String(deserializer);
+    var var_protocolMin = sse_decode_String(deserializer);
+    var var_protocolMax = sse_decode_String(deserializer);
+    var var_genesisHashHex = sse_decode_String(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return RvnUnlockDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      serverVersion: var_serverVersion,
+      protocolMin: var_protocolMin,
+      protocolMax: var_protocolMax,
+      genesisHashHex: var_genesisHashHex,
+      tipHeight: var_tipHeight,
+      accountXpub: var_accountXpub,
+    );
   }
 
   @protected
@@ -2258,6 +4234,181 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  XecAddressDto sse_decode_xec_address_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_branch = sse_decode_u_32(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_used = sse_decode_bool(deserializer);
+    return XecAddressDto(
+      address: var_address,
+      branch: var_branch,
+      index: var_index,
+      path: var_path,
+      used: var_used,
+    );
+  }
+
+  @protected
+  XecFeeRatesDto sse_decode_xec_fee_rates_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fastXecVb = sse_decode_u_64(deserializer);
+    var var_normalXecVb = sse_decode_u_64(deserializer);
+    var var_slowXecVb = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    return XecFeeRatesDto(
+      fastXecVb: var_fastXecVb,
+      normalXecVb: var_normalXecVb,
+      slowXecVb: var_slowXecVb,
+      fallback: var_fallback,
+    );
+  }
+
+  @protected
+  XecHistoryDto sse_decode_xec_history_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_xec_history_item_dto(deserializer);
+    var var_totalEntries = sse_decode_i_64(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return XecHistoryDto(
+      items: var_items,
+      totalEntries: var_totalEntries,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
+  XecHistoryItemDto sse_decode_xec_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_height = sse_decode_i_64(deserializer);
+    var var_direction = sse_decode_String(deserializer);
+    var var_receivedSat = sse_decode_u_64(deserializer);
+    var var_sentNetSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    return XecHistoryItemDto(
+      txid: var_txid,
+      height: var_height,
+      direction: var_direction,
+      receivedSat: var_receivedSat,
+      sentNetSat: var_sentNetSat,
+      feeSat: var_feeSat,
+    );
+  }
+
+  @protected
+  XecSendResultDto sse_decode_xec_send_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txid = sse_decode_String(deserializer);
+    var var_rawHex = sse_decode_String(deserializer);
+    var var_alreadyKnown = sse_decode_bool(deserializer);
+    var var_recipient = sse_decode_String(deserializer);
+    var var_amountSat = sse_decode_u_64(deserializer);
+    var var_feeSat = sse_decode_u_64(deserializer);
+    var var_sizeBytes = sse_decode_u_64(deserializer);
+    var var_feeSatPerByte = sse_decode_u_64(deserializer);
+    var var_changeAddress = sse_decode_opt_String(deserializer);
+    var var_changeSat = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return XecSendResultDto(
+      txid: var_txid,
+      rawHex: var_rawHex,
+      alreadyKnown: var_alreadyKnown,
+      recipient: var_recipient,
+      amountSat: var_amountSat,
+      feeSat: var_feeSat,
+      sizeBytes: var_sizeBytes,
+      feeSatPerByte: var_feeSatPerByte,
+      changeAddress: var_changeAddress,
+      changeSat: var_changeSat,
+      status: var_status,
+    );
+  }
+
+  @protected
+  XecSessionStateDto sse_decode_xec_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_account = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return XecSessionStateDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      account: var_account,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
+  XecSyncDto sse_decode_xec_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_confirmedSat = sse_decode_u_64(deserializer);
+    var var_unconfirmedDeltaSat = sse_decode_i_64(deserializer);
+    var var_utxoCount = sse_decode_u_32(deserializer);
+    var var_usedAddresses = sse_decode_list_xec_address_dto(deserializer);
+    var var_nextReceive = sse_decode_xec_address_dto(deserializer);
+    var var_nextChange = sse_decode_xec_address_dto(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    return XecSyncDto(
+      confirmedSat: var_confirmedSat,
+      unconfirmedDeltaSat: var_unconfirmedDeltaSat,
+      utxoCount: var_utxoCount,
+      usedAddresses: var_usedAddresses,
+      nextReceive: var_nextReceive,
+      nextChange: var_nextChange,
+      tipHeight: var_tipHeight,
+      serverUrl: var_serverUrl,
+    );
+  }
+
+  @protected
+  XecTxStatusDto sse_decode_xec_tx_status_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_confirmations = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_txid = sse_decode_String(deserializer);
+    return XecTxStatusDto(
+      state: var_state,
+      height: var_height,
+      confirmations: var_confirmations,
+      txid: var_txid,
+    );
+  }
+
+  @protected
+  XecUnlockDto sse_decode_xec_unlock_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_serverVersion = sse_decode_String(deserializer);
+    var var_protocolMin = sse_decode_String(deserializer);
+    var var_protocolMax = sse_decode_String(deserializer);
+    var var_genesisHashHex = sse_decode_String(deserializer);
+    var var_tipHeight = sse_decode_u_32(deserializer);
+    var var_accountXpub = sse_decode_String(deserializer);
+    return XecUnlockDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      serverVersion: var_serverVersion,
+      protocolMin: var_protocolMin,
+      protocolMax: var_protocolMax,
+      genesisHashHex: var_genesisHashHex,
+      tipHeight: var_tipHeight,
+      accountXpub: var_accountXpub,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -2279,9 +4430,137 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bch_address_dto(
+    BchAddressDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_32(self.branch, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_bool(self.used, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_fee_rates_dto(
+    BchFeeRatesDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.fastSatVb, serializer);
+    sse_encode_u_64(self.normalSatVb, serializer);
+    sse_encode_u_64(self.slowSatVb, serializer);
+    sse_encode_bool(self.fallback, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_history_dto(
+    BchHistoryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_bch_history_item_dto(self.items, serializer);
+    sse_encode_i_64(self.totalEntries, serializer);
+    sse_encode_bool(self.truncated, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_history_item_dto(
+    BchHistoryItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_u_64(self.receivedSat, serializer);
+    sse_encode_u_64(self.sentNetSat, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.feeSat, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_send_result_dto(
+    BchSendResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_String(self.rawHex, serializer);
+    sse_encode_bool(self.alreadyKnown, serializer);
+    sse_encode_String(self.recipient, serializer);
+    sse_encode_u_64(self.amountSat, serializer);
+    sse_encode_u_64(self.feeSat, serializer);
+    sse_encode_u_64(self.sizeBytes, serializer);
+    sse_encode_u_64(self.feeSatPerByte, serializer);
+    sse_encode_opt_String(self.changeAddress, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.changeSat, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_session_state_dto(
+    BchSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_32(self.account, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_sync_dto(BchSyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.confirmedSat, serializer);
+    sse_encode_i_64(self.unconfirmedDeltaSat, serializer);
+    sse_encode_u_32(self.utxoCount, serializer);
+    sse_encode_list_bch_address_dto(self.usedAddresses, serializer);
+    sse_encode_bch_address_dto(self.nextReceive, serializer);
+    sse_encode_bch_address_dto(self.nextChange, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_tx_status_dto(
+    BchTxStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.height, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.confirmations, serializer);
+    sse_encode_String(self.txid, serializer);
+  }
+
+  @protected
+  void sse_encode_bch_unlock_dto(BchUnlockDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_String(self.serverVersion, serializer);
+    sse_encode_String(self.protocolMin, serializer);
+    sse_encode_String(self.protocolMax, serializer);
+    sse_encode_String(self.genesisHashHex, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bch_session_state_dto(
+    BchSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bch_session_state_dto(self, serializer);
   }
 
   @protected
@@ -2303,6 +4582,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_rvn_session_state_dto(
+    RvnSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_rvn_session_state_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
@@ -2312,6 +4600,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_xec_session_state_dto(
+    XecSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_xec_session_state_dto(self, serializer);
   }
 
   @protected
@@ -2463,6 +4760,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_bch_address_dto(
+    List<BchAddressDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bch_address_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_bch_history_item_dto(
+    List<BchHistoryItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bch_history_item_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_btc_address_dto(
     List<BtcAddressDto> self,
     SseSerializer serializer,
@@ -2521,6 +4842,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_rvn_address_dto(
+    List<RvnAddressDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rvn_address_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_rvn_history_item_dto(
+    List<RvnHistoryItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_rvn_history_item_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_wallet_info_dto(
     List<WalletInfoDto> self,
     SseSerializer serializer,
@@ -2529,6 +4874,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_wallet_info_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_xec_address_dto(
+    List<XecAddressDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_xec_address_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_xec_history_item_dto(
+    List<XecHistoryItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_xec_history_item_dto(item, serializer);
     }
   }
 
@@ -2662,6 +5031,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_bch_session_state_dto(
+    BchSessionStateDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bch_session_state_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_btc_session_state_dto(
     BtcSessionStateDto? self,
     SseSerializer serializer,
@@ -2688,6 +5070,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_rvn_session_state_dto(
+    RvnSessionStateDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_rvn_session_state_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2705,6 +5100,138 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_u_64(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_xec_session_state_dto(
+    XecSessionStateDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_xec_session_state_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_rvn_address_dto(
+    RvnAddressDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_32(self.branch, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_bool(self.used, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_fee_rates_dto(
+    RvnFeeRatesDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.fastSatVb, serializer);
+    sse_encode_u_64(self.normalSatVb, serializer);
+    sse_encode_u_64(self.slowSatVb, serializer);
+    sse_encode_bool(self.fallback, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_history_dto(
+    RvnHistoryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_rvn_history_item_dto(self.items, serializer);
+    sse_encode_i_64(self.totalEntries, serializer);
+    sse_encode_bool(self.truncated, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_history_item_dto(
+    RvnHistoryItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_u_64(self.receivedSat, serializer);
+    sse_encode_u_64(self.sentNetSat, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.feeSat, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_send_result_dto(
+    RvnSendResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_String(self.rawHex, serializer);
+    sse_encode_bool(self.alreadyKnown, serializer);
+    sse_encode_String(self.recipient, serializer);
+    sse_encode_u_64(self.amountSat, serializer);
+    sse_encode_u_64(self.feeSat, serializer);
+    sse_encode_u_64(self.sizeBytes, serializer);
+    sse_encode_u_64(self.feeSatPerByte, serializer);
+    sse_encode_opt_String(self.changeAddress, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.changeSat, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_session_state_dto(
+    RvnSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_32(self.account, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_sync_dto(RvnSyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.confirmedSat, serializer);
+    sse_encode_i_64(self.unconfirmedDeltaSat, serializer);
+    sse_encode_u_32(self.utxoCount, serializer);
+    sse_encode_list_rvn_address_dto(self.usedAddresses, serializer);
+    sse_encode_rvn_address_dto(self.nextReceive, serializer);
+    sse_encode_rvn_address_dto(self.nextChange, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_tx_status_dto(
+    RvnTxStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.height, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.confirmations, serializer);
+    sse_encode_String(self.txid, serializer);
+  }
+
+  @protected
+  void sse_encode_rvn_unlock_dto(RvnUnlockDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_String(self.serverVersion, serializer);
+    sse_encode_String(self.protocolMin, serializer);
+    sse_encode_String(self.protocolMax, serializer);
+    sse_encode_String(self.genesisHashHex, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.accountXpub, serializer);
   }
 
   @protected
@@ -2739,6 +5266,125 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_u_64(self.createdAtUnix, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_address_dto(
+    XecAddressDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_32(self.branch, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_bool(self.used, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_fee_rates_dto(
+    XecFeeRatesDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.fastXecVb, serializer);
+    sse_encode_u_64(self.normalXecVb, serializer);
+    sse_encode_u_64(self.slowXecVb, serializer);
+    sse_encode_bool(self.fallback, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_history_dto(
+    XecHistoryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_xec_history_item_dto(self.items, serializer);
+    sse_encode_i_64(self.totalEntries, serializer);
+    sse_encode_bool(self.truncated, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_history_item_dto(
+    XecHistoryItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_i_64(self.height, serializer);
+    sse_encode_String(self.direction, serializer);
+    sse_encode_u_64(self.receivedSat, serializer);
+    sse_encode_u_64(self.sentNetSat, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.feeSat, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_send_result_dto(
+    XecSendResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txid, serializer);
+    sse_encode_String(self.rawHex, serializer);
+    sse_encode_bool(self.alreadyKnown, serializer);
+    sse_encode_String(self.recipient, serializer);
+    sse_encode_u_64(self.amountSat, serializer);
+    sse_encode_u_64(self.feeSat, serializer);
+    sse_encode_u_64(self.sizeBytes, serializer);
+    sse_encode_u_64(self.feeSatPerByte, serializer);
+    sse_encode_opt_String(self.changeAddress, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.changeSat, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_session_state_dto(
+    XecSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_32(self.account, serializer);
+    sse_encode_String(self.accountXpub, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_sync_dto(XecSyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.confirmedSat, serializer);
+    sse_encode_i_64(self.unconfirmedDeltaSat, serializer);
+    sse_encode_u_32(self.utxoCount, serializer);
+    sse_encode_list_xec_address_dto(self.usedAddresses, serializer);
+    sse_encode_xec_address_dto(self.nextReceive, serializer);
+    sse_encode_xec_address_dto(self.nextChange, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_tx_status_dto(
+    XecTxStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.height, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.confirmations, serializer);
+    sse_encode_String(self.txid, serializer);
+  }
+
+  @protected
+  void sse_encode_xec_unlock_dto(XecUnlockDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_String(self.serverVersion, serializer);
+    sse_encode_String(self.protocolMin, serializer);
+    sse_encode_String(self.protocolMax, serializer);
+    sse_encode_String(self.genesisHashHex, serializer);
+    sse_encode_u_32(self.tipHeight, serializer);
+    sse_encode_String(self.accountXpub, serializer);
   }
 
   @protected

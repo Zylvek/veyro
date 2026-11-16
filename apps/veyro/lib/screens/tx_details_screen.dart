@@ -10,6 +10,9 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 
@@ -102,7 +105,13 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   Future<void> _resolveNetwork() async {
     // LTC-провод не нуждается в коде сети (свой explorer); код BTC-сессии
     // к LTC-записи отношения не имеет — не подмешиваем чужое.
-    if (_networkCode != null || widget.coin == WalletCoin.ltc) return;
+    if (_networkCode != null ||
+        widget.coin == WalletCoin.ltc ||
+        widget.coin == WalletCoin.bch ||
+        widget.coin == WalletCoin.xec ||
+        widget.coin == WalletCoin.rvn) {
+      return;
+    }
     try {
       final session = await btcSessionState();
       if (!mounted) return;
@@ -121,6 +130,42 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
       late final Future<BtcTxStatusDto> Function(String txid) loader;
       if (widget.statusLoader != null) {
         loader = widget.statusLoader!;
+      } else if (widget.coin == WalletCoin.xec) {
+        loader = (txid) async {
+          // XecTxStatusDto и BtcTxStatusDto структурно одинаковы; общий
+          // тип UI-состояния — BTC-класс (контракт 1:1 с BCH-веткой).
+          final s = await xecTxStatus(txid: txid);
+          return BtcTxStatusDto(
+            state: s.state,
+            height: s.height,
+            confirmations: s.confirmations,
+            txid: s.txid,
+          );
+        };
+      } else if (widget.coin == WalletCoin.rvn) {
+        loader = (txid) async {
+          // RvnTxStatusDto и BtcTxStatusDto структурно одинаковы; общий
+          // тип UI-состояния — BTC-класс (контракт 1:1 с LTC-веткой).
+          final s = await rvnTxStatus(txid: txid);
+          return BtcTxStatusDto(
+            state: s.state,
+            height: s.height,
+            confirmations: s.confirmations,
+            txid: s.txid,
+          );
+        };
+      } else if (widget.coin == WalletCoin.bch) {
+        loader = (txid) async {
+          // BchTxStatusDto и BtcTxStatusDto структурно одинаковы; общий
+          // тип UI-состояния — BTC-класс (контракт 1:1 с LTC-веткой).
+          final s = await bchTxStatus(txid: txid);
+          return BtcTxStatusDto(
+            state: s.state,
+            height: s.height,
+            confirmations: s.confirmations,
+            txid: s.txid,
+          );
+        };
       } else if (widget.coin == WalletCoin.ltc) {
         loader = (txid) async {
           // LtcTxStatusDto и BtcTxStatusDto структурно одинаковы; общий
@@ -154,11 +199,14 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
 
   String get _amountText {
     final item = widget.item;
+    final fmt = widget.coin == WalletCoin.xec
+        ? satToXecString
+        : satToBtcString;
     switch (item.direction) {
       case 'incoming':
-        return '+${satToBtcString(item.receivedSat.toInt())}';
+        return '+${fmt(item.receivedSat.toInt())}';
       case 'outgoing':
-        return '-${satToBtcString(item.sentNetSat.toInt())}';
+        return '-${fmt(item.sentNetSat.toInt())}';
       case 'internal':
         return '0';
       default:
@@ -267,9 +315,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           _amountText,
           suffix: item.direction == 'internal'
               ? null
-              : widget.coin == WalletCoin.ltc
-              ? 'LTC'
-              : 'BTC',
+              : widget.coin.unit,
           fontSize: 26,
         ),
         const SizedBox(height: 4),
@@ -283,19 +329,38 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         _row(
           context,
           t('fee_row_label'),
-          widget.coin == WalletCoin.ltc
-              ? item.feeSat != null
-                    ? tf('tx_fee_row_ltc', {
-                        'ltc': satToBtcString(item.feeSat!.toInt()),
-                        'sats': groupDigits(item.feeSat!.toInt()),
-                      })
-                    : '—'
-              : item.feeSat != null
-              ? tf('tx_fee_row_btc', {
-                  'btc': satToBtcString(item.feeSat!.toInt()),
-                  'sats': groupDigits(item.feeSat!.toInt()),
-                })
-              : '—',
+          switch (widget.coin) {
+            WalletCoin.ltc => item.feeSat != null
+                ? tf('tx_fee_row_ltc', {
+                    'ltc': satToBtcString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                  })
+                : '—',
+            WalletCoin.xec => item.feeSat != null
+                ? tf('tx_fee_row_xec', {
+                    'xec': satToXecString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                  })
+                : '—',
+            WalletCoin.rvn => item.feeSat != null
+                ? tf('tx_fee_row_rvn', {
+                    'rvn': satToBtcString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                  })
+                : '—',
+            WalletCoin.bch => item.feeSat != null
+                ? tf('tx_fee_row_bch', {
+                    'bch': satToBtcString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                  })
+                : '—',
+            _ => item.feeSat != null
+                ? tf('tx_fee_row_btc', {
+                    'btc': satToBtcString(item.feeSat!.toInt()),
+                    'sats': groupDigits(item.feeSat!.toInt()),
+                  })
+                : '—',
+          },
         ),
       ],
     );
@@ -372,12 +437,22 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   }
 
   Widget _buildExplorerCard(BuildContext context) {
-    final isLtc = widget.coin == WalletCoin.ltc;
+    final coin = widget.coin;
     final code = _networkCode;
-    final url = isLtc
-        ? ltcTxUrl(widget.item.txid)
-        : (code == null ? null : explorerTxUrl(code, widget.item.txid));
-    final explorerName = isLtc ? kLtcExplorerName : kBtcExplorerName;
+    final url = switch (coin) {
+      WalletCoin.ltc => ltcTxUrl(widget.item.txid),
+      WalletCoin.xec => xecTxUrl(widget.item.txid),
+      WalletCoin.rvn => rvnTxUrl(widget.item.txid),
+      WalletCoin.bch => bchTxUrl(widget.item.txid),
+      _ => code == null ? null : explorerTxUrl(code, widget.item.txid),
+    };
+    final explorerName = switch (coin) {
+      WalletCoin.ltc => kLtcExplorerName,
+      WalletCoin.xec => kXecExplorerName,
+      WalletCoin.rvn => kRvnExplorerName,
+      WalletCoin.bch => kBchExplorerName,
+      _ => kBtcExplorerName,
+    };
     return VCard(
       title: t('network_explorer_card'),
       icon: Icons.public_outlined,
@@ -385,9 +460,17 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
         _row(
           context,
           t('network_label'),
-          isLtc
-              ? (ruNetworkText('Litecoin mainnet') ?? 'Litecoin mainnet')
-              : networkName(code) ?? t('network_unknown'),
+          switch (widget.coin) {
+            WalletCoin.ltc =>
+              (ruNetworkText('Litecoin mainnet') ?? 'Litecoin mainnet'),
+            WalletCoin.xec =>
+              (ruNetworkText('eCash mainnet') ?? 'eCash mainnet'),
+            WalletCoin.rvn =>
+              (ruNetworkText('Ravencoin mainnet') ?? 'Ravencoin mainnet'),
+            WalletCoin.bch =>
+              (ruNetworkText('Bitcoin Cash mainnet') ?? 'Bitcoin Cash mainnet'),
+            _ => networkName(code) ?? t('network_unknown'),
+          },
         ),
         const SizedBox(height: 8),
         if (url != null) ...[

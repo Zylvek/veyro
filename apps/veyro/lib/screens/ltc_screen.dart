@@ -345,6 +345,7 @@ class _LtcScreenState extends State<LtcScreen> {
   Future<void> _doSync() async {
     if (mounted) {
       setState(() {
+        _busy = true;
         _busyLabel = t('ltc_syncing_addresses_long');
       });
     }
@@ -371,6 +372,12 @@ class _LtcScreenState extends State<LtcScreen> {
       if (canSilent && mounted) {
         try {
           await _unlockViaCandidates('');
+          if (mounted) {
+            setState(() {
+              _busy = true;
+              _busyLabel = t('ltc_syncing_addresses_long');
+            });
+          }
           final sync2 = await ltcSync(gapLimit: kDefaultGapLimit);
           if (!mounted) return;
           LtcStateCache.instance.store(sync2, walletId: widget.info.id);
@@ -609,12 +616,6 @@ class _LtcScreenState extends State<LtcScreen> {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  t('ltc_mweb_short'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: VColors.textSecondary, fontSize: 11),
                 ),
               ],
             ),

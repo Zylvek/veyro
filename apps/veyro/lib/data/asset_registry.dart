@@ -307,11 +307,14 @@ const List<VeyroAsset> kAssetRegistry = [
     ticker: 'BCH',
     name: 'Bitcoin Cash',
     network: 'L1 · PoW SHA-256d (форк BTC)',
-    lifecycle: AssetLifecycle.researched,
+    lifecycle: AssetLifecycle.receiveSupported,
+    implemented: true,
     passport: 'docs/coins/BCH.md',
     note:
-        'Cashaddr обязателен; sighash ALL|FORKID 0x41 — свой модуль '
-        'подписи; 23 живых Electrum-сервера; полугодовые апгрейды.',
+        'Полный профиль LTC: cashaddr+legacy, BIP44 (145), Electrum TLS, '
+        'UAHF-подпись (ALL|FORKID 0x41, forkId=0) — проверена векторами '
+        'BCHN и живой подписью сети (ECDSA, 16.11.2026). CashTokens не '
+        'тратятся (токеновые UTXO не видны как BCH).',
   ),
   VeyroAsset(
     row: 21,
@@ -339,12 +342,18 @@ const List<VeyroAsset> kAssetRegistry = [
     row: 23,
     ticker: 'XEC',
     name: 'eCash',
-    network: 'L1 · PoW (форк BCH)',
-    lifecycle: AssetLifecycle.researched,
+    network: 'L1 · PoW SHA-256d (форк BCH)',
+    lifecycle: AssetLifecycle.sendSupported,
+    implemented: true,
     passport: 'docs/coins/XEC.md',
     note:
-        'Cashaddr `ecash:`; раскол деривации 899/1899 — сканировать '
-        'оба; 3 независимых лёгких пути (Chronik/Electrum/узел).',
+        'Профиль BCH: cashaddr `ecash:`, BIP44 (899, Electrum ABC '
+        'официальный путь; 1899 Cashtab — опция импорта), Electrum TLS, '
+        'UAHF-подпись (ALL|FORKID) — переиспользованный модуль BCHN-'
+        'векторов. Полный живой цикл на testnet3 (ectest) пройден '
+        '16.11.2026: адрес → баланс → история → отправка → broadcast → '
+        'подтверждение. До «Full support» осталась проверка апгрейда '
+        '15.05.2027 (паспорт §10); mainnet-send и app-цикл не заявлены.',
   ),
   VeyroAsset(
     row: 24,

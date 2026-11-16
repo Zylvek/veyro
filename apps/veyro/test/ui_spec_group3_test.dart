@@ -403,7 +403,16 @@ void main() {
       Finder tileTitle(String plain) => find.byWidgetPredicate(
             (w) => w is RichText && w.text.toPlainText().contains(plain),
           );
-      expect(tileTitle('Bitcoin'), findsOneWidget);
+      // BCH-плитка тоже содержит «Bitcoin» в названии (Bitcoin Cash) —
+      // матчим тикер с началом плашки (BTC-плитка = тикер слева).
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is RichText && w.text.toPlainText().startsWith('BTC\u{FFFC}'),
+        ),
+        findsOneWidget,
+      );
+      expect(tileTitle('Bitcoin Cash'), findsOneWidget);
       expect(find.textContaining('— форма открыта'), findsNothing);
       expect(find.textContaining('Researched'), findsNothing);
     });

@@ -15,6 +15,9 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/coin.dart';
@@ -85,6 +88,36 @@ class _SendScreenState extends State<SendScreen> {
       Future<BtcFeeRatesDto> feesFuture;
       if (widget.feesLoader != null) {
         feesFuture = widget.feesLoader!();
+      } else if (widget.coin == WalletCoin.bch) {
+        // BchFeeRatesDto структурно одинаков — приводим 1:1 (сат/байт у BCH).
+        feesFuture = bchFees().then(
+          (f) => BtcFeeRatesDto(
+            fastSatVb: f.fastSatVb,
+            normalSatVb: f.normalSatVb,
+            slowSatVb: f.slowSatVb,
+            fallback: f.fallback,
+          ),
+        );
+      } else if (widget.coin == WalletCoin.xec) {
+        // XecFeeRatesDto структурно одинаков — приводим 1:1 (сат/vB у XEC).
+        feesFuture = xecFees().then(
+          (f) => BtcFeeRatesDto(
+            fastSatVb: f.fastXecVb,
+            normalSatVb: f.normalXecVb,
+            slowSatVb: f.slowXecVb,
+            fallback: f.fallback,
+          ),
+        );
+      } else if (widget.coin == WalletCoin.rvn) {
+        // RvnFeeRatesDto структурно одинаков — приводим 1:1 (сат/vB у RVN).
+        feesFuture = rvnFees().then(
+          (f) => BtcFeeRatesDto(
+            fastSatVb: f.fastSatVb,
+            normalSatVb: f.normalSatVb,
+            slowSatVb: f.slowSatVb,
+            fallback: f.fallback,
+          ),
+        );
       } else if (widget.coin == WalletCoin.ltc) {
         // LtcFeeRatesDto структурно одинаков с BtcFeeRatesDto — приводим
         // к общему типу экрана (исторический контракт тестов).
@@ -137,12 +170,16 @@ class _SendScreenState extends State<SendScreen> {
   void _applyMax() {
     final available = widget.availableSat;
     if (available == null || available <= 0) return;
-    _amountController.text = satToBtcString(available);
+    _amountController.text = widget.coin == WalletCoin.xec
+        ? satToXecString(available)
+        : satToBtcString(available);
   }
 
   Future<void> _submit() async {
     final recipient = _recipientController.text.trim();
-    final amountSat = parseBtcToSat(_amountController.text);
+    final amountSat = widget.coin == WalletCoin.xec
+        ? parseXecToSat(_amountController.text)
+        : parseBtcToSat(_amountController.text);
     final rate = _resolveRateSatVb();
 
     String? error;
@@ -163,9 +200,13 @@ class _SendScreenState extends State<SendScreen> {
     // показывать сеть явно).
     String? networkDisplay;
     try {
-      networkDisplay = widget.coin == WalletCoin.ltc
-          ? (await ltcSessionState())?.networkDisplay
-          : (await btcSessionState())?.networkDisplay;
+      networkDisplay = switch (widget.coin) {
+        WalletCoin.ltc => (await ltcSessionState())?.networkDisplay,
+        WalletCoin.bch => (await bchSessionState())?.networkDisplay,
+        WalletCoin.xec => (await xecSessionState())?.networkDisplay,
+        WalletCoin.rvn => (await rvnSessionState())?.networkDisplay,
+        _ => (await btcSessionState())?.networkDisplay,
+      };
     } catch (_) {
       // Ядро недоступно: честное «—» на экране подтверждения.
     }
@@ -210,6 +251,72 @@ class _SendScreenState extends State<SendScreen> {
     int amountSat,
     int rate,
   ) {
+    if (widget.coin == WalletCoin.bch) {
+      // BchSendResultDto структурно одинаков — приводим 1:1 (vsize = байты).
+      return bchSend(
+        recipient: recipient,
+        amountSat: BigInt.from(amountSat),
+        feeSatPerByte: BigInt.from(rate),
+      ).then(
+        (r) => BtcSendResultDto(
+          txid: r.txid,
+          rawHex: r.rawHex,
+          alreadyKnown: r.alreadyKnown,
+          recipient: r.recipient,
+          amountSat: r.amountSat,
+          feeSat: r.feeSat,
+          vsize: r.sizeBytes,
+          feeSatPerVb: r.feeSatPerByte,
+          changeAddress: r.changeAddress,
+          changeSat: r.changeSat,
+          status: r.status,
+        ),
+      );
+    }
+    if (widget.coin == WalletCoin.xec) {
+      // XecSendResultDto структурно одинаков — приводим 1:1 (vsize = байты).
+      return xecSend(
+        recipient: recipient,
+        amountSat: BigInt.from(amountSat),
+        feeSatPerByte: BigInt.from(rate),
+      ).then(
+        (r) => BtcSendResultDto(
+          txid: r.txid,
+          rawHex: r.rawHex,
+          alreadyKnown: r.alreadyKnown,
+          recipient: r.recipient,
+          amountSat: r.amountSat,
+          feeSat: r.feeSat,
+          vsize: r.sizeBytes,
+          feeSatPerVb: r.feeSatPerByte,
+          changeAddress: r.changeAddress,
+          changeSat: r.changeSat,
+          status: r.status,
+        ),
+      );
+    }
+    if (widget.coin == WalletCoin.rvn) {
+      // RvnSendResultDto структурно одинаков — приводим 1:1 (vsize = байты).
+      return rvnSend(
+        recipient: recipient,
+        amountSat: BigInt.from(amountSat),
+        feeSatPerByte: BigInt.from(rate),
+      ).then(
+        (r) => BtcSendResultDto(
+          txid: r.txid,
+          rawHex: r.rawHex,
+          alreadyKnown: r.alreadyKnown,
+          recipient: r.recipient,
+          amountSat: r.amountSat,
+          feeSat: r.feeSat,
+          vsize: r.sizeBytes,
+          feeSatPerVb: r.feeSatPerByte,
+          changeAddress: r.changeAddress,
+          changeSat: r.changeSat,
+          status: r.status,
+        ),
+      );
+    }
     if (widget.coin == WalletCoin.ltc) {
       // LtcSendResultDto структурно одинаков с BtcSendResultDto —
       // приводим к общему типу диалога результата (контракт тестов).
@@ -288,7 +395,7 @@ class _SendScreenState extends State<SendScreen> {
               Text(
                 tf('tx_to_recipient', {
                   'value':
-                      '${satToBtcString(result.amountSat.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'}',
+                      '${widget.coin == WalletCoin.xec ? satToXecString(result.amountSat.toInt()) : satToBtcString(result.amountSat.toInt())} ${widget.coin.unit}',
                 }),
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
@@ -296,7 +403,22 @@ class _SendScreenState extends State<SendScreen> {
                 ),
               ),
               Text(
-                widget.coin == WalletCoin.ltc
+                widget.coin == WalletCoin.xec
+                    ? tf('tx_fee_row_xec', {
+                        'xec': satToXecString(result.feeSat.toInt()),
+                        'sats': groupDigits(result.feeSat.toInt()),
+                      })
+                    : widget.coin == WalletCoin.bch
+                    ? tf('tx_fee_row_bch', {
+                        'bch': satToBtcString(result.feeSat.toInt()),
+                        'sats': groupDigits(result.feeSat.toInt()),
+                      })
+                    : widget.coin == WalletCoin.rvn
+                    ? tf('tx_fee_row_rvn', {
+                        'rvn': satToBtcString(result.feeSat.toInt()),
+                        'sats': groupDigits(result.feeSat.toInt()),
+                      })
+                    : widget.coin == WalletCoin.ltc
                     ? tf('tx_fee_row_ltc', {
                         'ltc': satToBtcString(result.feeSat.toInt()),
                         'sats': groupDigits(result.feeSat.toInt()),
@@ -318,7 +440,7 @@ class _SendScreenState extends State<SendScreen> {
                   child: VMonoCopyRow(
                     label: t('change_label'),
                     value:
-                        '${satToBtcString(result.changeSat!.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'} → '
+                        '${widget.coin == WalletCoin.xec ? satToXecString(result.changeSat!.toInt()) : satToBtcString(result.changeSat!.toInt())} ${widget.coin.unit} → '
                         '${result.changeAddress}',
                   ),
                 ),
@@ -345,7 +467,13 @@ class _SendScreenState extends State<SendScreen> {
   Widget build(BuildContext context) {
     final available = widget.availableSat;
     return Scaffold(
-      appBar: AppBar(title: Text(t('send_title'))),
+      appBar: AppBar(title: Text(switch (widget.coin) {
+        WalletCoin.ltc => t('send_title_ltc'),
+        WalletCoin.bch => t('send_title_bch'),
+        WalletCoin.xec => t('send_title_xec'),
+        WalletCoin.rvn => t('send_title_rvn'),
+        _ => t('send_title'),
+      })),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -362,9 +490,13 @@ class _SendScreenState extends State<SendScreen> {
                     enableIMEPersonalizedLearning: false,
                     decoration: InputDecoration(
                       labelText: t('address_field'),
-                      hintText: widget.coin == WalletCoin.ltc
-                          ? 'ltc1…'
-                          : t('address_hint'),
+                      hintText: switch (widget.coin) {
+                        WalletCoin.ltc => 'ltc1…',
+                        WalletCoin.bch => 'bitcoincash:q…',
+                        WalletCoin.xec => 'ecash:q…',
+                        WalletCoin.rvn => 'R…',
+                        _ => t('address_hint'),
+                      },
                     ),
                   ),
                 ],
@@ -395,13 +527,11 @@ class _SendScreenState extends State<SendScreen> {
                   const SizedBox(height: 6),
                   if (available != null)
                     Text(
-                      widget.coin == WalletCoin.ltc
-                          ? tf('available_row_ltc', {
-                              'value': satToBtcString(available),
-                            })
-                          : tf('available_row', {
-                              'value': satToBtcString(available),
-                            }),
+                      widget.coin == WalletCoin.xec
+                          ? tf('available_row_xec',
+                              {'value': satToXecString(available)})
+                          : tf('available_row',
+                              {'value': satToBtcString(available)}),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   if (widget.coin == WalletCoin.ltc) ...[

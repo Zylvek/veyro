@@ -15,8 +15,12 @@
 #![forbid(unsafe_code)]
 
 pub mod bitcoin;
+pub mod cash;
+pub mod cash_sighash_data;
 pub mod electrum;
 pub mod litecoin;
+pub mod raven;
+pub mod xec;
 
 pub use crate::bitcoin::tx::SignedTransfer;
 pub use crate::bitcoin::{DEFAULT_GAP_LIMIT, P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};

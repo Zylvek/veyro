@@ -13,6 +13,9 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
+import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/format.dart';
@@ -93,9 +96,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (widget.sessionLoader != null) {
         final session = await widget.sessionLoader!();
         code = session?.networkCode;
-      } else if (widget.walletCoin == WalletCoin.ltc) {
-        // LTC: сеть одна (mainnet) — код сети в сессии смысла не имеет,
-        // детали берут LTC-эксплорер напрямую.
+      } else if (widget.walletCoin == WalletCoin.ltc ||
+          widget.walletCoin == WalletCoin.bch ||
+          widget.walletCoin == WalletCoin.xec ||
+          widget.walletCoin == WalletCoin.rvn) {
+        // LTC/BCH/XEC: сеть одна (mainnet) — код сети в сессии смысла не
+        // имеет, детали берут эксплорер монеты напрямую.
         code = null;
       } else {
         code = (await btcSessionState())?.networkCode;
@@ -110,6 +116,55 @@ class _HistoryScreenState extends State<HistoryScreen> {
       bool truncated = false;
       if (widget.historyLoader != null) {
         items = await widget.historyLoader!();
+      } else if (widget.walletCoin == WalletCoin.xec) {
+        // XecHistoryItemDto структурно одинаков с BtcHistoryItemDto —
+        // приводим к общему типу экрана (контракт 1:1 с BCH-веткой).
+        final history = await xecHistory();
+        items = history.items
+            .map((h) => BtcHistoryItemDto(
+                  txid: h.txid,
+                  height: h.height,
+                  direction: h.direction,
+                  receivedSat: h.receivedSat,
+                  sentNetSat: h.sentNetSat,
+                  feeSat: h.feeSat,
+                ))
+            .cast<BtcHistoryItemDto>()
+            .toList();
+        totalEntries = history.totalEntries.toInt();
+        truncated = history.truncated;
+      } else if (widget.walletCoin == WalletCoin.rvn) {
+        // RvnHistoryItemDto структурно одинаков с BtcHistoryItemDto —
+        // приводим к общему типу экрана (контракт 1:1 с BTC-веткой).
+        final history = await rvnHistory();
+        items = history.items
+            .map((h) => BtcHistoryItemDto(
+                  txid: h.txid,
+                  height: h.height,
+                  direction: h.direction,
+                  receivedSat: h.receivedSat,
+                  sentNetSat: h.sentNetSat,
+                  feeSat: h.feeSat,
+                ))
+            .cast<BtcHistoryItemDto>()
+            .toList();
+        totalEntries = history.totalEntries.toInt();
+        truncated = history.truncated;
+      } else if (widget.walletCoin == WalletCoin.bch) {
+        // BchHistoryItemDto структурно одинаков с BtcHistoryItemDto —
+        // приводим к общему типу экрана (контракт 1:1 с LTC-веткой).
+        final history = await bchHistory();
+        items = history.items
+            .map((h) => BtcHistoryItemDto(
+                  txid: h.txid,
+                  height: h.height,
+                  direction: h.direction,
+                  receivedSat: h.receivedSat,
+                  sentNetSat: h.sentNetSat,
+                  feeSat: h.feeSat,
+                ))
+            .cast<BtcHistoryItemDto>()
+            .toList();
       } else if (widget.walletCoin == WalletCoin.ltc) {
         // LtcHistoryItemDto структурно одинаков с BtcHistoryItemDto —
         // приводим к общему типу экрана (исторический контракт тестов).
@@ -157,6 +212,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final loader = widget.syncLoader;
       if (loader != null) {
         await loader();
+      } else if (widget.walletCoin == WalletCoin.bch) {
+        await bchSync(gapLimit: kDefaultGapLimit);
+      } else if (widget.walletCoin == WalletCoin.xec) {
+        await xecSync(gapLimit: kDefaultGapLimit);
+      } else if (widget.walletCoin == WalletCoin.rvn) {
+        await rvnSync(gapLimit: kDefaultGapLimit);
       } else if (widget.walletCoin == WalletCoin.ltc) {
         await ltcSync(gapLimit: kDefaultGapLimit);
       } else {
@@ -204,11 +265,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.walletCoin == WalletCoin.ltc
-              ? t('history_title_ltc')
-              : t('history_title'),
-        ),
+        title: Text(switch (widget.walletCoin) {
+          WalletCoin.ltc => t('history_title_ltc'),
+          WalletCoin.bch => t('history_title_bch'),
+          WalletCoin.xec => t('history_title_xec'),
+          WalletCoin.rvn => t('history_title_rvn'),
+          _ => t('history_title'),
+        }),
         actions: [
           IconButton(
             tooltip: t('sync_refresh_tooltip'),
@@ -508,18 +571,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
       amountText: '—',
       directionText: '',
     );
-    final unit = widget.walletCoin == WalletCoin.ltc ? 'LTC' : 'BTC';
+    final unit = widget.walletCoin.unit;
+    String amt(int sat) => widget.walletCoin == WalletCoin.xec
+        ? satToXecString(sat)
+        : satToBtcString(sat); // RVN: 1 RVN = 1e8 сат — BTC-формат
     final data = switch (item.direction) {
       'incoming' => (
         icon: Icons.south_west,
         color: VColors.success,
-        amountText: '+${satToBtcString(item.receivedSat.toInt())} $unit',
+        amountText: '+${amt(item.receivedSat.toInt())} $unit',
         directionText: t('dir_incoming'),
       ),
       'outgoing' => (
         icon: Icons.north_east,
         color: VColors.error,
-        amountText: '-${satToBtcString(item.sentNetSat.toInt())} $unit',
+        amountText: '-${amt(item.sentNetSat.toInt())} $unit',
         directionText: t('dir_outgoing'),
       ),
       'internal' => (
@@ -536,9 +602,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     };
     final feeText = item.feeSat != null && item.direction == 'outgoing'
-        ? tf('fee_prefix', {
-            'value': '${satToBtcString(item.feeSat!.toInt())} $unit',
-          })
+        ? tf('fee_prefix', {'value': '${amt(item.feeSat!.toInt())} $unit'})
         : '';
     return (
       icon: data.icon,
