@@ -421,6 +421,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Connecting…',
   },
   'connecting_title': {'ru': 'Подключение', 'en': 'Connecting'},
+  'balance_asof_row': {
+    'ru': 'Данные: {value} (прошлая синхронизация)',
+    'en': 'Data: {value} (last sync)',
+  },
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).

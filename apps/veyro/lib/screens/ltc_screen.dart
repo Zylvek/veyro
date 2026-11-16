@@ -1,11 +1,15 @@
-//! LTC — центр управления: вид точно как у BTC-центра (решение владельца
-//! «как у битка»): разблокировка (пароль; сервер — автоподбор из живого
-//! списка ядра с genesis-чеком), баланс крупно, плитки действий общим
-//! CoinActionTile. Получить/Отправить/История — реальные FFI-вызовы.
-//! MWEB-предупреждение (паспорт LTC) — обязательное, внизу мелкой строкой;
-//! MWEB-адреса ядро отказывает (transparent-only).
+//! LTC — центр управления в стиле «открыл — сразу баланс» (решение
+//! владельца, пример Trust Wallet): последняя известная сумма сохраняется
+//! на диск (не секрет), экран показывает её мгновенно; подключение и
+//! синхронизация идут фоном с честными мелкими индикаторами. Крупных
+//! лоудер-карт нет вовсе.
+//!
+//! Сессия ядра (seed) открывается в фоне авто-разблокировкой (пароль
+//! кэширован per-wallet) или по кнопке. MWEB-предупреждение (паспорт
+//! LTC) — обязательное, внизу мелкой строкой; MWEB-адреса ядро отказывает.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -15,9 +19,8 @@ import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
-import 'package:veyro/design/veyro_mark.dart';
-import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/coin.dart';
+import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
@@ -26,6 +29,8 @@ import 'package:veyro/util/ui_helpers.dart';
 import 'history_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
+
+const _persistKey = 'ltc_last_sync';
 
 class LtcScreen extends StatefulWidget {
   final WalletInfoDto info;
@@ -42,27 +47,62 @@ class _LtcScreenState extends State<LtcScreen> {
   bool _busy = false;
   String? _error;
 
-  /// Что сейчас происходит («Подключение…» без деталей выглядит как
-  /// зависание — жалоба владельца).
+  /// Что сейчас происходит.
   String _busyLabel = t('btc_connecting');
-  /// Дисциплина повторов (решение владельца «не долбить серверы»):
-  /// после неудачной серии пауза удваивается (15 c → … → 4 мин max),
-  /// успех сброс.
+
+  /// Дисциплина повторов: после неудачной серии пауза удваивается
+  /// (15 c → … → 4 мин max), успех сброс.
   DateTime? _lastSeriesFailedAt;
   int _failureStreak = 0;
 
-  /// Диалог пароля показывается автоматически один раз на вход; после
-  /// отмены остаются ручные кнопки.
   var _autoPrompted = false;
 
-  /// Auto-unlock is in flight (cache password lives): показываем индикатор
-  /// подключения вместо «Сессия не открыта» — никакого мигания на входе.
-  var _autoConnecting = false;
+  /// Последняя известная статистика с диска (не секрет): мгновенный первый
+  /// показ, без лоудеров.
+  Map<String, dynamic>? _persisted;
 
   @override
   void initState() {
     super.initState();
+    _loadPersisted();
     _entry();
+  }
+
+  Future<void> _loadPersisted() async {
+    try {
+      final raw = await dbGetSetting(key: _persistKey);
+      if (!mounted) return;
+      setState(() {
+        _persisted =
+            raw == null ? null : (jsonDecode(raw) as Map<String, dynamic>);
+      });
+    } catch (_) {
+      if (!mounted) return;
+    }
+  }
+
+  Future<void> _savePersisted(LtcSyncDto sync) async {
+    final payload = jsonEncode({
+      'confirmed': sync.confirmedSat.toInt(),
+      'delta': sync.unconfirmedDeltaSat.toInt(),
+      'utxo': sync.utxoCount,
+      'tip': sync.tipHeight,
+      'server': sync.serverUrl,
+      'at': DateTime.now().millisecondsSinceEpoch,
+      'receive': {
+        'address': sync.nextReceive.address,
+        'path': sync.nextReceive.path,
+        'branch': sync.nextReceive.branch,
+        'index': sync.nextReceive.index,
+      },
+    });
+    try {
+      await dbSetSetting(key: _persistKey, value: payload);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _persisted = jsonDecode(payload) as Map<String, dynamic>;
+    });
   }
 
   Future<void> _entry() async {
@@ -85,9 +125,9 @@ class _LtcScreenState extends State<LtcScreen> {
         _state = state;
         _busy = false;
       });
+      // Свежий кэш (этого запуска) — показать сразу; персистентные данные
+      // уже на экране. Авто-синк — только если данных ещё нет.
       if (state != null) {
-        // Решение владельца по двойному скану: свежий кэш — показать сразу,
-        // пересинк по явному действию (кнопка/pull-to-refresh).
         final cached = LtcStateCache.instance.take();
         if (cached != null && _sync == null) {
           setState(() => _sync = cached);
@@ -106,85 +146,42 @@ class _LtcScreenState extends State<LtcScreen> {
 
   Future<void> _unlock({bool auto = false}) async {
     if (!mounted) return;
-    // Авто-вход (кэш пароля жив) → сразу индикатор подключения вместо
-    // «Сессия не открыта» — никакого мигания на входе в монету.
-    if (auto) {
-      try {
-        _autoConnecting =
-            await sessionPasswordCached(walletId: widget.info.id);
-      } catch (_) {
-        _autoConnecting = false;
-      }
-      if (_autoConnecting && mounted) {
-        setState(() {
-          _busy = true;
-          _busyLabel = t('ltc_connecting_badge');
-        });
-      }
-    }
-    // Единый вход (решение владельца): если пароль уже кэширован ядром
-    // после первой разблокировки — монета подключается без диалога.
-    String password;
+    // Тихая авто-разблокировка: бейдж на карточке/Обзоре, БЕЗ лоадер-карт.
+    var cacheKnown = true;
+    var cached = false;
     try {
-      final cached = await sessionPasswordCached(walletId: widget.info.id);
-      if (!mounted) return;
-      if (cached) {
-        password = '';
-      } else {
-        // Никакой тишины: кэша нет или проверка не удалась — честный
-        // диалог (владелец мог запустить старую DLL рядом с новым exe,
-        // тогда именно эта ветка спасает от «кнопка жмётся, а ничего»).
-        password = await promptPassword(
-              context,
-              title: tf('ltc_unlock_title', {'name': widget.info.name}),
-              confirmLabel: t('connect_btn'),
-            ) ??
-            '';
-        if (!mounted) return;
-      }
+      cached = await sessionPasswordCached(walletId: widget.info.id);
     } catch (_) {
-      if (!mounted) return;
+      cacheKnown = false;
+    }
+    if (!mounted) return;
+    final autoWithCache = auto && (cached || !cacheKnown);
+    if (autoWithCache) {
+      setState(() {
+        _busy = true;
+        _busyLabel = t('ltc_connecting_badge');
+      });
+      LtcConnectState.instance.setBusy(true);
+    }
+    String password;
+    if (autoWithCache) {
+      password = '';
+    } else {
       password = await promptPassword(
             context,
             title: tf('ltc_unlock_title', {'name': widget.info.name}),
             confirmLabel: t('connect_btn'),
           ) ??
           '';
-      if (!mounted) return;
+      if (password.isEmpty || !mounted) return;
+      setState(() {
+        _busy = true;
+        _busyLabel = t('unlocking_now');
+        _error = null;
+      });
+      LtcConnectState.instance.setBusy(true);
     }
-    if (password.isEmpty) {
-      // Пустая строка допустима только при живом кэше; иначе — отмена
-      // диалога: ничего не делаем.
-      var cacheKnown = true;
-      try {
-        final cached = await sessionPasswordCached(walletId: widget.info.id);
-        cacheKnown = cached;
-      } catch (_) {
-        // Проверка недоступна: идём разблокироваться в ядро — там честная
-        // ошибка «no cached password» вместо тишины.
-        cacheKnown = true;
-      }
-      if (!cacheKnown) {
-        if (mounted) {
-          setState(() {
-            _autoConnecting = false;
-            _busy = false;
-          });
-        }
-        return;
-      }
-    }
-    if (!mounted) return;
-    setState(() {
-      _busy = true;
-      _busyLabel = t('unlocking_now');
-      _error = null;
-    });
-    LtcConnectState.instance.setBusy(true);
     try {
-      // Экспоненциальная пауза после неудачной серии: не долбим серверы
-      // (rate-limits копятся именно от частых попыток). Честная пауза с
-      // лейблом — юзер видит, сколько осталось.
       if (_lastSeriesFailedAt != null) {
         final waitSec = (15 * (1 << (_failureStreak - 1))).clamp(15, 240);
         final deadline = _lastSeriesFailedAt!.add(Duration(seconds: waitSec));
@@ -202,13 +199,9 @@ class _LtcScreenState extends State<LtcScreen> {
       }
       try {
         await _unlockViaCandidates(password);
-        // Успех — экспонента обнуляется.
         _failureStreak = 0;
         _lastSeriesFailedAt = null;
       } catch (e) {
-        // Тихая попытка не прошла из-за НЕ ПОДХОДЯЩЕГО пароля? Один честный
-        // диалог — никакого бесконечного цикла ошибок. Транспорт-неудачи
-        // уже переборены кандидатами внутрь _unlockViaCandidates.
         final raw = e.toString();
         final isTransient = raw.contains('electrum') ||
             raw.contains('unexpected end of file') ||
@@ -216,8 +209,8 @@ class _LtcScreenState extends State<LtcScreen> {
             raw.contains('timed out') ||
             raw.contains('connection') ||
             raw.contains('EOF');
-        final cachedUsed = password.isEmpty;
-        if (cachedUsed && !isTransient) {
+        final silentUsed = autoWithCache;
+        if (silentUsed && !isTransient) {
           if (!mounted) return;
           final manual = await promptPassword(
             context,
@@ -253,7 +246,6 @@ class _LtcScreenState extends State<LtcScreen> {
       if (!mounted) return;
       _failureStreak += 1;
       _lastSeriesFailedAt = DateTime.now();
-      _autoConnecting = false;
       LtcConnectState.instance.setBusy(false);
       setState(() {
         _error = _cleanError(e);
@@ -312,7 +304,6 @@ class _LtcScreenState extends State<LtcScreen> {
           password: password,
           serverUrl: server,
         ).timeout(const Duration(seconds: 60));
-        // Success → remember the live server (persisted, non-secret).
         try {
           await dbSetSetting(key: 'ltc_last_good_server', value: server);
         } catch (_) {}
@@ -343,15 +334,17 @@ class _LtcScreenState extends State<LtcScreen> {
   }
 
   Future<void> _doSync() async {
-    setState(() {
-      _busyLabel = t('btc_syncing_addresses_long');
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _busyLabel = t('btc_syncing_addresses_long');
+      });
+    }
     try {
       final sync = await ltcSync(gapLimit: 20);
       if (!mounted) return;
       LtcStateCache.instance.store(sync);
       LtcConnectState.instance.setBusy(false);
+      await _savePersisted(sync);
       setState(() {
         _sync = sync;
         _busy = false;
@@ -364,8 +357,6 @@ class _LtcScreenState extends State<LtcScreen> {
           raw.contains('all errored') ||
           raw.contains('timed out') ||
           raw.contains('connection');
-      // Тихий авто-повтор один раз; при повторном сбое — пере-подключение
-      // на следующий живой сервер (переключение, а не кивание в мёртвого).
       if (transient && mounted) {
         try {
           await _unlockViaCandidates('');
@@ -373,6 +364,7 @@ class _LtcScreenState extends State<LtcScreen> {
           if (!mounted) return;
           LtcStateCache.instance.store(sync2);
           LtcConnectState.instance.setBusy(false);
+          await _savePersisted(sync2);
           setState(() {
             _sync = sync2;
             _busy = false;
@@ -396,15 +388,43 @@ class _LtcScreenState extends State<LtcScreen> {
     }
   }
 
-  /// Реальный доступный баланс на момент последней синхронизации:
-  /// confirmed + отрицательный mempool-delta. Нет синхронизации — нет
-  /// данных (null, кнопка Max на SendScreen честно скрыта).
+  /// Реальный доступный баланс (send-плитке нужен набор UTXO сессии).
   int? _availableLit() {
     final sync = _sync;
     if (sync == null) return null;
     final confirmed = sync.confirmedSat.toInt();
     final delta = sync.unconfirmedDeltaSat.toInt();
     return delta < 0 ? confirmed + delta : confirmed;
+  }
+
+  /// Значения для карты баланса: сессия → кэш → персистент → нули.
+  ({int confirmed, int delta, int utxo, int tip, String server, DateTime? at})
+      _balanceView() {
+    final sync = _sync;
+    if (sync != null) {
+      return (
+        confirmed: sync.confirmedSat.toInt(),
+        delta: sync.unconfirmedDeltaSat.toInt(),
+        utxo: sync.utxoCount,
+        tip: sync.tipHeight,
+        server: sync.serverUrl,
+        at: null,
+      );
+    }
+    final p = _persisted;
+    if (p != null) {
+      return (
+        confirmed: (p['confirmed'] as num?)?.toInt() ?? 0,
+        delta: (p['delta'] as num?)?.toInt() ?? 0,
+        utxo: (p['utxo'] as num?)?.toInt() ?? 0,
+        tip: (p['tip'] as num?)?.toInt() ?? 0,
+        server: (p['server'] as String?) ?? '—',
+        at: (p['at'] as num?) == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch((p['at'] as num).toInt()),
+      );
+    }
+    return (confirmed: 0, delta: 0, utxo: 0, tip: 0, server: '—', at: null);
   }
 
   Future<void> _openSend() async {
@@ -415,7 +435,6 @@ class _LtcScreenState extends State<LtcScreen> {
       ),
     ));
     if (sent == true && mounted) {
-      // После успешной отправки Rust очистил набор UTXO — синхронизируем.
       await _refresh(autosyncIfUnlocked: false);
       await _doSync();
     }
@@ -423,198 +442,157 @@ class _LtcScreenState extends State<LtcScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = _state;
+    final unlocked = _state != null;
+    final v = _balanceView();
     return Scaffold(
       appBar: AppBar(title: const Text('Litecoin')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: RefreshIndicator(
-            onRefresh: () => _refresh(autosyncIfUnlocked: false),
+            onRefresh: () => _refresh(autosyncIfUnlocked: true),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                if (_error != null)
-                  SectionCard(
-                    title: t('error_title'),
-                    icon: Icons.error_outline,
-                    children: [
-                      Text(_error!, style: const TextStyle(fontSize: 13.5)),
-                      const SizedBox(height: 8),
-                      FilledButton.tonal(
-                        onPressed: _busy
-                            ? null
-                            : () => _refresh(autosyncIfUnlocked: true),
-                        child: Text(t('retry')),
-                      ),
-                    ],
+                if (_error != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: VColors.error.withValues(alpha: 0.4)),
+                      color: VColors.error.withValues(alpha: 0.10),
+                    ),
+                    child: Text(_error!,
+                        style: const TextStyle(fontSize: 12.5)),
                   ),
-                if (state == null && _autoConnecting)
-                  SectionCard(
-                    title: t('connecting_title'),
-                    icon: Icons.sync,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Center(
-                          child: LogoLoader(
-                            mode: LogoLoaderMode.loading,
-                            size: 44,
-                          ),
-                        ),
-                      ),
+                  const SizedBox(height: 10),
+                ],
+                SectionCard(
+                  title: t('balance_section'),
+                  icon: Icons.savings_outlined,
+                  children: [
+                    Text(
+                      '${satToString(v.confirmed)} LTC',
+                      style: const TextStyle(
+                          fontSize: 30, fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      '${groupDigits(v.confirmed)} ${t('ltc_unit')}',
+                      style: const TextStyle(color: Colors.white60),
+                    ),
+                    if (v.delta != 0) ...[
+                      const SizedBox(height: 6),
                       Text(
-                        _busyLabel,
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                      Text(
-                        tf('wallet_label', {'name': widget.info.name}),
-                        style: const TextStyle(
-                            color: Colors.white38, fontSize: 12),
+                        tf('mempool_row',
+                            {'value': '${signedLitString(v.delta)} LTC'}),
+                        style: const TextStyle(color: Colors.orangeAccent),
                       ),
                     ],
-                  )
-                else if (state == null)
-                  SectionCard(
-                    title: t('session_not_open'),
-                    icon: Icons.lock_outline,
-                    children: [
-                      Text(
-                        t('session_desc'),
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                      Text(
-                        t('ltc_server_autopick_note'),
-                        style: const TextStyle(
-                          color: VColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
+                    const SizedBox(height: 10),
+                    kvRow(t('utxo_available'), '${v.utxo}'),
+                    kvRow(t('chain_height'), v.tip > 0 ? '${v.tip}' : '—'),
+                    Text(
+                      tf('server_status_row', {'value': v.server}),
+                      style: const TextStyle(
+                          color: VColors.textSecondary, fontSize: 11),
+                    ),
+                    if (v.at != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        tf('wallet_label', {'name': widget.info.name}),
+                        tf('balance_asof_row', {
+                          'value':
+                              '${v.at!.day}.${v.at!.month}.${v.at!.year} ${v.at!.hour.toString().padLeft(2, '0')}:${v.at!.minute.toString().padLeft(2, '0')}'
+                        }),
                         style: const TextStyle(
-                            color: Colors.white38, fontSize: 12),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _busy ? null : _unlock,
-                        child: Text(_busy ? _busyLabel : t('unlock_ltc_btn')),
+                            color: VColors.textSecondary, fontSize: 11),
                       ),
                     ],
-                  )
-                else ...[
-                  _buildBalanceCard(context),
-                  const SizedBox(height: 16),
-                  _buildActionsRow(context),
-                  const SizedBox(height: 10),
-                  // Обязательное предупреждение MWEB (паспорт LTC): внизу,
-                  // мелко, как честная пометка — не простыня сверху.
-                  Text(
-                    t('ltc_mweb_warning'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: VColors.textSecondary,
-                      fontSize: 11,
+                    if (_busy) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _busyLabel,
+                              style: const TextStyle(
+                                  color: VColors.textSecondary,
+                                  fontSize: 11.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    if (unlocked) ...[
+                      FilledButton.tonalIcon(
+                        onPressed: _busy ? null : _doSync,
+                        icon: const Icon(Icons.sync),
+                        label: Text(t('refresh_btn')),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.tonalIcon(
+                        onPressed: _busy ? null : _lock,
+                        icon: const Icon(Icons.lock_outline),
+                        label: Text(t('lock_btn')),
+                      ),
+                    ] else
+                      FilledButton(
+                        onPressed: _busy ? null : () => _unlock(),
+                        child: Text(
+                            _busy ? _busyLabel : t('unlock_ltc_btn')),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CoinActionTile(
+                        icon: Icons.qr_code_2_outlined,
+                        label: t('get_btn'),
+                        enabled: unlocked,
+                        onTap: unlocked ? _openReceive : null,
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: CoinActionTile(
+                        icon: Icons.north_east,
+                        label: t('send_btn'),
+                        enabled: unlocked && _availableLit() != null,
+                        onTap: unlocked ? _openSend : null,
+                      ),
+                    ),
+                    Expanded(
+                      child: CoinActionTile(
+                        icon: Icons.history,
+                        label: t('history_btn'),
+                        enabled: unlocked,
+                        onTap: unlocked ? _openHistory : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  t('ltc_mweb_warning'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: VColors.textSecondary, fontSize: 11),
+                ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBalanceCard(BuildContext context) {
-    final sync = _sync;
-    return SectionCard(
-      title: t('balance_section'),
-      icon: Icons.savings_outlined,
-      children: [
-        if (_sync == null && _busy)
-          const Center(child: CircularProgressIndicator())
-        else if (_sync == null)
-          Text(
-            t('not_synced_note'),
-            style: const TextStyle(color: Colors.white70),
-          )
-        else ...[
-          Text(
-            '${satToBtcString(sync!.confirmedSat.toInt())} LTC',
-            style:
-                const TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            '${groupDigits(sync.confirmedSat.toInt())} ${t('ltc_unit')}',
-            style: const TextStyle(color: Colors.white60),
-          ),
-          if (sync.unconfirmedDeltaSat != 0) ...[
-            const SizedBox(height: 6),
-            Text(
-              tf(
-                'mempool_row',
-                {
-                  'value':
-                      '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} LTC'
-                },
-              ),
-              style: const TextStyle(color: Colors.orangeAccent),
-            ),
-          ],
-          const SizedBox(height: 10),
-          kvRow(t('utxo_available'), '${sync.utxoCount}'),
-          kvRow(t('chain_height'), '${sync.tipHeight}'),
-          kvRow(t('addresses_with_history'), '${sync.usedAddresses.length}'),
-        ],
-        const SizedBox(height: 8),
-        FilledButton.tonalIcon(
-          onPressed: _busy ? null : _doSync,
-          icon: const Icon(Icons.sync),
-          label: Text(_sync == null ? t('sync_btn') : t('refresh_btn')),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          tf('server_status_row', {'value': _state?.serverUrl ?? '—'}),
-          style: const TextStyle(color: VColors.textSecondary, fontSize: 11),
-        ),
-      ],
-    );
-  }
-
-  /// Три плитки: приём/отправка/история — общий виджет BTC-центра.
-  Widget _buildActionsRow(BuildContext context) {
-    final unlocked = _state != null;
-    return Row(
-      children: [
-        for (final entry in [
-          (
-            icon: Icons.qr_code_2_outlined,
-            label: t('get_btn'),
-            onTap: unlocked ? _openReceive : null,
-          ),
-          (
-            icon: Icons.north_east,
-            label: t('send_btn'),
-            onTap: unlocked && _availableLit() != null ? _openSend : null,
-          ),
-          (
-            icon: Icons.history,
-            label: t('history_btn'),
-            onTap: unlocked ? _openHistory : null,
-          ),
-        ])
-          Expanded(
-            child: CoinActionTile(
-              icon: entry.icon,
-              label: entry.label,
-              enabled: entry.onTap != null,
-              onTap: entry.onTap,
-            ),
-          ),
-      ],
     );
   }
 
@@ -631,4 +609,32 @@ class _LtcScreenState extends State<LtcScreen> {
     ));
     if (mounted) await _refresh(autosyncIfUnlocked: true);
   }
+
+  Future<void> _lock() async {
+    try {
+      await ltcLock();
+      if (!mounted) return;
+      setState(() {
+        _state = null;
+        _sync = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+}
+
+/// Сатоши/лит → строка (для отрицательных значений тоже: mempool строка).
+String satToString(int sat) {
+  if (sat < 0) {
+    return '-${satToString(-sat)}';
+  }
+  return satToBtcString(sat);
+}
+
+String signedLitString(int signedLit) {
+  if (signedLit > 0) return '+${satToString(signedLit)}';
+  if (signedLit < 0) return '-${satToString(-signedLit)}';
+  return '0';
 }
