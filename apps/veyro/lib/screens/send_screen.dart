@@ -13,8 +13,10 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
+import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
@@ -86,12 +88,14 @@ class _SendScreenState extends State<SendScreen> {
       } else if (widget.coin == WalletCoin.ltc) {
         // LtcFeeRatesDto структурно одинаков с BtcFeeRatesDto — приводим
         // к общему типу экрана (исторический контракт тестов).
-        feesFuture = ltcFees().then((f) => BtcFeeRatesDto(
-              fastSatVb: f.fastLitVb,
-              normalSatVb: f.normalLitVb,
-              slowSatVb: f.slowLitVb,
-              fallback: f.fallback,
-            ));
+        feesFuture = ltcFees().then(
+          (f) => BtcFeeRatesDto(
+            fastSatVb: f.fastLitVb,
+            normalSatVb: f.normalLitVb,
+            slowSatVb: f.slowLitVb,
+            fallback: f.fallback,
+          ),
+        );
       } else {
         feesFuture = btcFees();
       }
@@ -154,17 +158,30 @@ class _SendScreenState extends State<SendScreen> {
     setState(() => _formError = error);
     if (error != null || amountSat == null || rate == null) return;
 
+    // Название сети активной сессии ядра — для подтверждения необратимой
+    // отправки (без живой сессии честное «—», но живая сессия обязана
+    // показывать сеть явно).
+    String? networkDisplay;
+    try {
+      networkDisplay = widget.coin == WalletCoin.ltc
+          ? (await ltcSessionState())?.networkDisplay
+          : (await btcSessionState())?.networkDisplay;
+    } catch (_) {
+      // Ядро недоступно: честное «—» на экране подтверждения.
+    }
+    if (!mounted) return;
+
     // Полноэкранное подтверждение (спека, пункт 15): актив/сеть/адрес/
     // сумма/комиссия + явное действие. Отправка начинается только после
     // pop(true).
-    final confirmed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => TxConfirmScreen(
-          recipient: recipient,
-          amountSat: amountSat,
-          rateSatVb: rate,
-          coin: widget.coin,
-        ),
+    final confirmed = await pushVeyro<bool>(
+      context,
+      TxConfirmScreen(
+        recipient: recipient,
+        amountSat: amountSat,
+        rateSatVb: rate,
+        coin: widget.coin,
+        networkDisplay: networkDisplay,
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -183,10 +200,7 @@ class _SendScreenState extends State<SendScreen> {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _formError = tf(
-          'err_send_rejected',
-          {'error': '$e'},
-        );
+        _formError = tf('err_send_rejected', {'error': '$e'});
       });
     }
   }
@@ -203,19 +217,21 @@ class _SendScreenState extends State<SendScreen> {
         recipient: recipient,
         amountLit: BigInt.from(amountSat),
         feeLitPerVb: BigInt.from(rate),
-      ).then((r) => BtcSendResultDto(
-            txid: r.txid,
-            rawHex: r.rawHex,
-            alreadyKnown: r.alreadyKnown,
-            recipient: r.recipient,
-            amountSat: r.amountLit,
-            feeSat: r.feeLit,
-            vsize: r.vsize,
-            feeSatPerVb: r.feeLitPerVb,
-            changeAddress: r.changeAddress,
-            changeSat: r.changeLit,
-            status: r.status,
-          ));
+      ).then(
+        (r) => BtcSendResultDto(
+          txid: r.txid,
+          rawHex: r.rawHex,
+          alreadyKnown: r.alreadyKnown,
+          recipient: r.recipient,
+          amountSat: r.amountLit,
+          feeSat: r.feeLit,
+          vsize: r.vsize,
+          feeSatPerVb: r.feeLitPerVb,
+          changeAddress: r.changeAddress,
+          changeSat: r.changeLit,
+          status: r.status,
+        ),
+      );
     }
     return btcSend(
       recipient: recipient,
@@ -241,7 +257,8 @@ class _SendScreenState extends State<SendScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: VColors.warning.withValues(alpha: 0.5)),
+                      color: VColors.warning.withValues(alpha: 0.5),
+                    ),
                     color: VColors.warning.withValues(alpha: 0.12),
                   ),
                   child: Text(
@@ -251,51 +268,48 @@ class _SendScreenState extends State<SendScreen> {
                 ),
               VMonoCopyRow(label: 'TXID', value: result.txid),
               const SizedBox(height: 10),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                switch (result.status) {
-                  'broadcast' =>
-                    VStatusChip(t('tx_broadcast_chip'), kind: VChipKind.success),
-                  _ => VStatusChip(
-                      tf(
-                        'tx_status_chip',
-                        {'status': result.status},
-                      ),
-                      kind: VChipKind.info),
-                },
-              ]),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  switch (result.status) {
+                    'broadcast' => VStatusChip(
+                      t('tx_broadcast_chip'),
+                      kind: VChipKind.success,
+                    ),
+                    _ => VStatusChip(
+                      tf('tx_status_chip', {'status': result.status}),
+                      kind: VChipKind.info,
+                    ),
+                  },
+                ],
+              ),
               const SizedBox(height: 10),
               Text(
-                tf(
-                  'tx_to_recipient',
-                  {
-                    'value':
-                        '${satToBtcString(result.amountSat.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'}'
-                  },
-                ),
+                tf('tx_to_recipient', {
+                  'value':
+                      '${satToBtcString(result.amountSat.toInt())} ${widget.coin == WalletCoin.ltc ? 'LTC' : 'BTC'}',
+                }),
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: [FontFeature.tabularFigures()]),
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
               Text(
                 widget.coin == WalletCoin.ltc
-                    ? tf(
-                        'tx_fee_row_ltc',
-                        {
-                          'ltc': satToBtcString(result.feeSat.toInt()),
-                          'sats': groupDigits(result.feeSat.toInt()),
-                        },
-                      )
-                    : tf(
-                        'tx_fee_row',
-                        {
-                          'btc': satToBtcString(result.feeSat.toInt()),
-                          'sats': groupDigits(result.feeSat.toInt()),
-                          'vsize': '${result.vsize.toInt()}',
-                          'rate': '${result.feeSatPerVb.toInt()}',
-                        },
-                      ),
+                    ? tf('tx_fee_row_ltc', {
+                        'ltc': satToBtcString(result.feeSat.toInt()),
+                        'sats': groupDigits(result.feeSat.toInt()),
+                      })
+                    : tf('tx_fee_row', {
+                        'btc': satToBtcString(result.feeSat.toInt()),
+                        'sats': groupDigits(result.feeSat.toInt()),
+                        'vsize': '${result.vsize.toInt()}',
+                        'rate': '${result.feeSatPerVb.toInt()}',
+                      }),
                 style: const TextStyle(
-                    fontFeatures: [FontFeature.tabularFigures()]),
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
               if (result.changeAddress != null &&
                   (result.changeSat ?? BigInt.zero) > BigInt.zero)
@@ -362,15 +376,19 @@ class _SendScreenState extends State<SendScreen> {
                 children: [
                   TextField(
                     controller: _amountController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     autocorrect: false,
                     enableIMEPersonalizedLearning: false,
                     decoration: InputDecoration(
                       labelText: t('amount_field'),
                       hintText: '0.00010000',
                       suffixIcon: available != null && available > 0
-                          ? TextButton(onPressed: _applyMax, child: const Text('Max'))
+                          ? TextButton(
+                              onPressed: _applyMax,
+                              child: const Text('Max'),
+                            )
                           : null,
                     ),
                   ),
@@ -378,23 +396,19 @@ class _SendScreenState extends State<SendScreen> {
                   if (available != null)
                     Text(
                       widget.coin == WalletCoin.ltc
-                          ? tf(
-                              'available_row_ltc',
-                              {'value': satToBtcString(available)},
-                            )
-                          : tf(
-                              'available_row',
-                              {'value': satToBtcString(available)},
-                            ),
+                          ? tf('available_row_ltc', {
+                              'value': satToBtcString(available),
+                            })
+                          : tf('available_row', {
+                              'value': satToBtcString(available),
+                            }),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   if (widget.coin == WalletCoin.ltc) ...[
                     const SizedBox(height: 6),
                     Text(
                       t('ltc_mweb_warning'),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall!
+                      style: Theme.of(context).textTheme.bodySmall!
                           .copyWith(color: VColors.warning),
                     ),
                   ],
@@ -409,12 +423,15 @@ class _SendScreenState extends State<SendScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: VColors.error.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: VColors.error.withValues(alpha: 0.4),
+                    ),
                     color: VColors.error.withValues(alpha: 0.12),
                   ),
-                  child: Text(_formError!,
-                      style: TextStyle(color: VColors.error, fontSize: 13)),
+                  child: Text(
+                    _formError!,
+                    style: TextStyle(color: VColors.error, fontSize: 13),
+                  ),
                 ),
               const SizedBox(height: 4),
               VButton.primary(
@@ -450,10 +467,7 @@ class _SendScreenState extends State<SendScreen> {
         else if (_feesError != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(tf(
-              'fees_error_note',
-              {'error': '$_feesError'},
-            )),
+            child: Text(tf('fees_error_note', {'error': '$_feesError'})),
           )
         else if (fees != null)
           Column(
@@ -464,9 +478,7 @@ class _SendScreenState extends State<SendScreen> {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     t('fees_fallback_note'),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall!
+                    style: Theme.of(context).textTheme.bodySmall!
                         .copyWith(color: VColors.warning),
                   ),
                 ),
@@ -477,24 +489,23 @@ class _SendScreenState extends State<SendScreen> {
                   children: [
                     RadioListTile<_FeeChoice>(
                       value: _FeeChoice.fast,
-                      title: Text(tf(
-                        'fee_fast',
-                        {'rate': '${fees.fastSatVb.toInt()}'},
-                      )),
+                      title: Text(
+                        tf('fee_fast', {'rate': '${fees.fastSatVb.toInt()}'}),
+                      ),
                     ),
                     RadioListTile<_FeeChoice>(
                       value: _FeeChoice.normal,
-                      title: Text(tf(
-                        'fee_normal',
-                        {'rate': '${fees.normalSatVb.toInt()}'},
-                      )),
+                      title: Text(
+                        tf('fee_normal', {
+                          'rate': '${fees.normalSatVb.toInt()}',
+                        }),
+                      ),
                     ),
                     RadioListTile<_FeeChoice>(
                       value: _FeeChoice.slow,
-                      title: Text(tf(
-                        'fee_slow',
-                        {'rate': '${fees.slowSatVb.toInt()}'},
-                      )),
+                      title: Text(
+                        tf('fee_slow', {'rate': '${fees.slowSatVb.toInt()}'}),
+                      ),
                     ),
                     RadioListTile<_FeeChoice>(
                       value: _FeeChoice.manual,
@@ -524,18 +535,14 @@ class _SendScreenState extends State<SendScreen> {
           TextField(
             controller: _manualRateController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: t('fee_manual_field'),
-            ),
+            decoration: InputDecoration(labelText: t('fee_manual_field')),
           ),
         if (_feesError != null) ...[
           const SizedBox(height: 8),
           TextField(
             controller: _manualRateController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: t('fee_manual_field'),
-            ),
+            decoration: InputDecoration(labelText: t('fee_manual_field')),
           ),
         ],
       ],

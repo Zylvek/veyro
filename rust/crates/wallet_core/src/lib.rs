@@ -119,10 +119,9 @@ pub struct UnlockedWallet {
     pub seed: Seed,
 }
 
-/// Secrets of a wallet revealed for a sensitive flow (e.g. backup export).
-/// Zeroized on drop. The backup flow lives in Rust precisely so that these
-/// secrets never cross the FFI boundary; only an explicit user action
-/// (reveal phrase, export backup) may call into it.
+/// Secrets of a wallet revealed for a sensitive flow. Zeroized on drop.
+/// Only explicit user actions (reveal phrase; the unlock that re-derives
+/// the seed) may call into this, and the secrets stay inside Rust.
 pub struct RevealedSecrets {
     /// BIP39 mnemonic phrase.
     pub phrase: Zeroizing<String>,

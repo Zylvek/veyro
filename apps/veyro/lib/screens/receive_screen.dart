@@ -99,7 +99,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   Widget build(BuildContext context) {
     final network = _networkDisplay;
     return Scaffold(
-      appBar: AppBar(title: Text(t('receive_title'))),
+      appBar: AppBar(
+        title: Text(
+          widget.coin == WalletCoin.ltc
+              ? t('receive_title_ltc')
+              : t('receive_title'),
+        ),
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -109,10 +115,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               VCard(
                 title: network == null
                     ? t('receive_card_no_network')
-                    : tf(
-                        'receive_card_with_network',
-                        {'network': network},
-                      ),
+                    : tf('receive_card_with_network', {'network': network}),
                 icon: Icons.qr_code_2_outlined,
                 children: _buildContent(context),
               ),
@@ -138,18 +141,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     if (_error != null) {
       return [
         Text(
-          tf(
-            'core_no_address',
-            {
-              'error': '$_error',
-              'extra': _sessionError == null
-                  ? ''
-                  : tf(
-                      'also_extra',
-                      {'error': '$_sessionError'},
-                    ),
-            },
-          ),
+          tf('core_no_address', {
+            'error': '$_error',
+            'extra': _sessionError == null
+                ? ''
+                : tf('also_extra', {'error': '$_sessionError'}),
+          }),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 10),
@@ -187,9 +184,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
       if (widget.coin == WalletCoin.ltc) ...[
         Text(
           t('ltc_mweb_warning'),
-          style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                color: Colors.orangeAccent,
-              ),
+          style: Theme.of(context).textTheme.bodySmall!
+              .copyWith(color: Colors.orangeAccent),
         ),
         const SizedBox(height: 12),
       ],
@@ -199,7 +195,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             child: VButton.primary(
               t('copy_address_btn'),
               icon: Icons.copy_outlined,
-              onPressed: () => copyToClipboard(context, t('address_label'), address),
+              onPressed: () =>
+                  copyToClipboard(context, t('address_label'), address),
             ),
           ),
           const SizedBox(width: 10),

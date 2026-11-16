@@ -110,15 +110,15 @@ fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
             )));
         }
         let batch_len: usize = gap_limit as usize + 1;
+        // Однократная деривация: адреса одного батча выводятся РОВНО один
+        // раз (xpub-деривация — реальные secp-операции; повторный вывод на
+        // каждый слот удваивал работу синка без всякой пользы).
+        let mut derived: Vec<DerivedAddress> = Vec::with_capacity(batch_len);
         let mut scripts: Vec<Vec<u8>> = Vec::with_capacity(batch_len);
         for i in index..(index + batch_len as u32) {
-            scripts.push(
-                account
-                    .derive_address(branch, i)?
-                    .script_pubkey
-                    .as_bytes()
-                    .to_vec(),
-            );
+            let d = account.derive_address(branch, i)?;
+            scripts.push(d.script_pubkey.as_bytes().to_vec());
+            derived.push(d);
         }
         let histories = if batch_len == 1 {
             vec![gateway.script_history(&scripts[0])?]
@@ -126,10 +126,9 @@ fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
             gateway.script_histories_batch(&scripts)?
         };
 
-        let mut progressed = false;
         for (offset, history) in histories.into_iter().enumerate() {
             let i = index + offset as u32;
-            let derived: DerivedAddress = account.derive_address(branch, i)?;
+            let slot_source = &derived[offset];
             let used = !history.is_empty();
             if used {
                 last_used = Some(i);
@@ -138,12 +137,12 @@ fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
                 consecutive_unused += 1;
             }
             slots.push(AddressSlot {
-                address: derived.address,
-                script_pubkey: derived.script_pubkey.as_bytes().to_vec(),
-                scripthash_hex: derived.scripthash_hex,
+                address: slot_source.address.clone(),
+                script_pubkey: slot_source.script_pubkey.as_bytes().to_vec(),
+                scripthash_hex: slot_source.scripthash_hex.clone(),
                 branch,
                 index: i,
-                path: derived.path,
+                path: slot_source.path.clone(),
                 used,
             });
             // Дистанция гэпа соблюдена — честная точка остановки.
@@ -154,20 +153,10 @@ fn discover_branch<A: AddressSource, G: Gateway + ?Sized>(
                     last_used,
                 });
             }
-            progressed = true;
         }
-        // Вся выборка использована (gap не прерван) → продолжить дальше.
-        if !progressed {
-            break;
-        }
+        // Вся выборка использована (живой хвост аккаунта) → следующий батч.
         index += batch_len as u32;
     }
-
-    Ok(BranchDiscovery {
-        branch,
-        slots,
-        last_used,
-    })
 }
 
 /// Aggregated wallet balance in satoshis (never floats).
@@ -309,9 +298,24 @@ pub fn raw_history<G: Gateway + ?Sized>(
     Ok(out)
 }
 
-/// Safety valve: refuse to resolve amounts when the history is huge (the
-/// caller decides what to show; we never silently drop entries).
+/// Safety valve: history resolution above this many per-address entries is
+/// capped to the MOST RECENT ones (mempool first, then descending height).
+/// The cap bounds the number of network fetches and UI rows; the honest
+/// truncation metadata (see [`HistoryResolution`]) lets the UI say exactly
+/// what is shown and what is not.
 pub const MAX_HISTORY_ITEMS: usize = 500;
+
+/// Result of history resolution: resolved (amount-bearing) items plus honest
+/// truncation metadata. `truncated == true` means the wallet history has more
+/// entries than [`MAX_HISTORY_ITEMS`]; `items` then contains only the most
+/// recent ones and `total_entries` the full count. Never fabricated, never
+/// silently dropped.
+#[derive(Debug, Clone)]
+pub struct HistoryResolution {
+    pub items: Vec<HistoryItem>,
+    pub total_entries: usize,
+    pub truncated: bool,
+}
 
 /// Aggregated, de-duplicated history **with amounts**.
 ///
@@ -320,10 +324,15 @@ pub const MAX_HISTORY_ITEMS: usize = 500;
 /// and which inputs spend wallet outputs (this requires fetching the previous
 /// transactions of the inputs — cached per run). Fees are computed from the
 /// full input/output sums when all prevouts are fetchable.
+///
+/// Transactions are fetched IN BATCHES ([`Gateway::txs_by_ids`]); a history
+/// larger than [`MAX_HISTORY_ITEMS`] is resolved for the most recent entries
+/// only — with explicit truncation metadata in the result (never a hard
+/// failure, never a silent drop).
 pub fn history_with_amounts<G: Gateway + ?Sized>(
     gateway: &G,
     discovery: &Discovery,
-) -> Result<Vec<HistoryItem>, ChainError> {
+) -> Result<HistoryResolution, ChainError> {
     // 1. Merge per-script occurrences. A tx seen by script S gets S in its
     //    involved-scripts set (a tx can touch many wallet scripts).
     struct Occur {
@@ -356,33 +365,53 @@ pub fn history_with_amounts<G: Gateway + ?Sized>(
             }
         }
     }
-    if total_entries > MAX_HISTORY_ITEMS {
-        return Err(ChainError::Internal(format!(
-            "history has {total_entries} entries (>{MAX_HISTORY_ITEMS}); \
-             refusing to resolve amounts — narrowing required"
-        )));
+
+    // 2. Most-recent-first selection. Mempool entries (height -1/0) are the
+    //    newest; confirmed entries order by descending height.
+    let mut order: Vec<(Txid, u64)> = occurrences
+        .keys()
+        .map(|txid| {
+            let height = occurrences[txid].height;
+            let recency = if height > 0 { height as u64 } else { u64::MAX };
+            (*txid, recency)
+        })
+        .collect();
+    order.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let truncated = total_entries > MAX_HISTORY_ITEMS;
+    let selected: Vec<Txid> = order
+        .into_iter()
+        .map(|(txid, _)| txid)
+        .take(MAX_HISTORY_ITEMS)
+        .collect();
+    if selected.is_empty() {
+        return Ok(HistoryResolution {
+            items: Vec::new(),
+            total_entries,
+            truncated: false,
+        });
     }
 
-    // 2. Fetch each tx once, keeping each tx's involved-scripts set.
-    let mut tx_cache: HashMap<Txid, bitcoin::Transaction> = HashMap::new();
-    let mut staged: Vec<(HistoryItem, HashSet<Vec<u8>>)> = Vec::with_capacity(occurrences.len());
-    for (txid, occur) in occurrences {
-        let tx = gateway
-            .tx_by_id(&txid)?
-            .ok_or_else(|| ChainError::TxNotFound(txid.to_string()))?;
-        tx_cache.insert(txid, tx);
+    // 3. Fetch each selected tx once — batched (chunks on the production
+    //    gateway; sequential on the default trait impl).
+    let fetched = gateway.txs_by_ids(&selected)?;
+    let mut tx_cache: HashMap<Txid, bitcoin::Transaction> = HashMap::with_capacity(selected.len());
+    let mut staged: Vec<(HistoryItem, HashSet<Vec<u8>>)> = Vec::with_capacity(selected.len());
+    for (txid, tx) in selected.iter().zip(fetched) {
+        let tx = tx.ok_or_else(|| ChainError::TxNotFound(txid.to_string()))?;
+        tx_cache.insert(*txid, tx);
+        let occur = &occurrences[txid];
         let item = HistoryItem {
-            txid,
+            txid: *txid,
             height: occur.height,
             direction: None,
             received_sat: 0,
             sent_net_sat: 0,
             fee_sat: None,
         };
-        staged.push((item, occur.scripts));
+        staged.push((item, occur.scripts.clone()));
     }
 
-    // 3. Amount resolution with a shared prevout cache.
+    // 4. Amount resolution with a shared prevout cache.
     let mut prevout_cache: HashMap<(Txid, u32), (Vec<u8>, u64)> = HashMap::new();
     let mut items: Vec<HistoryItem> = Vec::with_capacity(staged.len());
     for (mut item, scripts) in staged {
@@ -395,7 +424,11 @@ pub fn history_with_amounts<G: Gateway + ?Sized>(
         )?;
         items.push(item);
     }
-    Ok(items)
+    Ok(HistoryResolution {
+        items,
+        total_entries,
+        truncated,
+    })
 }
 
 /// (script, value) of a prevout — fetched once per (txid,vout) per run.

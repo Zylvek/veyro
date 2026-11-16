@@ -42,15 +42,13 @@ class AmbienceSurface extends StatelessWidget {
           Positioned(
             right: -220,
             bottom: -260,
-            child:
-                _glow(640, VColors.secondary.withValues(alpha: 0.07)),
+            child: _glow(640, VColors.secondary.withValues(alpha: 0.07)),
           ),
           // Свечение 3: слабый центр снизу.
           Positioned(
             left: 80,
             bottom: -320,
-            child:
-                _glow(520, VColors.primary.withValues(alpha: 0.05)),
+            child: _glow(520, VColors.primary.withValues(alpha: 0.05)),
           ),
           if (withMark)
             const Positioned.fill(
@@ -76,9 +74,7 @@ class AmbienceSurface extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0)],
-          ),
+          gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
         ),
       ),
     );

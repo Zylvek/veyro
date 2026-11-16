@@ -21,7 +21,7 @@ pub mod litecoin;
 pub use crate::bitcoin::tx::SignedTransfer;
 pub use crate::bitcoin::{DEFAULT_GAP_LIMIT, P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};
 pub use crate::electrum::{
-    BroadcastOutcome, BtcNetwork, Gateway, GatewayNetworkInfo, HistoryEntry, ScriptBalance, Utxo,
+    BroadcastOutcome, BtcNetwork, Gateway, HistoryEntry, ScriptBalance, Utxo,
 };
 
 use thiserror::Error;

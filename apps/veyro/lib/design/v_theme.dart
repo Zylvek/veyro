@@ -60,10 +60,7 @@ ThemeData buildVeyroTheme() {
           fontWeight: FontWeight.w600,
           color: VColors.textPrimary,
         ),
-        bodyLarge: const TextStyle(
-          fontSize: 15,
-          color: VColors.textPrimary,
-        ),
+        bodyLarge: const TextStyle(fontSize: 15, color: VColors.textPrimary),
         bodyMedium: const TextStyle(
           fontSize: 13.5,
           height: 1.5,

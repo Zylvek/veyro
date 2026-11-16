@@ -38,8 +38,14 @@ import 'package:veyro/design/app_colors.dart';
 /// прозрачное. Важно: Path.combine(difference) здесь не годится — он
 /// вычитает один круг из другого и оставляет один полумесяц вместо
 /// двух кругов.
-Path _markPath(double ax, double ay, double ar, double bx, double by,
-    double br) {
+Path _markPath(
+  double ax,
+  double ay,
+  double ar,
+  double bx,
+  double by,
+  double br,
+) {
   return Path()
     ..fillType = PathFillType.evenOdd
     ..addOval(Rect.fromCircle(center: Offset(ax, ay), radius: ar))
@@ -169,12 +175,14 @@ class VeyroMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _MarkPainter(
-          ax: distance,
-          ay: 0,
-          ar: radius,
-          opacity: opacity,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _MarkPainter(
+            ax: distance,
+            ay: 0,
+            ar: radius,
+            opacity: opacity,
+          ),
         ),
       ),
     );
@@ -199,15 +207,17 @@ class VeyroMarkSpinner extends StatefulWidget {
 class _VeyroMarkSpinnerState extends State<VeyroMarkSpinner>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  MarkOrbitState _state =
-      const MarkOrbitState(angle: 0, radius: 72, distance: 42);
+  MarkOrbitState _state = const MarkOrbitState(
+    angle: 0,
+    radius: 72,
+    distance: 42,
+  );
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker((elapsed) {
-      setState(() =>
-          _state = _loadingState(elapsed.inMicroseconds / 1000.0));
+      setState(() => _state = _loadingState(elapsed.inMicroseconds / 1000.0));
     });
     _ticker.start();
   }
@@ -223,11 +233,13 @@ class _VeyroMarkSpinnerState extends State<VeyroMarkSpinner>
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: CustomPaint(
-        painter: _MarkPainter(
-          ax: math.cos(_state.angle) * _state.distance,
-          ay: math.sin(_state.angle) * _state.distance,
-          ar: _state.radius,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _MarkPainter(
+            ax: math.cos(_state.angle) * _state.distance,
+            ay: math.sin(_state.angle) * _state.distance,
+            ar: _state.radius,
+          ),
         ),
       ),
     );
@@ -324,25 +336,27 @@ class _VeyroMarkIntroState extends State<VeyroMarkIntro>
         final d = _lerp(820, kBackdropDistance, eSz);
         final r = _lerp(330, kBackdropRadius, eSz);
         // После 62% знак тает до фона (0.18) — референс anim2.
-        final fade =
-            p <= 0.62 ? 1.0 : _lerp(1.0, kBackdropOpacity, (p - 0.62) / 0.38);
+        final fade = p <= 0.62
+            ? 1.0
+            : _lerp(1.0, kBackdropOpacity, (p - 0.62) / 0.38);
         final mark = SizedBox(
           width: widget.size,
           height: widget.size,
-          child: CustomPaint(
-            painter: _MarkPainter(
-              ax: math.cos(ang) * d,
-              ay: math.sin(ang) * d,
-              ar: r,
-              opacity: fade,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _MarkPainter(
+                ax: math.cos(ang) * d,
+                ay: math.sin(ang) * d,
+                ar: r,
+                opacity: fade,
+              ),
             ),
           ),
         );
         if (!widget.withReveal) return mark;
         // Подложка цвета приложения держит экран до 62%, затем тает —
         // под ней проявляется UI (референс anim2: «UI появляется»).
-        final reveal =
-            p <= 0.62 ? 1.0 : math.max(0.0, 1 - (p - 0.62) / 0.38);
+        final reveal = p <= 0.62 ? 1.0 : math.max(0.0, 1 - (p - 0.62) / 0.38);
         return Stack(
           children: [
             Positioned.fill(
@@ -425,12 +439,14 @@ class _VeyroMarkBackgroundToLoadingState
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: CustomPaint(
-        painter: _MarkPainter(
-          ax: math.cos(_state.angle) * _state.distance,
-          ay: math.sin(_state.angle) * _state.distance,
-          ar: _state.radius,
-          opacity: _opacity,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _MarkPainter(
+            ax: math.cos(_state.angle) * _state.distance,
+            ay: math.sin(_state.angle) * _state.distance,
+            ar: _state.radius,
+            opacity: _opacity,
+          ),
         ),
       ),
     );

@@ -110,6 +110,23 @@ impl BtcNetwork {
     }
 }
 
+/// Failover candidates for reconnects: the live-verified presets of the
+/// network, rotated so the server that just failed goes last. A network with
+/// a single preset yields just that preset (a dropped socket does not
+/// necessarily mean the server is dead).
+pub fn failover_candidates(network: BtcNetwork, failed_url: &str) -> Vec<String> {
+    let mut list: Vec<String> = network
+        .preset_servers()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    if let Some(pos) = list.iter().position(|u| u == failed_url) {
+        let removed = list.remove(pos);
+        list.push(removed);
+    }
+    list
+}
+
 /// Balance of one script, as Electrum reports it (satoshis).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScriptBalance {
@@ -145,17 +162,6 @@ pub enum BroadcastOutcome {
     AlreadyKnown(Txid),
 }
 
-/// Server identity/tip, reported to the UI ("network info" screen).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GatewayNetworkInfo {
-    pub server_version: String,
-    pub protocol_min: String,
-    pub protocol_max: String,
-    pub tip_height: u32,
-    /// Genesis hash as the server reports it (network sanity check).
-    pub genesis_hash: [u8; 32],
-}
-
 /// Transport-agnostic view of an Electrum server. Production type: [`ElectrumGateway`].
 pub trait Gateway {
     /// Which network this gateway is bound to (set up by the caller).
@@ -170,6 +176,16 @@ pub trait Gateway {
     /// `blockchain.estimatefee(blocks)` in **BTC per kilobyte** (protocol unit).
     /// A negative return means "unknown" for this depth.
     fn estimate_fee_btc_per_kb(&self, blocks: u32) -> Result<f64, ChainError>;
+
+    /// Several fee depths in ONE round-trip (production clients batch the
+    /// `blockchain.estimatefee` calls; the default falls back to sequential
+    /// [`Gateway::estimate_fee_btc_per_kb`]).
+    fn estimate_fees_batch(&self, blocks: &[u32]) -> Result<Vec<f64>, ChainError> {
+        blocks
+            .iter()
+            .map(|b| self.estimate_fee_btc_per_kb(*b))
+            .collect()
+    }
 
     fn script_balance(&self, script: &[u8]) -> Result<ScriptBalance, ChainError>;
     fn script_utxos(&self, script: &[u8]) -> Result<Vec<Utxo>, ChainError>;
@@ -207,20 +223,14 @@ pub trait Gateway {
     /// Fetch a transaction by id; `None` if the server does not know it.
     fn tx_by_id(&self, txid: &Txid) -> Result<Option<Transaction>, ChainError>;
 
-    fn broadcast(&self, tx: &Transaction) -> Result<Txid, ChainError>;
-
-    /// Convenience: everything the "network info" screen shows at once.
-    fn network_info(&self) -> Result<GatewayNetworkInfo, ChainError> {
-        let (server_version, protocol_min, protocol_max, genesis_hash) = self.server_features()?;
-        let tip_height = self.tip_height()?;
-        Ok(GatewayNetworkInfo {
-            server_version,
-            protocol_min,
-            protocol_max,
-            tip_height,
-            genesis_hash,
-        })
+    /// Fetch multiple transactions in one pass; `None` entries = the server
+    /// does not know that id. Default: sequential [`Gateway::tx_by_id`];
+    /// production clients override this with batched calls.
+    fn txs_by_ids(&self, txids: &[Txid]) -> Result<Vec<Option<Transaction>>, ChainError> {
+        txids.iter().map(|id| self.tx_by_id(id)).collect()
     }
+
+    fn broadcast(&self, tx: &Transaction) -> Result<Txid, ChainError>;
 
     /// Fund-safety: the server must actually be on the configured network.
     /// Returns the mismatch as a typed error; call this right after connect.
@@ -317,6 +327,68 @@ impl ElectrumGateway {
     pub fn url(&self) -> &str {
         &self.url
     }
+
+    fn txs_batched(&self, txids: &[Txid]) -> Result<Vec<Option<Transaction>>, ChainError> {
+        const TX_BATCH: usize = 10;
+        let mut out: Vec<Option<Transaction>> = Vec::with_capacity(txids.len());
+        for chunk in txids.chunks(TX_BATCH) {
+            match self.client.batch_transaction_get(chunk.iter()) {
+                Ok(txs) => out.extend(txs.into_iter().map(Some)),
+                Err(_) => {
+                    // Whole batch failed (server quirk / transport): degrade
+                    // gracefully to per-id resolution for this chunk.
+                    for id in chunk {
+                        out.push(self.tx_by_id(id)?);
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// True when a `electrum-client` error means "the server does not know this
+/// transaction". Only protocol/message errors qualify: I/O, DNS, EOF, timeout
+/// and connection errors must surface as real errors, never as "tx missing".
+pub fn is_missing_tx_error(e: &electrum_client::Error) -> bool {
+    let text = match e {
+        electrum_client::Error::Protocol(v) => match v.as_str() {
+            Some(s) => s.to_string(),
+            None => v.to_string(),
+        },
+        electrum_client::Error::Message(text) => text.clone(),
+        _ => return false,
+    };
+    let t = text.to_ascii_lowercase();
+    t.contains("no such")
+        || t.contains("unknown transaction")
+        || t.contains("not found")
+        || t.contains("tx not in block chain")
+}
+
+/// True when a `electrum-client` error is of transport/protocol kind that a
+/// reconnect-and-retry can plausibly fix (server outage, dropped socket,
+/// rate-limit EOF). Content errors (bad address, dust, insufficient funds)
+/// are never transient.
+pub fn is_transient_error(e: &electrum_client::Error) -> bool {
+    matches!(
+        e,
+        electrum_client::Error::IOError(_)
+            | electrum_client::Error::SharedIOError(_)
+            | electrum_client::Error::AllAttemptsErrored(_)
+            | electrum_client::Error::JSON(_)
+    )
+}
+
+/// Single mapping point from `electrum-client` errors to `ChainError`:
+/// transport-class failures become [`ChainError::Transport`] (the retry
+/// signal), server-reported errors stay [`ChainError::Protocol`].
+pub fn map_client_error(e: electrum_client::Error) -> ChainError {
+    if is_transient_error(&e) {
+        ChainError::Transport(e.to_string())
+    } else {
+        ChainError::Protocol(e.to_string())
+    }
 }
 
 impl Gateway for ElectrumGateway {
@@ -324,11 +396,22 @@ impl Gateway for ElectrumGateway {
         self.network
     }
 
+    fn txs_by_ids(&self, txids: &[Txid]) -> Result<Vec<Option<Transaction>>, ChainError> {
+        self.txs_batched(txids)
+    }
+
+    fn estimate_fees_batch(&self, blocks: &[u32]) -> Result<Vec<f64>, ChainError> {
+        let depths: Vec<usize> = blocks.iter().map(|b| *b as usize).collect();
+        self.client
+            .batch_estimate_fee(&depths)
+            .map_err(crate::electrum::map_client_error)
+    }
+
     fn server_features(&self) -> Result<(String, String, String, [u8; 32]), ChainError> {
         let f = self
             .client
             .server_features()
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok((
             f.server_version,
             f.protocol_min,
@@ -341,7 +424,7 @@ impl Gateway for ElectrumGateway {
         let notif = self
             .client
             .block_headers_subscribe()
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(notif.height as u32)
     }
 
@@ -356,7 +439,7 @@ impl Gateway for ElectrumGateway {
         let b = self
             .client
             .script_get_balance(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(ScriptBalance {
             confirmed_sat: b.confirmed,
             unconfirmed_sat: b.unconfirmed,
@@ -368,7 +451,7 @@ impl Gateway for ElectrumGateway {
         let list = self
             .client
             .script_list_unspent(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|u| Utxo {
@@ -385,7 +468,7 @@ impl Gateway for ElectrumGateway {
         let list = self
             .client
             .script_get_history(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|h| HistoryEntry {
@@ -403,7 +486,7 @@ impl Gateway for ElectrumGateway {
         let list = self
             .client
             .batch_script_get_balance(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|b| ScriptBalance {
@@ -424,7 +507,7 @@ impl Gateway for ElectrumGateway {
         let list = self
             .client
             .batch_script_get_history(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|per| {
@@ -446,7 +529,7 @@ impl Gateway for ElectrumGateway {
         let list = self
             .client
             .batch_script_list_unspent(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|per| {
@@ -465,19 +548,15 @@ impl Gateway for ElectrumGateway {
     fn tx_by_id(&self, txid: &Txid) -> Result<Option<Transaction>, ChainError> {
         match self.client.transaction_get(txid) {
             Ok(tx) => Ok(Some(tx)),
-            // electrum-client surfaces "unknown transaction"/"no such tx" as an
-            // error with the reason in text; treat absence indicators as None.
-            // Any other error is a real transport/protocol failure.
+            // "Unknown transaction" is only trusted when the SERVER said it
+            // (Protocol/Message errors). Transport failures (I/O, DNS, EOF,
+            // timeouts) must never masquerade as "transaction missing".
             Err(e) => {
-                let text = e.to_string().to_ascii_lowercase();
-                if text.contains("no such")
-                    || text.contains("unknown")
-                    || text.contains("not found")
-                    || text.contains("tx not in block chain")
-                {
-                    return Ok(None);
+                if is_missing_tx_error(&e) {
+                    Ok(None)
+                } else {
+                    Err(map_client_error(e))
                 }
-                Err(ChainError::Protocol(e.to_string()))
             }
         }
     }

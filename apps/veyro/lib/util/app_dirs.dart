@@ -11,7 +11,9 @@ String _appDataDir() {
   if (appData != null && appData.isNotEmpty) return appData;
   final home =
       Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-  if (home != null && home.isNotEmpty) return '$home${Platform.pathSeparator}.veyro';
+  if (home != null && home.isNotEmpty) {
+    return '$home${Platform.pathSeparator}.veyro';
+  }
   return '.';
 }
 
@@ -24,9 +26,6 @@ String walletsDir() => _join(_join(_appDataDir(), 'veyro'), 'wallets');
 /// Путь к SQLite-базе метаданных (настройки, реестр).
 String appDbPath() => _join(_join(_appDataDir(), 'veyro'), 'veyro.db');
 
-/// Каталог файлов резервных копий (зашифрованные .veybackup).
-String backupsDir() => _join(_join(_appDataDir(), 'veyro'), 'backups');
-
 /// Кэш значков валют с Iconify API (SVG): один раз скачано — всегда
 /// рисуется без сети при следующих запусках.
 String iconCacheDir() => _join(_join(_appDataDir(), 'veyro'), 'icon-cache');
@@ -35,14 +34,3 @@ String iconCacheDir() => _join(_join(_appDataDir(), 'veyro'), 'icon-cache');
 /// переживают перезапуск — повторные пуски не тратят данных.
 String priceCachePath() =>
     _join(_join(_appDataDir(), 'veyro'), 'price_cache.json');
-
-/// Дефолтный путь нового файла резервной копии — каталог приложения с
-/// меткой времени: `%APPDATA%\veyro\backups\veyro-backup-ГГГГММДД-ЧЧММСС`
-/// `.veybackup`. Пользователь может заменить путь в диалоге экспорта.
-String defaultBackupPath() {
-  final now = DateTime.now().toLocal();
-  String two(int value) => value.toString().padLeft(2, '0');
-  final stamp = '${now.year}${two(now.month)}${two(now.day)}'
-      '-${two(now.hour)}${two(now.minute)}${two(now.second)}';
-  return _join(backupsDir(), 'veyro-backup-$stamp.veybackup');
-}

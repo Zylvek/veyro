@@ -10,14 +10,17 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/network.dart';
 
 import 'tx_details_screen.dart';
+
 import 'package:veyro/util/coin.dart';
 
 /// Фильтры истории. failed есть в enum, но в UI отключён: история ядра
@@ -54,14 +57,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
   HistoryFilter _filter = HistoryFilter.all;
   String _query = '';
   int? _networkCode;
+
+  /// Честное усечение: ядро показывает только самые свежие записи, когда
+  /// вся история длиннее MAX_HISTORY_ITEMS.
+  bool _truncated = false;
+  int _totalEntries = 0;
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() => setState(() => _query =
-        _searchController.text.trim().toLowerCase()));
+    _searchController.addListener(
+      () =>
+          setState(() => _query = _searchController.text.trim().toLowerCase()),
+    );
     _load();
   }
 
@@ -95,29 +105,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Сеть неизвестна — детали покажут честное «—».
     }
     try {
-      final List<BtcHistoryItemDto> items;
+      List<BtcHistoryItemDto> items;
+      int totalEntries = 0;
+      bool truncated = false;
       if (widget.historyLoader != null) {
         items = await widget.historyLoader!();
       } else if (widget.walletCoin == WalletCoin.ltc) {
         // LtcHistoryItemDto структурно одинаков с BtcHistoryItemDto —
         // приводим к общему типу экрана (исторический контракт тестов).
-        items = (await ltcHistory())
-            .map((e) => BtcHistoryItemDto(
-                  txid: e.txid,
-                  height: e.height,
-                  direction: e.direction,
-                  receivedSat: e.receivedSat,
-                  sentNetSat: e.sentNetSat,
-                  feeSat: e.feeSat,
-                ))
+        final history = await ltcHistory();
+        items = history.items
+            .map(
+              (e) => BtcHistoryItemDto(
+                txid: e.txid,
+                height: e.height,
+                direction: e.direction,
+                receivedSat: e.receivedSat,
+                sentNetSat: e.sentNetSat,
+                feeSat: e.feeSat,
+              ),
+            )
             .toList();
+        totalEntries = history.totalEntries.toInt();
+        truncated = history.truncated;
       } else {
-        items = await btcHistory();
+        final history = await btcHistory();
+        items = history.items;
+        totalEntries = history.totalEntries.toInt();
+        truncated = history.truncated;
       }
       if (!mounted) return;
       setState(() {
         _items = items;
         _loading = false;
+        _truncated = truncated;
+        _totalEntries = totalEntries;
       });
     } catch (e) {
       if (!mounted) return;
@@ -136,9 +158,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (loader != null) {
         await loader();
       } else if (widget.walletCoin == WalletCoin.ltc) {
-        await ltcSync(gapLimit: 20);
+        await ltcSync(gapLimit: kDefaultGapLimit);
       } else {
-        await btcSync(gapLimit: 20);
+        await btcSync(gapLimit: kDefaultGapLimit);
       }
       if (!mounted) return;
       setState(() => _syncing = false);
@@ -146,14 +168,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _syncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            tf(
-              'sync_error_snackbar',
-              {'error': '$e'},
-            ),
-        ),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tf('sync_error_snackbar', {'error': '$e'}))),
+      );
     }
   }
 
@@ -186,13 +203,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(t('history_title')), actions: [
-        IconButton(
-          tooltip: t('sync_refresh_tooltip'),
-          onPressed: _syncing ? null : _syncThenLoad,
-          icon: const Icon(Icons.sync),
+      appBar: AppBar(
+        title: Text(
+          widget.walletCoin == WalletCoin.ltc
+              ? t('history_title_ltc')
+              : t('history_title'),
         ),
-      ]),
+        actions: [
+          IconButton(
+            tooltip: t('sync_refresh_tooltip'),
+            onPressed: _syncing ? null : _syncThenLoad,
+            icon: const Icon(Icons.sync),
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
@@ -210,7 +234,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
     if (_hasError) {
-      final needsSync = _error!.contains('btc_sync first') ||
+      final needsSync =
+          _error!.contains('btc_sync first') ||
           _error!.contains('ltc_sync first') ||
           _error!.contains('no scanned addresses');
       return Padding(
@@ -218,16 +243,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.sync_problem_outlined,
-                size: 40, color: VColors.textSecondary),
+            const Icon(
+              Icons.sync_problem_outlined,
+              size: 40,
+              color: VColors.textSecondary,
+            ),
             const SizedBox(height: 12),
             Text(
               needsSync
                   ? t('history_need_sync')
-                  : tf(
-                      'error_prefix',
-                      {'error': '$_error'},
-                    ),
+                  : tf('error_prefix', {'error': '$_error'}),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -248,8 +273,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.receipt_long_outlined,
-                size: 44, color: VColors.textSecondary),
+            const Icon(
+              Icons.receipt_long_outlined,
+              size: 44,
+              color: VColors.textSecondary,
+            ),
             const SizedBox(height: 12),
             Text(
               t('history_empty'),
@@ -257,8 +285,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
-            VButton.secondary(t('sync_btn'),
-                icon: Icons.sync, onPressed: _syncThenLoad),
+            VButton.secondary(
+              t('sync_btn'),
+              icon: Icons.sync,
+              onPressed: _syncThenLoad,
+            ),
           ],
         ),
       );
@@ -291,15 +322,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
             runSpacing: 8,
             children: [
               _filterChip(context, t('filter_all'), HistoryFilter.all),
-              _filterChip(context, t('filter_incoming'), HistoryFilter.incoming),
-              _filterChip(context, t('filter_outgoing'), HistoryFilter.outgoing),
+              _filterChip(
+                context,
+                t('filter_incoming'),
+                HistoryFilter.incoming,
+              ),
+              _filterChip(
+                context,
+                t('filter_outgoing'),
+                HistoryFilter.outgoing,
+              ),
               _filterChip(context, t('filter_pending'), HistoryFilter.pending),
               _filterChip(
-                  context, t('filter_confirmed'), HistoryFilter.confirmed),
+                context,
+                t('filter_confirmed'),
+                HistoryFilter.confirmed,
+              ),
               _failedChip(context),
             ],
           ),
         ),
+        if (_truncated)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 14,
+                  color: VColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    tf('history_truncated_note', {
+                      'shown': '${_items?.length ?? 0}',
+                      'total': '$_totalEntries',
+                    }),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _load,
@@ -338,26 +403,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             foregroundColor: card.color,
                             child: Icon(card.icon, size: 20),
                           ),
-                          title: Text(card.amountText,
-                              style: TextStyle(
-                                  color: card.color,
-                                  fontWeight: FontWeight.w600,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ])),
+                          title: Text(
+                            card.amountText,
+                            style: TextStyle(
+                              color: card.color,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
                           subtitle: Text(
                             '${card.directionText} · ${_heightText(item.height)}'
                             '${card.feeText}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
-                          trailing: const Icon(Icons.chevron_right,
-                              size: 16, color: VColors.textSecondary),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => TxDetailsScreen(
-                                item: item,
-                                networkCode: _networkCode,
-                              ),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: VColors.textSecondary,
+                          ),
+                          onTap: () => pushVeyro<void>(
+                            context,
+                            TxDetailsScreen(
+                              item: item,
+                              coin: widget.walletCoin,
+                              networkCode: _networkCode,
                             ),
                           ),
                         ),
@@ -372,8 +443,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   bool get _hasError => _error != null;
 
-  Widget _filterChip(
-      BuildContext context, String label, HistoryFilter filter) {
+  Widget _filterChip(BuildContext context, String label, HistoryFilter filter) {
     final selected = _filter == filter;
     return FilterChip(
       selected: selected,
@@ -387,8 +457,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       showCheckmark: false,
       side: BorderSide(
-        color:
-            selected ? VColors.primary.withValues(alpha: 0.5) : VColors.elevated,
+        color: selected
+            ? VColors.primary.withValues(alpha: 0.5)
+            : VColors.elevated,
       ),
       backgroundColor: VColors.card,
       selectedColor: VColors.elevated,
@@ -406,9 +477,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           opacity: 0.45,
           child: FilterChip(
             selected: false,
-            label: Text(t('filter_failed'),
-                style: TextStyle(
-                    fontSize: 12.5, color: VColors.textSecondary)),
+            label: Text(
+              t('filter_failed'),
+              style: TextStyle(fontSize: 12.5, color: VColors.textSecondary),
+            ),
             showCheckmark: false,
             side: const BorderSide(color: VColors.elevated),
             backgroundColor: VColors.card,
@@ -419,15 +491,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  String _heightText(int height) => height >= 1
-      ? tf(
-          'height_n',
-          {'height': '$height'},
-        )
-      : t('in_mempool');
+  String _heightText(int height) =>
+      height >= 1 ? tf('height_n', {'height': '$height'}) : t('in_mempool');
 
-  ({IconData icon, Color color, String amountText, String directionText, String feeText})
-      _buildTileData(BtcHistoryItemDto item) {
+  ({
+    IconData icon,
+    Color color,
+    String amountText,
+    String directionText,
+    String feeText,
+  })
+  _buildTileData(BtcHistoryItemDto item) {
     const unknown = (
       icon: Icons.help_outline,
       color: VColors.textSecondary,
@@ -437,31 +511,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final unit = widget.walletCoin == WalletCoin.ltc ? 'LTC' : 'BTC';
     final data = switch (item.direction) {
       'incoming' => (
-          icon: Icons.south_west,
-          color: VColors.success,
-          amountText: '+${satToBtcString(item.receivedSat.toInt())} $unit',
-          directionText: t('dir_incoming'),
-        ),
+        icon: Icons.south_west,
+        color: VColors.success,
+        amountText: '+${satToBtcString(item.receivedSat.toInt())} $unit',
+        directionText: t('dir_incoming'),
+      ),
       'outgoing' => (
-          icon: Icons.north_east,
-          color: VColors.error,
-          amountText: '-${satToBtcString(item.sentNetSat.toInt())} $unit',
-          directionText: t('dir_outgoing'),
-        ),
+        icon: Icons.north_east,
+        color: VColors.error,
+        amountText: '-${satToBtcString(item.sentNetSat.toInt())} $unit',
+        directionText: t('dir_outgoing'),
+      ),
       'internal' => (
-          icon: Icons.swap_horiz,
-          color: VColors.secondary,
-          amountText: '0 $unit',
-          directionText: t('dir_internal'),
-        ),
-      _ => (icon: unknown.icon, color: unknown.color,
-          amountText: unknown.amountText, directionText: t('unknown_direction')),
+        icon: Icons.swap_horiz,
+        color: VColors.secondary,
+        amountText: '0 $unit',
+        directionText: t('dir_internal'),
+      ),
+      _ => (
+        icon: unknown.icon,
+        color: unknown.color,
+        amountText: unknown.amountText,
+        directionText: t('unknown_direction'),
+      ),
     };
     final feeText = item.feeSat != null && item.direction == 'outgoing'
-        ? tf(
-            'fee_prefix',
-            {'value': '${satToBtcString(item.feeSat!.toInt())} $unit'},
-          )
+        ? tf('fee_prefix', {
+            'value': '${satToBtcString(item.feeSat!.toInt())} $unit',
+          })
         : '';
     return (
       icon: data.icon,

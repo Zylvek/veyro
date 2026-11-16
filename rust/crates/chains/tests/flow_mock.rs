@@ -342,7 +342,10 @@ fn full_cycle_on_fake_testnet_gateway() {
 
     // re-mine at height 800001 and re-check history + status
     gw.apply_spend(&spend, &spk_recv0, &spk_change, 800_001);
-    let items = history_with_amounts(&gw, &discovery).expect("history");
+    let resolution = history_with_amounts(&gw, &discovery).expect("history");
+    assert!(!resolution.truncated, "small wallet must not be truncated");
+    assert!(resolution.total_entries >= 2);
+    let items = &resolution.items;
     let funding = items
         .iter()
         .find(|i| i.txid == utxos[0].txid)

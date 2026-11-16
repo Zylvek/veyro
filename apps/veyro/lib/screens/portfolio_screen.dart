@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -53,17 +54,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       });
       return;
     }
-    if (!mounted) return;
   }
 
   /// Явный вход в BTC-центр: там пароль спрашивается сам, если сессия
   /// была закрыта.
   Future<void> _openBtc() async {
-    debugPrint('veyro-flow: portfolio manual BTC entry for '
-        '"${widget.info.name}"');
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => BtcScreen(info: widget.info),
-    ));
+    debugPrint(
+      'veyro-flow: portfolio manual BTC entry for '
+      '"${widget.info.name}"',
+    );
+    await pushVeyro<void>(context, BtcScreen(info: widget.info));
     if (mounted) await _refresh();
   }
 
@@ -71,10 +71,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   Future<void> _showSeedPhrase() async {
     final password = await promptPassword(
       context,
-      title: tf(
-        'reveal_title',
-        {'name': widget.info.name},
-      ),
+      title: tf('reveal_title', {'name': widget.info.name}),
     );
     if (password == null || !mounted) return;
     try {
@@ -115,10 +112,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     title: t('state_unavailable'),
                     icon: Icons.error_outline,
                     children: [
-                      Text(tf(
-                        'error_prefix',
-                        {'error': '$_error'},
-                      )),
+                      Text(tf('error_prefix', {'error': '$_error'})),
                     ],
                   ),
                 ] else ...[
@@ -127,19 +121,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   FilledButton.icon(
                     onPressed: _openBtc,
                     icon: const Icon(Icons.currency_bitcoin),
-                    label: Text(_btcState == null
-                        ? t('unlock_btc_btn')
-                        : t('open_btc_btn')),
+                    label: Text(
+                      _btcState == null
+                          ? t('unlock_btc_btn')
+                          : t('open_btc_btn'),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: _showSeedPhrase,
                   icon: const Icon(Icons.key_outlined),
-                  label: Text(tf(
-                    'reveal_title',
-                    {'name': widget.info.name},
-                  )),
+                  label: Text(tf('reveal_title', {'name': widget.info.name})),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -170,7 +163,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: const Color(0xFFF7931A).withValues(alpha: 0.2),
+                    backgroundColor: const Color(0xFFF7931A)
+                        .withValues(alpha: 0.2),
                     foregroundColor: const Color(0xFFF7931A),
                     child: const Icon(Icons.currency_bitcoin),
                   ),
@@ -179,13 +173,21 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Text('Bitcoin',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Bitcoin',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         Text(
                           unlocked
                               ? '${ruNetworkText(state.networkDisplay)} · ${state.serverUrl}'
                               : t('session_not_open'),
-                          style: const TextStyle(color: Colors.white60, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 13,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -197,7 +199,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               const SizedBox(height: 12),
               if (unlocked)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
                     color: state.hasSpendables
@@ -210,14 +215,19 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                         : t('session_open_needs_sync'),
                     style: TextStyle(
                       fontSize: 12,
-                      color: state.hasSpendables ? Colors.tealAccent : Colors.orangeAccent,
+                      color: state.hasSpendables
+                          ? Colors.tealAccent
+                          : Colors.orangeAccent,
                     ),
                   ),
                 )
               else
                 Text(
                   t('connect_tap_note'),
-                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
             ],
           ),

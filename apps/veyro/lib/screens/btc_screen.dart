@@ -9,10 +9,12 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
-import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
+import 'package:veyro/util/network.dart';
 import 'package:veyro/util/network_config.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -34,7 +36,6 @@ class _BtcScreenState extends State<BtcScreen> {
   BtcSyncDto? _sync;
   bool _busy = false;
   String? _error;
-  String? _errorRaw;
 
   /// Что сейчас происходит (аудит: «Подключение…» без деталей выглядит
   /// как зависание). busyLabel: Разблокировка → Синхронизация.
@@ -54,8 +55,10 @@ class _BtcScreenState extends State<BtcScreen> {
   Future<void> _entry() async {
     debugPrint('veyro-flow: btc screen entry (wallet ${widget.info.name})');
     await _refresh(autosyncIfUnlocked: true);
-    debugPrint('veyro-flow: btc refresh done, state=${_state != null}, '
-        'busy=$_busy');
+    debugPrint(
+      'veyro-flow: btc refresh done, state=${_state != null}, '
+      'busy=$_busy',
+    );
     await _maybeAutoPrompt();
   }
 
@@ -78,14 +81,15 @@ class _BtcScreenState extends State<BtcScreen> {
       _busy = true;
       _busyLabel = t('btc_syncing_addresses');
       _error = null;
-      _errorRaw = null;
     });
     try {
       final state = await btcSessionState();
       if (!mounted) return;
       setState(() => _state = state);
       if (state != null && (autosyncIfUnlocked || _sync == null)) {
-        final cached = useCache ? BtcStateCache.instance.take() : null;
+        final cached = useCache
+            ? BtcStateCache.instance.take(walletId: widget.info.id)
+            : null;
         if (cached != null) {
           setState(() {
             _sync = cached;
@@ -107,7 +111,16 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _unlock() async {
-    final settings = await loadSettings();
+    BtcNetworkSettings settings;
+    try {
+      settings = await loadSettings();
+    } catch (e) {
+      // Настройки сети недоступны (БД/ядро): честная ошибка вместо
+      // необработанного исключения и вечного busy.
+      if (!mounted) return;
+      setState(() => _error = tf('settings_read_error', {'error': '$e'}));
+      return;
+    }
     if (!mounted) return;
 
     // Единый вход (решение владельца): пароль, кэшированный ядром после
@@ -121,22 +134,24 @@ class _BtcScreenState extends State<BtcScreen> {
       } else {
         // Никакой тишины: кэша нет или проверка не удалась — честный
         // диалог (например, старая DLL рядом с новым exe).
-        password = await promptPassword(
+        password =
+            await promptPassword(
+              context,
+              title: tf('btc_unlock_title', {'name': widget.info.name}),
+              confirmLabel: t('connect_btn'),
+            ) ??
+            '';
+        if (!mounted) return;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      password =
+          await promptPassword(
             context,
             title: tf('btc_unlock_title', {'name': widget.info.name}),
             confirmLabel: t('connect_btn'),
           ) ??
           '';
-        if (!mounted) return;
-      }
-    } catch (_) {
-      if (!mounted) return;
-      password = await promptPassword(
-          context,
-          title: tf('btc_unlock_title', {'name': widget.info.name}),
-          confirmLabel: t('connect_btn'),
-        ) ??
-        '';
       if (!mounted) return;
     }
     if (password.isEmpty) {
@@ -161,7 +176,6 @@ class _BtcScreenState extends State<BtcScreen> {
       _busy = true;
       _busyLabel = t('unlocking_now');
       _error = null;
-      _errorRaw = null;
     });
     try {
       await btcUnlock(
@@ -179,10 +193,7 @@ class _BtcScreenState extends State<BtcScreen> {
       // vault даёт generic-ошибку расшифровки: добавляем честную подсказку
       // (частый случай — пароль другого из нескольких кошельков).
       final hint = raw.contains('decryption failed')
-          ? '$e\n\n${tf(
-              'password_mismatch_hint',
-              {'name': widget.info.name},
-            )}'
+          ? '$e\n\n${tf('password_mismatch_hint', {'name': widget.info.name})}'
           : e.toString();
       setState(() {
         _error = hint;
@@ -195,34 +206,26 @@ class _BtcScreenState extends State<BtcScreen> {
     setState(() {
       _busyLabel = t('btc_syncing_addresses_long');
       _error = null;
-      _errorRaw = null;
     });
     try {
-      final sync = await btcSync(gapLimit: 20);
+      final sync = await btcSync(gapLimit: kDefaultGapLimit);
       if (!mounted) return;
-      BtcStateCache.instance.store(sync);
+      BtcStateCache.instance.store(sync, walletId: widget.info.id);
       setState(() {
         _sync = sync;
         _busy = false;
       });
     } catch (e) {
       if (!mounted) return;
-      final raw = e.toString();
-      final transient = raw.contains('electrum') ||
-          raw.contains('unexpected end of file') ||
-          raw.contains('eof while parsing') ||
-          raw.contains('all errored') ||
-          raw.contains('timed out') ||
-          raw.contains('connection');
       // Тихий авто-повтор: обрывы у публичных серверов флакичные, почти
       // всегда следующий проход проходит (переподключение делает ядро).
-      if (transient) {
+      if (isTransientNetworkError(e)) {
         await Future.delayed(const Duration(milliseconds: 1600));
         if (mounted) {
           try {
-            final sync = await btcSync(gapLimit: 20);
+            final sync = await btcSync(gapLimit: kDefaultGapLimit);
             if (!mounted) return;
-            BtcStateCache.instance.store(sync);
+            BtcStateCache.instance.store(sync, walletId: widget.info.id);
             setState(() {
               _sync = sync;
               _busy = false;
@@ -239,7 +242,7 @@ class _BtcScreenState extends State<BtcScreen> {
       }
       if (!mounted) return;
       setState(() {
-        _error = raw;
+        _error = e.toString();
         _busy = false;
       });
     }
@@ -257,9 +260,10 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _openSend() async {
-    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
-      builder: (_) => SendScreen(availableSat: _availableSat()),
-    ));
+    final sent = await pushVeyro<bool>(
+      context,
+      SendScreen(availableSat: _availableSat()),
+    );
     if (sent == true && mounted) {
       // После успешной отправки Rust очистил набор UTXO — синхронизируем.
       await _refresh(autosyncIfUnlocked: true);
@@ -275,7 +279,8 @@ class _BtcScreenState extends State<BtcScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: RefreshIndicator(
-            onRefresh: () => _refresh(autosyncIfUnlocked: true, useCache: false),
+            onRefresh: () =>
+                _refresh(autosyncIfUnlocked: true, useCache: false),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
@@ -286,19 +291,8 @@ class _BtcScreenState extends State<BtcScreen> {
                     icon: Icons.error_outline,
                     children: [
                       // Дружелюбная суть (подключение/синхронизация) +
-                      // честные подробности ядра мелкой приглушённой
-                      // строкой, если они есть.
+                      // честные подробности ядра в той же строке.
                       Text(_error!, style: const TextStyle(fontSize: 13.5)),
-                      if (_errorRaw != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '${t('error_detail_prefix')}$_errorRaw',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: VColors.textSecondary,
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 8),
                       FilledButton.tonal(
                         onPressed: _busy
@@ -322,12 +316,11 @@ class _BtcScreenState extends State<BtcScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        tf(
-                          'wallet_label',
-                          {'name': widget.info.name},
-                        ),
+                        tf('wallet_label', {'name': widget.info.name}),
                         style: const TextStyle(
-                            color: Colors.white38, fontSize: 12),
+                          color: Colors.white38,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
@@ -363,9 +356,11 @@ class _BtcScreenState extends State<BtcScreen> {
             style: const TextStyle(color: Colors.white70),
           )
         else ...[
-          Text(
-            '${satToBtcString(sync!.confirmedSat.toInt())} BTC',
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700),
+          VAmount(
+            DisplayPrefs.maskAmount(
+              '${satToBtcString(sync!.confirmedSat.toInt())} BTC',
+            ),
+            fontSize: 30,
           ),
           Text(
             '${groupDigits(sync.confirmedSat.toInt())} ${t('sats')}',
@@ -374,10 +369,10 @@ class _BtcScreenState extends State<BtcScreen> {
           if (sync.unconfirmedDeltaSat != 0) ...[
             const SizedBox(height: 6),
             Text(
-              tf(
-                'mempool_row',
-                {'value': '${signedSatToBtcString(sync.unconfirmedDeltaSat)} BTC'},
-              ),
+              tf('mempool_row', {
+                'value':
+                    '${DisplayPrefs.maskAmount(signedSatToBtcString(sync.unconfirmedDeltaSat))} BTC',
+              }),
               style: const TextStyle(color: Colors.orangeAccent),
             ),
           ],
@@ -404,17 +399,17 @@ class _BtcScreenState extends State<BtcScreen> {
           (
             icon: Icons.qr_code_2_outlined,
             label: t('get_btn'),
-            onTap: unlocked ? _openReceive : null
+            onTap: unlocked ? _openReceive : null,
           ),
           (
             icon: Icons.north_east,
             label: t('send_btn'),
-            onTap: unlocked ? _openSend : null
+            onTap: unlocked ? _openSend : null,
           ),
           (
             icon: Icons.history,
             label: t('history_btn'),
-            onTap: unlocked ? _openHistory : null
+            onTap: unlocked ? _openHistory : null,
           ),
         ])
           Expanded(
@@ -430,16 +425,12 @@ class _BtcScreenState extends State<BtcScreen> {
   }
 
   Future<void> _openReceive() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const ReceiveScreen(),
-    ));
+    await pushVeyro<void>(context, const ReceiveScreen());
     if (mounted) await _refresh();
   }
 
   Future<void> _openHistory() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const HistoryScreen(),
-    ));
+    await pushVeyro<void>(context, const HistoryScreen());
     if (mounted) await _refresh(autosyncIfUnlocked: true);
   }
 }

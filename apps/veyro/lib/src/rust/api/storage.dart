@@ -21,18 +21,6 @@ Future<void> dbClose() => RustLib.instance.api.crateApiStorageDbClose();
 Future<PlatformInt64> dbSchemaVersion() =>
     RustLib.instance.api.crateApiStorageDbSchemaVersion();
 
-/// Register (or update) a wallet record.
-Future<void> dbUpsertWallet({required WalletRowDto row}) =>
-    RustLib.instance.api.crateApiStorageDbUpsertWallet(row: row);
-
-/// List all wallet records.
-Future<List<WalletRowDto>> dbListWallets() =>
-    RustLib.instance.api.crateApiStorageDbListWallets();
-
-/// Delete a wallet record. Returns `true` if it existed.
-Future<bool> dbDeleteWallet({required String id}) =>
-    RustLib.instance.api.crateApiStorageDbDeleteWallet(id: id);
-
 /// Store a setting (simple key-value, non-secret).
 Future<void> dbSetSetting({required String key, required String value}) =>
     RustLib.instance.api.crateApiStorageDbSetSetting(key: key, value: value);
@@ -40,34 +28,3 @@ Future<void> dbSetSetting({required String key, required String value}) =>
 /// Read a setting.
 Future<String?> dbGetSetting({required String key}) =>
     RustLib.instance.api.crateApiStorageDbGetSetting(key: key);
-
-/// Wallet registry row (non-secret; mirrors `storage::WalletRow`).
-class WalletRowDto {
-  final String id;
-  final String name;
-  final PlatformInt64 createdAtUnix;
-
-  /// Path of the vault file this record points to.
-  final String vaultFile;
-
-  const WalletRowDto({
-    required this.id,
-    required this.name,
-    required this.createdAtUnix,
-    required this.vaultFile,
-  });
-
-  @override
-  int get hashCode =>
-      id.hashCode ^ name.hashCode ^ createdAtUnix.hashCode ^ vaultFile.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is WalletRowDto &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          name == other.name &&
-          createdAtUnix == other.createdAtUnix &&
-          vaultFile == other.vaultFile;
-}

@@ -50,6 +50,17 @@ pub const SERVERS_MAINNET: &[&str] = &[
     "ssl://electrum.petrkr.net:60002",
 ];
 
+/// Failover candidates for reconnects: `SERVERS_MAINNET` rotated so the
+/// server that just failed goes last.
+pub fn ltc_failover_candidates(failed_url: &str) -> Vec<String> {
+    let mut list: Vec<String> = SERVERS_MAINNET.iter().map(|s| s.to_string()).collect();
+    if let Some(pos) = list.iter().position(|u| u == failed_url) {
+        let removed = list.remove(pos);
+        list.push(removed);
+    }
+    list
+}
+
 /// The smallest dust threshold the LTC flow uses (P2WPKH at 1 sat/vB is
 /// well above it; mirrored from the BTC dust constant — Litecoin parity).
 pub const LTC_P2WPKH_DUST_SAT: u64 = crate::bitcoin::P2WPKH_DUST_SAT;
@@ -114,9 +125,6 @@ pub fn bech32_segwit_address(hrp: &str, program: &[u8]) -> Result<String, ChainE
     out.push('1');
     for &q in &data {
         let ch = CHARSET[q as usize] as char;
-        if ch.is_ascii_uppercase() {
-            return Err(ChainError::KeyDerivation("uppercase in bech32".into()));
-        }
         out.push(ch);
     }
     Ok(out)
@@ -307,6 +315,24 @@ impl LtcGateway {
     pub fn url(&self) -> &str {
         &self.url
     }
+
+    /// Fetch several transactions with batching (the same discipline as BTC;
+    /// one bad id degrades to per-id calls instead of killing the page).
+    fn txs_batched(&self, txids: &[Txid]) -> Result<Vec<Option<Transaction>>, ChainError> {
+        const TX_BATCH: usize = 10;
+        let mut out: Vec<Option<Transaction>> = Vec::with_capacity(txids.len());
+        for chunk in txids.chunks(TX_BATCH) {
+            match self.client.batch_transaction_get(chunk.iter()) {
+                Ok(txs) => out.extend(txs.into_iter().map(Some)),
+                Err(_) => {
+                    for id in chunk {
+                        out.push(self.tx_by_id(id)?);
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
 }
 
 impl Gateway for LtcGateway {
@@ -316,11 +342,22 @@ impl Gateway for LtcGateway {
         crate::electrum::BtcNetwork::Mainnet
     }
 
+    fn txs_by_ids(&self, txids: &[Txid]) -> Result<Vec<Option<Transaction>>, ChainError> {
+        self.txs_batched(txids)
+    }
+
+    fn estimate_fees_batch(&self, blocks: &[u32]) -> Result<Vec<f64>, ChainError> {
+        let depths: Vec<usize> = blocks.iter().map(|b| *b as usize).collect();
+        self.client
+            .batch_estimate_fee(&depths)
+            .map_err(crate::electrum::map_client_error)
+    }
+
     fn server_features(&self) -> Result<(String, String, String, [u8; 32]), ChainError> {
         let f = self
             .client
             .server_features()
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok((
             f.server_version,
             f.protocol_min,
@@ -333,7 +370,7 @@ impl Gateway for LtcGateway {
         let n = self
             .client
             .block_headers_subscribe()
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(n.height as u32)
     }
 
@@ -348,7 +385,7 @@ impl Gateway for LtcGateway {
         let b = self
             .client
             .script_get_balance(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(ScriptBalance {
             confirmed_sat: b.confirmed,
             unconfirmed_sat: b.unconfirmed,
@@ -360,7 +397,7 @@ impl Gateway for LtcGateway {
         let list = self
             .client
             .script_list_unspent(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|u| Utxo {
@@ -377,7 +414,7 @@ impl Gateway for LtcGateway {
         let list = self
             .client
             .script_get_history(s)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|h| HistoryEntry {
@@ -395,7 +432,7 @@ impl Gateway for LtcGateway {
         let list = self
             .client
             .batch_script_get_balance(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|b| ScriptBalance {
@@ -416,7 +453,7 @@ impl Gateway for LtcGateway {
         let list = self
             .client
             .batch_script_get_history(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|per| {
@@ -438,7 +475,7 @@ impl Gateway for LtcGateway {
         let list = self
             .client
             .batch_script_list_unspent(refs)
-            .map_err(|e| ChainError::Protocol(e.to_string()))?;
+            .map_err(crate::electrum::map_client_error)?;
         Ok(list
             .into_iter()
             .map(|per| {
@@ -457,16 +494,14 @@ impl Gateway for LtcGateway {
     fn tx_by_id(&self, txid: &Txid) -> Result<Option<Transaction>, ChainError> {
         match self.client.transaction_get(txid) {
             Ok(tx) => Ok(Some(tx)),
+            // Same discipline as BTC: "unknown tx" trusted only from the
+            // SERVER (protocol/message), never from transport failures.
             Err(e) => {
-                let text = e.to_string().to_ascii_lowercase();
-                if text.contains("no such")
-                    || text.contains("unknown")
-                    || text.contains("not found")
-                    || text.contains("tx not in block chain")
-                {
-                    return Ok(None);
+                if crate::electrum::is_missing_tx_error(&e) {
+                    Ok(None)
+                } else {
+                    Err(crate::electrum::map_client_error(e))
                 }
-                Err(ChainError::Protocol(e.to_string()))
             }
         }
     }

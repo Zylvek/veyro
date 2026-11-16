@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `map_status`, `scanned_scripts`, `transient_sync_error`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `map_status`, `scanned_scripts`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Unlock a wallet for BTC operations (must be re-done per app run; `btc_lock`
 /// wipes the in-Rust seed).
@@ -36,6 +36,10 @@ Future<void> btcLock() => RustLib.instance.api.crateApiBtcBtcLock();
 /// Discover all wallet addresses (gap-limited), compute the balance and the
 /// spendable set. Run this after unlock (and after every send, see
 /// `btc_send`).
+///
+/// Transient failures get ONE reconnect retry — against the next live-verified
+/// preset server (core-owned list, the failed server goes last), not against
+/// the same dead URL twice.
 Future<BtcSyncDto> btcSync({required int gapLimit}) =>
     RustLib.instance.api.crateApiBtcBtcSync(gapLimit: gapLimit);
 
@@ -69,9 +73,7 @@ Future<BtcSendResultDto> btcSend({
 Future<BtcTxStatusDto> btcTxStatus({required String txid}) =>
     RustLib.instance.api.crateApiBtcBtcTxStatus(txid: txid);
 
-/// The wallet history with computed amounts (requires a prior `btc_sync`).
-/// Capped by the scan module's MAX_HISTORY_ITEMS safety valve.
-Future<List<BtcHistoryItemDto>> btcHistory() =>
+Future<BtcHistoryDto> btcHistory() =>
     RustLib.instance.api.crateApiBtcBtcHistory();
 
 /// One derived address (public data only).
@@ -148,6 +150,37 @@ class BtcFeeRatesDto {
           normalSatVb == other.normalSatVb &&
           slowSatVb == other.slowSatVb &&
           fallback == other.fallback;
+}
+
+/// The wallet history with computed amounts (requires a prior `btc_sync`).
+///
+/// Honest truncation: a wallet with more than MAX_HISTORY_ITEMS per-address
+/// history entries gets its MOST RECENT items resolved; `truncated` is true
+/// and `total_entries` reports the full count, so the UI can say exactly
+/// what is shown (never a fabricated "all", never a hard failure).
+class BtcHistoryDto {
+  final List<BtcHistoryItemDto> items;
+  final PlatformInt64 totalEntries;
+  final bool truncated;
+
+  const BtcHistoryDto({
+    required this.items,
+    required this.totalEntries,
+    required this.truncated,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ totalEntries.hashCode ^ truncated.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BtcHistoryDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          totalEntries == other.totalEntries &&
+          truncated == other.truncated;
 }
 
 /// One wallet transaction with its amounts (satoshis only).

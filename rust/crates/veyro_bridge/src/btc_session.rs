@@ -109,12 +109,18 @@ pub fn store_gateway(gateway: ElectrumGateway) -> Result<()> {
     Ok(())
 }
 
-/// Invalidate stale spendables (after a successful send). The discovery data
-/// stays — receive addresses and history do not depend on UTXOs.
-pub fn invalidate_utxos() -> Result<()> {
+/// After a successful send: the spendable set is stale (a stale set would
+/// double-spend) AND the just-used change address must not serve the next
+/// send twice — discovery's internal `last_used` is advanced so the next
+/// change index is fresh even before the next full sync.
+pub fn after_send() -> Result<()> {
     let mut guard = with_lock()?;
     if let Some(session) = guard.as_mut() {
         session.utxos = None;
+        if let Some(discovery) = session.discovery.as_mut() {
+            let next = discovery.internal.next_index();
+            discovery.internal.last_used = Some(next);
+        }
     }
     Ok(())
 }

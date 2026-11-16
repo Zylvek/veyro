@@ -57,13 +57,13 @@ class VeyroApp extends StatelessWidget {
       // AnimatedBuilder — пересборка всего навигатора при смене языка:
       // словарные экраны мгновенно перерисовываются на новый язык.
       builder: (context, child) => AnimatedBuilder(
-            animation: languageRevision,
-            builder: (context, kid) => AmbienceSurface(
-              withMark: true,
-              child: kid ?? const SizedBox.shrink(),
-            ),
-            child: child,
-          ),
+        animation: languageRevision,
+        builder: (context, kid) => AmbienceSurface(
+          withMark: true,
+          child: kid ?? const SizedBox.shrink(),
+        ),
+        child: child,
+      ),
       home: const LockScreen(),
     );
   }

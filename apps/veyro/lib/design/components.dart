@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/ambience.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/util/l10n.dart';
 
 /// Максимальная ширина основного содержимого на desktop (аудит UI:
@@ -92,13 +93,18 @@ class VCard extends StatelessWidget {
                   // Expanded: длинные заголовки переносятся, а не ломают
                   // строку переполнением.
                   Expanded(
-                    child: Text(title!,
-                        style: Theme.of(context).textTheme.titleMedium),
+                    child: Text(
+                      title!,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
                 ],
               ),
             ),
-          Padding(padding: padding, child: Column(children: children)),
+          Padding(
+            padding: padding,
+            child: Column(children: children),
+          ),
         ],
       ),
     );
@@ -160,9 +166,9 @@ class VAmount extends StatelessWidget {
       children: [
         // Мягкий «переезд» суммы при изменении/скрытии — без резкой смены.
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
+          duration: VMotion.contentSwap,
+          switchInCurve: VMotion.easeIn,
+          switchOutCurve: VMotion.easeOut,
           transitionBuilder: (child, animation) => FadeTransition(
             opacity: animation,
             child: SlideTransition(
@@ -198,6 +204,52 @@ class VAmount extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Текстовый аналог [VAmount]: та же мягкая смена содержимого (fade +
+/// микроподъём), но со стилем вызывающего экрана и выравниванием влево —
+/// для балансов карточек, фиатных строк и hero-цифр Обзора. Табулярные
+/// цифры задаются стилем самого экрана (дизайн-конвентция).
+class VAnimatedText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+
+  /// Переопределение длительности (по умолчанию — смена содержимого
+  /// движений 200 мс).
+  final Duration? duration;
+
+  const VAnimatedText(
+    this.text, {
+    super.key,
+    required this.style,
+    this.duration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: duration ?? VMotion.contentSwap,
+      switchInCurve: VMotion.easeIn,
+      switchOutCurve: VMotion.easeOut,
+      // Смена значения не двигает композицию: контент срастается к левому
+      // краю (дефолтный center «прыгает» на смене ширины цифр).
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.centerLeft,
+        children: <Widget>[...previousChildren, ?currentChild],
+      ),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.25),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: Text(text, key: ValueKey(text), style: style),
     );
   }
 }
@@ -241,10 +293,7 @@ class VStatusChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: _color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           // Flexible: длинные подписи (например, состояние сессии с именем
@@ -284,8 +333,8 @@ class VButton extends StatefulWidget {
     this.icon,
     this.onPressed,
     this.busy = false,
-  })  : secondary = false,
-        destructive = false;
+  }) : secondary = false,
+       destructive = false;
 
   const VButton.secondary(
     this.label, {
@@ -293,8 +342,8 @@ class VButton extends StatefulWidget {
     this.icon,
     this.onPressed,
     this.busy = false,
-  })  : secondary = true,
-        destructive = false;
+  }) : secondary = true,
+       destructive = false;
 
   const VButton.destructive(
     this.label, {
@@ -302,8 +351,8 @@ class VButton extends StatefulWidget {
     this.icon,
     this.onPressed,
     this.busy = false,
-  })  : secondary = false,
-        destructive = true;
+  }) : secondary = false,
+       destructive = true;
 
   @override
   State<VButton> createState() => _VButtonState();
@@ -327,8 +376,7 @@ class _VButtonState extends State<VButton> {
 
     // Primary/destructive — своя отрисовка: вертикальный градиент,
     // мягкое «дыхание» тени под курсором (desktop), press через InkWell.
-    final accent =
-        widget_.destructive ? VColors.error : VColors.primary;
+    final accent = widget_.destructive ? VColors.error : VColors.primary;
     return MouseRegion(
       cursor: widget_.busy ? MouseCursor.defer : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hover = true),
@@ -343,9 +391,7 @@ class _VButtonState extends State<VButton> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             gradient: widget_.destructive
-                ? const LinearGradient(
-                    colors: [VColors.error, VColors.error],
-                  )
+                ? const LinearGradient(colors: [VColors.error, VColors.error])
                 : const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -354,7 +400,8 @@ class _VButtonState extends State<VButton> {
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(
-                    alpha: enabled ? (_hover ? 0.42 : 0.20) : 0.0),
+                  alpha: enabled ? (_hover ? 0.42 : 0.20) : 0.0,
+                ),
                 blurRadius: _hover ? 18 : 10,
                 offset: const Offset(0, 4),
               ),
@@ -397,8 +444,11 @@ class _VButtonState extends State<VButton> {
 
   Widget _iconOrProgress() {
     if (!widget.busy) {
-      return Icon(widget.icon ?? Icons.arrow_forward_outlined,
-          size: 18, color: Colors.white);
+      return Icon(
+        widget.icon ?? Icons.arrow_forward_outlined,
+        size: 18,
+        color: Colors.white,
+      );
     }
     return const SizedBox(
       width: 16,
@@ -422,7 +472,9 @@ class VScreen extends StatelessWidget {
       width: 640,
       child: scrollable ? SingleChildScrollView(child: child) : child,
     );
-    return Center(child: Padding(padding: const EdgeInsets.all(20), child: content));
+    return Center(
+      child: Padding(padding: const EdgeInsets.all(20), child: content),
+    );
   }
 }
 
@@ -477,14 +529,13 @@ class VEmptyState extends StatelessWidget {
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Text(message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
-          if (action != null) ...[
-            const SizedBox(height: 16),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 16), action!],
         ],
       ),
     );
@@ -505,10 +556,7 @@ class VeyroLogo extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: Image.asset(
-        'assets/brand/logo.png',
-        fit: BoxFit.contain,
-      ),
+      child: Image.asset('assets/brand/logo.png', fit: BoxFit.contain),
     );
   }
 }
@@ -531,7 +579,11 @@ class VMonoCopyRow extends StatelessWidget {
         Expanded(child: VMono(value, fontSize: 12.5)),
         IconButton(
           tooltip: t('copy_tooltip'),
-          icon: Icon(Icons.copy_outlined, size: 16, color: VColors.textSecondary),
+          icon: Icon(
+            Icons.copy_outlined,
+            size: 16,
+            color: VColors.textSecondary,
+          ),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: value));
             ScaffoldMessenger.of(context).showSnackBar(
@@ -703,7 +755,9 @@ class VSparkline extends StatefulWidget {
     if (span == 0) {
       y = size.height * 0.62;
     } else {
-      y = size.height * 0.92 - (values[index] - min) / span * size.height * 0.84;
+      y =
+          size.height * 0.92 -
+          (values[index] - min) / span * size.height * 0.84;
     }
     return (x: x, y: y);
   }
@@ -723,8 +777,9 @@ class _VSparklineState extends State<VSparkline>
     duration: const Duration(milliseconds: 750),
   )..forward();
 
-  static final Animatable<double> _drawCurve =
-      CurveTween(curve: const Cubic(0.3, 0.9, 0.35, 1.0));
+  static final Animatable<double> _drawCurve = CurveTween(
+    curve: const Cubic(0.3, 0.9, 0.35, 1.0),
+  );
 
   bool _sameAs(List<double> a, List<double> b) {
     if (identical(a, b)) return true;
@@ -775,7 +830,10 @@ class _VSparklineState extends State<VSparkline>
               ),
             ),
             // Наведение работает, когда линия полностью отрисована.
-            if (settled && hover != null && hover >= 0 && hover < values.length) ...[
+            if (settled &&
+                hover != null &&
+                hover >= 0 &&
+                hover < values.length) ...[
               _cursor(hover, values, size),
               _dot(hover, values, size),
               if (hints != null && hover < hints.length)
@@ -788,10 +846,9 @@ class _VSparklineState extends State<VSparkline>
                 onHover: (event) {
                   final n = values.length;
                   if (n < 2) return;
-                  final i =
-                      ((event.localPosition.dx / size.width) * (n - 1))
-                          .round()
-                          .clamp(0, n - 1);
+                  final i = ((event.localPosition.dx / size.width) * (n - 1))
+                      .round()
+                      .clamp(0, n - 1);
                   if (i != _hover) setState(() => _hover = i);
                 },
                 onExit: (_) {
@@ -935,10 +992,7 @@ class _SparklinePainter extends CustomPainter {
     final fill = Path.from(line);
     final endX = VSparkline.pointOf(values, values.length - 1, size).x * t;
     fill.lineTo(endX, size.height);
-    fill.lineTo(
-      VSparkline.pointOf(values, 0, size).x,
-      size.height,
-    );
+    fill.lineTo(VSparkline.pointOf(values, 0, size).x, size.height);
     fill.close();
 
     final fillPaint = Paint()
@@ -1047,11 +1101,11 @@ class _CoinActionTileState extends State<CoinActionTile> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.enabled ? Theme.of(context).colorScheme.primary : null;
+    final accent = widget.enabled
+        ? Theme.of(context).colorScheme.primary
+        : null;
     return MouseRegion(
-      cursor: widget.enabled
-          ? SystemMouseCursors.click
-          : MouseCursor.defer,
+      cursor: widget.enabled ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: widget.enabled ? (_) => setState(() => _hover = true) : null,
       onExit: (_) => setState(() => _hover = false),
       child: AnimatedContainer(
@@ -1069,8 +1123,9 @@ class _CoinActionTileState extends State<CoinActionTile> {
           boxShadow: [
             if (_hover && widget.enabled)
               BoxShadow(
-                color: (accent ?? VColors.textSecondary)
-                    .withValues(alpha: 0.18),
+                color: (accent ?? VColors.textSecondary).withValues(
+                  alpha: 0.18,
+                ),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),

@@ -37,7 +37,11 @@ Future<String?> promptPassword(
             labelText: t('password_prompt'),
             hintText: t('password_hint'),
             suffixIcon: IconButton(
-              icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+              icon: Icon(
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+              ),
               onPressed: () => setDialogState(() => obscure = !obscure),
             ),
           ),
@@ -51,7 +55,9 @@ Future<String?> promptPassword(
             onPressed: controller.text.trim().isEmpty
                 ? null
                 : () => Navigator.of(dialogContext).pop(controller.text),
-            child: Text(confirmLabel.isEmpty ? t('continue_default') : confirmLabel),
+            child: Text(
+              confirmLabel.isEmpty ? t('continue_default') : confirmLabel,
+            ),
           ),
         ],
       ),
@@ -69,9 +75,7 @@ Future<void> showMnemonicDialog(BuildContext context, String phrase) {
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(t('mnemonic_dialog_title')),
-      content: SingleChildScrollView(
-        child: VMnemonicGrid(words: words),
-      ),
+      content: SingleChildScrollView(child: VMnemonicGrid(words: words)),
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
@@ -98,7 +102,7 @@ Future<bool> confirmAction(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Отмена'),
+          child: Text(t('cancel')),
         ),
         FilledButton(
           style: destructive
@@ -127,11 +131,9 @@ void showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
-          tf(
-            'error_prefix',
-            {'error': '$error'},
-          ),
-          style: const TextStyle(color: Colors.white)),
+        tf('error_prefix', {'error': '$error'}),
+        style: const TextStyle(color: Colors.white),
+      ),
       backgroundColor: Colors.red.shade800,
       duration: const Duration(seconds: 6),
       behavior: SnackBarBehavior.floating,
@@ -178,7 +180,10 @@ class SectionCard extends StatelessWidget {
               ],
             ),
           ),
-          Padding(padding: padding, child: Column(children: children)),
+          Padding(
+            padding: padding,
+            child: Column(children: children),
+          ),
         ],
       ),
     );

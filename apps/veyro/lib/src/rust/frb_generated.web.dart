@@ -6,7 +6,6 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api/backup.dart';
 import 'api/btc.dart';
 import 'api/ltc.dart';
 import 'api/session.dart';
@@ -35,9 +34,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
-  BackupWalletRequest dco_decode_backup_wallet_request(dynamic raw);
-
-  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -53,13 +49,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_box_autoadd_u_64(dynamic raw);
 
   @protected
-  WalletRowDto dco_decode_box_autoadd_wallet_row_dto(dynamic raw);
-
-  @protected
   BtcAddressDto dco_decode_btc_address_dto(dynamic raw);
 
   @protected
   BtcFeeRatesDto dco_decode_btc_fee_rates_dto(dynamic raw);
+
+  @protected
+  BtcHistoryDto dco_decode_btc_history_dto(dynamic raw);
 
   @protected
   BtcHistoryItemDto dco_decode_btc_history_item_dto(dynamic raw);
@@ -89,9 +85,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
-  List<BackupWalletRequest> dco_decode_list_backup_wallet_request(dynamic raw);
-
-  @protected
   List<BtcAddressDto> dco_decode_list_btc_address_dto(dynamic raw);
 
   @protected
@@ -110,13 +103,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WalletInfoDto> dco_decode_list_wallet_info_dto(dynamic raw);
 
   @protected
-  List<WalletRowDto> dco_decode_list_wallet_row_dto(dynamic raw);
-
-  @protected
   LtcAddressDto dco_decode_ltc_address_dto(dynamic raw);
 
   @protected
   LtcFeeRatesDto dco_decode_ltc_fee_rates_dto(dynamic raw);
+
+  @protected
+  LtcHistoryDto dco_decode_ltc_history_dto(dynamic raw);
 
   @protected
   LtcHistoryItemDto dco_decode_ltc_history_item_dto(dynamic raw);
@@ -171,18 +164,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WalletInfoDto dco_decode_wallet_info_dto(dynamic raw);
 
   @protected
-  WalletRowDto dco_decode_wallet_row_dto(dynamic raw);
-
-  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
-
-  @protected
-  BackupWalletRequest sse_decode_backup_wallet_request(
-    SseDeserializer deserializer,
-  );
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -204,15 +189,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
-  WalletRowDto sse_decode_box_autoadd_wallet_row_dto(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   BtcAddressDto sse_decode_btc_address_dto(SseDeserializer deserializer);
 
   @protected
   BtcFeeRatesDto sse_decode_btc_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  BtcHistoryDto sse_decode_btc_history_dto(SseDeserializer deserializer);
 
   @protected
   BtcHistoryItemDto sse_decode_btc_history_item_dto(
@@ -246,11 +229,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
-  List<BackupWalletRequest> sse_decode_list_backup_wallet_request(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<BtcAddressDto> sse_decode_list_btc_address_dto(
     SseDeserializer deserializer,
   );
@@ -279,15 +257,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<WalletRowDto> sse_decode_list_wallet_row_dto(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   LtcAddressDto sse_decode_ltc_address_dto(SseDeserializer deserializer);
 
   @protected
   LtcFeeRatesDto sse_decode_ltc_fee_rates_dto(SseDeserializer deserializer);
+
+  @protected
+  LtcHistoryDto sse_decode_ltc_history_dto(SseDeserializer deserializer);
 
   @protected
   LtcHistoryItemDto sse_decode_ltc_history_item_dto(
@@ -346,9 +322,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WalletInfoDto sse_decode_wallet_info_dto(SseDeserializer deserializer);
 
   @protected
-  WalletRowDto sse_decode_wallet_row_dto(SseDeserializer deserializer);
-
-  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -359,12 +332,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_backup_wallet_request(
-    BackupWalletRequest self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -388,12 +355,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_wallet_row_dto(
-    WalletRowDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_btc_address_dto(BtcAddressDto self, SseSerializer serializer);
 
   @protected
@@ -401,6 +362,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     BtcFeeRatesDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_btc_history_dto(BtcHistoryDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_btc_history_item_dto(
@@ -445,12 +409,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_backup_wallet_request(
-    List<BackupWalletRequest> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_btc_address_dto(
     List<BtcAddressDto> self,
     SseSerializer serializer,
@@ -487,12 +445,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_wallet_row_dto(
-    List<WalletRowDto> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_ltc_address_dto(LtcAddressDto self, SseSerializer serializer);
 
   @protected
@@ -500,6 +452,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     LtcFeeRatesDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_ltc_history_dto(LtcHistoryDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_ltc_history_item_dto(
@@ -566,9 +521,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_wallet_info_dto(WalletInfoDto self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_wallet_row_dto(WalletRowDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

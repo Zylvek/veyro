@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `ltc_scanned_scripts`, `scanned_scripts`, `transient_sync_error`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `address_dto`, `attempt_sync`, `derive_dto`, `ltc_scanned_scripts`, `scanned_scripts`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The candidate Electrum-LTC servers (core-owned list, order = liveness).
 Future<List<String>> ltcServers() =>
@@ -42,6 +42,9 @@ Future<LtcSessionStateDto?> ltcSessionState() =>
     RustLib.instance.api.crateApiLtcLtcSessionState();
 
 /// Discover all wallet addresses (gap-limited), compute the balance.
+///
+/// Same retry discipline as BTC: ONE reconnect retry against the next
+/// core-owned candidate (the failed server goes last).
 Future<LtcSyncDto> ltcSync({required int gapLimit}) =>
     RustLib.instance.api.crateApiLtcLtcSync(gapLimit: gapLimit);
 
@@ -53,9 +56,7 @@ Future<LtcAddressDto> ltcReceiveAddress() =>
 Future<LtcTxStatusDto> ltcTxStatus({required String txid}) =>
     RustLib.instance.api.crateApiLtcLtcTxStatus(txid: txid);
 
-/// The wallet history with computed amounts (requires a prior `ltc_sync`).
-/// Capped by the scan module's MAX_HISTORY_ITEMS safety valve.
-Future<List<LtcHistoryItemDto>> ltcHistory() =>
+Future<LtcHistoryDto> ltcHistory() =>
     RustLib.instance.api.crateApiLtcLtcHistory();
 
 /// Fee presets for the 1/3/6-block depth. The Electrum protocol unit is
@@ -153,6 +154,33 @@ class LtcFeeRatesDto {
           normalLitVb == other.normalLitVb &&
           slowLitVb == other.slowLitVb &&
           fallback == other.fallback;
+}
+
+/// The wallet history with computed amounts (requires a prior `ltc_sync`).
+/// Honest truncation, same contract as BTC (see `BtcHistoryDto`).
+class LtcHistoryDto {
+  final List<LtcHistoryItemDto> items;
+  final PlatformInt64 totalEntries;
+  final bool truncated;
+
+  const LtcHistoryDto({
+    required this.items,
+    required this.totalEntries,
+    required this.truncated,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ totalEntries.hashCode ^ truncated.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LtcHistoryDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          totalEntries == other.totalEntries &&
+          truncated == other.truncated;
 }
 
 /// One wallet transaction with its amounts (litoshi amounts).

@@ -2,7 +2,4 @@
 //! и экраны, и провайдеры форм; BTC — исторически «дефолтная» монета,
 //! LTC — вторая реализованная (receive-only).
 
-enum WalletCoin {
-  btc,
-  ltc,
-}
+enum WalletCoin { btc, ltc }

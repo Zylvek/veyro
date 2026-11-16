@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -80,8 +81,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           _wallets = list;
           _walletError = null;
           final preferred = widget.wallet ?? _walletById(DisplayPrefs.walletId);
-          _chosenWallet =
-              list.any((w) => w.id == preferred?.id) ? preferred : null;
+          _chosenWallet = list.any((w) => w.id == preferred?.id)
+              ? preferred
+              : null;
           // Один кошелёк — подставляем сразу; несколько — предлагает выбор UI.
           if (_chosenWallet == null && list.length == 1) {
             _chosenWallet = list.first;
@@ -115,9 +117,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           // Retry, а не вечный лоудер (жалоба владельца на зависание).
           final state = await ltcSessionState().timeout(
             const Duration(seconds: 12),
-            onTimeout: () => throw StateError(
-              'Состояние сессии LTC не получено за 12 c (ядро занято?)',
-            ),
+            onTimeout: () => throw StateError(t('ltc_session_timeout')),
           );
           if (!mounted) return;
           setState(() {
@@ -132,7 +132,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             _ltcSession = null;
             _session = null;
             _sessionChecked = true;
-            _walletError ??= 'Состояние сессии LTC не прочитано: $e';
+            _walletError ??= tf('ltc_session_read_error', {'error': '$e'});
           });
           return;
         }
@@ -152,7 +152,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         _session = null;
         _ltcSession = null;
         _sessionChecked = true;
-        _walletError ??= 'Состояние сессии BTC не прочитано: $e';
+        _walletError ??= tf('btc_session_read_error', {'error': '$e'});
       });
     }
   }
@@ -165,9 +165,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   Future<void> _openBtcWorkbench() async {
     final wallet = _chosenWallet;
     if (wallet == null) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => BtcScreen(info: wallet)),
-    );
+    await pushVeyro<void>(context, BtcScreen(info: wallet));
     // Возврат из центра управления — перечитать сессию (могли unlock/lock).
     if (mounted) {
       await _loadSession();
@@ -177,9 +175,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   Future<void> _openLtcWorkbench() async {
     final wallet = _chosenWallet;
     if (wallet == null) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => LtcScreen(info: wallet)),
-    );
+    await pushVeyro<void>(context, LtcScreen(info: wallet));
     // Возврат из центра управления — перечитать сессию (могли unlock/lock).
     if (mounted) {
       await _loadSession();
@@ -194,7 +190,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         title: Text(_asset.ticker),
         actions: [
           IconButton(
-            tooltip: isFavorite ? t('fav_remove_tooltip') : t('fav_add_tooltip'),
+            tooltip: isFavorite
+                ? t('fav_remove_tooltip')
+                : t('fav_add_tooltip'),
             icon: Icon(
               isFavorite ? Icons.star : Icons.star_outline,
               color: isFavorite ? VColors.warning : VColors.textSecondary,
@@ -285,7 +283,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             ),
           )
         else if (session != null) ...[
-          kvRow(t('network_label'), ruNetworkText(session.networkDisplay) ?? '—'),
+          kvRow(
+            t('network_label'),
+            ruNetworkText(session.networkDisplay) ?? '—',
+          ),
           VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
           kvRow(t('account_row'), "m/84'/2'/${session.account}'"),
         ] else
@@ -294,20 +295,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         const Divider(height: 22),
-        Text(
-          t('sync_note'),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(t('sync_note'), style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
         if (_walletError != null) ...[
           Text(
-            tf(
-              'wallets_read_error',
-              {'error': '$_walletError'},
-            ),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
+            tf('wallets_read_error', {'error': '$_walletError'}),
+            style: Theme.of(context).textTheme.bodySmall!
                 .copyWith(color: VColors.error),
           ),
         ] else if (_wallets != null && _wallets!.isEmpty) ...[
@@ -333,9 +326,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           const SizedBox(height: 12),
         ],
         VButton.primary(
-          session != null
-              ? t('open_ltc_center')
-              : t('unlock_manage_ltc'),
+          session != null ? t('open_ltc_center') : t('unlock_manage_ltc'),
           icon: Icons.lock_open_outlined,
           onPressed: _chosenWallet == null ? null : _openLtcWorkbench,
         ),
@@ -357,7 +348,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             ),
           )
         else if (session != null) ...[
-          kvRow(t('network_label'), ruNetworkText(session.networkDisplay) ?? '—'),
+          kvRow(
+            t('network_label'),
+            ruNetworkText(session.networkDisplay) ?? '—',
+          ),
           VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
           kvRow(t('account_row'), "m/84'/0'/${session.account}'"),
           const SizedBox(height: 6),
@@ -377,20 +371,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         const Divider(height: 22),
-        Text(
-          t('sync_note'),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(t('sync_note'), style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
         if (_walletError != null) ...[
           Text(
-            tf(
-              'wallets_read_error',
-              {'error': '$_walletError'},
-            ),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
+            tf('wallets_read_error', {'error': '$_walletError'}),
+            style: Theme.of(context).textTheme.bodySmall!
                 .copyWith(color: VColors.error),
           ),
         ] else if (_wallets != null && _wallets!.isEmpty) ...[
@@ -416,9 +402,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           const SizedBox(height: 12),
         ],
         VButton.primary(
-          session != null
-              ? t('open_btc_center')
-              : t('unlock_manage_btc'),
+          session != null ? t('open_btc_center') : t('unlock_manage_btc'),
           icon: Icons.lock_open_outlined,
           onPressed: _chosenWallet == null ? null : _openBtcWorkbench,
         ),

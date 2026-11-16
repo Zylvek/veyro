@@ -19,9 +19,12 @@ import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/network.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/ui_helpers.dart';
@@ -31,6 +34,7 @@ import 'receive_screen.dart';
 import 'send_screen.dart';
 
 const _persistKeyPrefix = 'ltc_last_sync';
+
 class LtcScreen extends StatefulWidget {
   final WalletInfoDto info;
 
@@ -47,7 +51,7 @@ class _LtcScreenState extends State<LtcScreen> {
   String? _error;
 
   /// Что сейчас происходит.
-  String _busyLabel = t('btc_connecting');
+  String _busyLabel = t('ltc_connecting');
 
   /// Дисциплина повторов: после неудачной серии пауза удваивается
   /// (15 c → … → 4 мин max), успех сброс.
@@ -70,11 +74,13 @@ class _LtcScreenState extends State<LtcScreen> {
   Future<void> _loadPersisted() async {
     try {
       final raw = await dbGetSetting(
-          key: '$_persistKeyPrefix:${widget.info.id}');
+        key: '$_persistKeyPrefix:${widget.info.id}',
+      );
       if (!mounted) return;
       setState(() {
-        _persisted =
-            raw == null ? null : (jsonDecode(raw) as Map<String, dynamic>);
+        _persisted = raw == null
+            ? null
+            : (jsonDecode(raw) as Map<String, dynamic>);
       });
     } catch (_) {
       if (!mounted) return;
@@ -98,7 +104,9 @@ class _LtcScreenState extends State<LtcScreen> {
     });
     try {
       await dbSetSetting(
-          key: '$_persistKeyPrefix:${widget.info.id}', value: payload);
+        key: '$_persistKeyPrefix:${widget.info.id}',
+        value: payload,
+      );
     } catch (_) {}
     if (!mounted) return;
     setState(() {
@@ -126,10 +134,10 @@ class _LtcScreenState extends State<LtcScreen> {
         _state = state;
         _busy = false;
       });
-      // Свежий кэш (этого запуска) — показать сразу; персистентные данные
+      // Свежий кэш ЭТОГО кошелька — показать сразу; персистентные данные
       // уже на экране. Авто-синк — только если данных ещё нет.
       if (state != null) {
-        final cached = LtcStateCache.instance.take();
+        final cached = LtcStateCache.instance.take(walletId: widget.info.id);
         if (cached != null && _sync == null) {
           setState(() => _sync = cached);
           if (!autosyncIfUnlocked) return;
@@ -168,7 +176,8 @@ class _LtcScreenState extends State<LtcScreen> {
     if (autoWithCache) {
       password = '';
     } else {
-      password = await promptPassword(
+      password =
+          await promptPassword(
             context,
             title: tf('ltc_unlock_title', {'name': widget.info.name}),
             confirmLabel: t('connect_btn'),
@@ -203,13 +212,7 @@ class _LtcScreenState extends State<LtcScreen> {
         _failureStreak = 0;
         _lastSeriesFailedAt = null;
       } catch (e) {
-        final raw = e.toString();
-        final isTransient = raw.contains('electrum') ||
-            raw.contains('unexpected end of file') ||
-            raw.contains('all errored') ||
-            raw.contains('timed out') ||
-            raw.contains('connection') ||
-            raw.contains('EOF');
+        final isTransient = isTransientNetworkError(e);
         final silentUsed = autoWithCache;
         if (silentUsed && !isTransient) {
           if (!mounted) return;
@@ -233,8 +236,11 @@ class _LtcScreenState extends State<LtcScreen> {
             _failureStreak = 0;
             _lastSeriesFailedAt = null;
           } catch (e2) {
-            _failureStreak += 1;
-            _lastSeriesFailedAt = DateTime.now();
+            final wrongPassword = e2.toString().contains('decryption failed');
+            if (!wrongPassword) {
+              _failureStreak += 1;
+              _lastSeriesFailedAt = DateTime.now();
+            }
             rethrow;
           }
         } else {
@@ -245,8 +251,14 @@ class _LtcScreenState extends State<LtcScreen> {
       await _doSync();
     } catch (e) {
       if (!mounted) return;
-      _failureStreak += 1;
-      _lastSeriesFailedAt = DateTime.now();
+      // Дисциплина повторов касается ТОЛЬКО сетевых неудач: неверный пароль
+      // («decryption failed») — это человеческая опечатка, а не деградация
+      // сети; backoff за неё не наращивается.
+      final wrongPassword = e.toString().contains('decryption failed');
+      if (!wrongPassword) {
+        _failureStreak += 1;
+        _lastSeriesFailedAt = DateTime.now();
+      }
       LtcConnectState.instance.setBusy(false);
       setState(() {
         _error = _cleanError(e);
@@ -314,15 +326,11 @@ class _LtcScreenState extends State<LtcScreen> {
         failures.add('$host: таймаут 60 c');
         await Future.delayed(const Duration(milliseconds: 800));
       } catch (e) {
+        if (!isTransientNetworkError(e)) {
+          failures.add('$host: ${_oneLine(_cleanError(e))}');
+          break;
+        }
         failures.add('$host: ${_oneLine(_cleanError(e))}');
-        final raw = e.toString();
-        final transient = raw.contains('electrum') ||
-            raw.contains('unexpected end of file') ||
-            raw.contains('all errored') ||
-            raw.contains('timed out') ||
-            raw.contains('connection') ||
-            raw.contains('EOF');
-        if (!transient) break;
         await Future.delayed(const Duration(milliseconds: 1200));
       }
     }
@@ -337,13 +345,13 @@ class _LtcScreenState extends State<LtcScreen> {
   Future<void> _doSync() async {
     if (mounted) {
       setState(() {
-        _busyLabel = t('btc_syncing_addresses_long');
+        _busyLabel = t('ltc_syncing_addresses_long');
       });
     }
     try {
-      final sync = await ltcSync(gapLimit: 20);
+      final sync = await ltcSync(gapLimit: kDefaultGapLimit);
       if (!mounted) return;
-      LtcStateCache.instance.store(sync);
+      LtcStateCache.instance.store(sync, walletId: widget.info.id);
       LtcConnectState.instance.setBusy(false);
       await _savePersisted(sync);
       setState(() {
@@ -352,18 +360,20 @@ class _LtcScreenState extends State<LtcScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      final raw = e.toString();
-      final transient = raw.contains('electrum') ||
-          raw.contains('unexpected end of file') ||
-          raw.contains('all errored') ||
-          raw.contains('timed out') ||
-          raw.contains('connection');
-      if (transient && mounted) {
+      // Тихий доконнект имеет смысл только при живом кэше пароля: без него
+      // честная наружная ошибка (а не «decryption failed» от пустого пароля).
+      var canSilent = false;
+      if (isTransientNetworkError(e)) {
+        try {
+          canSilent = await sessionPasswordCached(walletId: widget.info.id);
+        } catch (_) {}
+      }
+      if (canSilent && mounted) {
         try {
           await _unlockViaCandidates('');
-          final sync2 = await ltcSync(gapLimit: 20);
+          final sync2 = await ltcSync(gapLimit: kDefaultGapLimit);
           if (!mounted) return;
-          LtcStateCache.instance.store(sync2);
+          LtcStateCache.instance.store(sync2, walletId: widget.info.id);
           LtcConnectState.instance.setBusy(false);
           await _savePersisted(sync2);
           setState(() {
@@ -398,9 +408,11 @@ class _LtcScreenState extends State<LtcScreen> {
     return delta < 0 ? confirmed + delta : confirmed;
   }
 
-  /// Значения для карты баланса: сессия → кэш → персистент → нули.
-  ({int confirmed, int delta, int utxo, int tip, String server, DateTime? at})
-      _balanceView() {
+  /// Значения для карты баланса: сессия → кэш → персистент → null. null —
+  /// данных нет вовсе: показываем честное «не синхронизировано», а не
+  /// выдуманный ноль (правило «без данных — черта и нули не выдумываются»).
+  ({int confirmed, int delta, int utxo, int tip, String server, DateTime? at})?
+  _balanceView() {
     final sync = _sync;
     if (sync != null) {
       return (
@@ -409,6 +421,18 @@ class _LtcScreenState extends State<LtcScreen> {
         utxo: sync.utxoCount,
         tip: sync.tipHeight,
         server: sync.serverUrl,
+        at: null,
+      );
+    }
+    // Свежий кэш этого запуска — та же честность, что у центра BTC.
+    final cached = LtcStateCache.instance.take(walletId: widget.info.id);
+    if (cached != null) {
+      return (
+        confirmed: cached.confirmedSat.toInt(),
+        delta: cached.unconfirmedDeltaSat.toInt(),
+        utxo: cached.utxoCount,
+        tip: cached.tipHeight,
+        server: cached.serverUrl,
         at: null,
       );
     }
@@ -425,16 +449,14 @@ class _LtcScreenState extends State<LtcScreen> {
             : DateTime.fromMillisecondsSinceEpoch((p['at'] as num).toInt()),
       );
     }
-    return (confirmed: 0, delta: 0, utxo: 0, tip: 0, server: '—', at: null);
+    return null;
   }
 
   Future<void> _openSend() async {
-    final sent = await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
-      builder: (_) => SendScreen(
-        coin: WalletCoin.ltc,
-        availableSat: _availableLit(),
-      ),
-    ));
+    final sent = await pushVeyro<bool>(
+      context,
+      SendScreen(coin: WalletCoin.ltc, availableSat: _availableLit()),
+    );
     if (sent == true && mounted) {
       await _refresh(autosyncIfUnlocked: false);
       await _doSync();
@@ -463,11 +485,14 @@ class _LtcScreenState extends State<LtcScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: VColors.error.withValues(alpha: 0.4)),
+                        color: VColors.error.withValues(alpha: 0.4),
+                      ),
                       color: VColors.error.withValues(alpha: 0.10),
                     ),
-                    child: Text(_error!,
-                        style: const TextStyle(fontSize: 12.5)),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -475,72 +500,85 @@ class _LtcScreenState extends State<LtcScreen> {
                   title: t('balance_section'),
                   icon: Icons.savings_outlined,
                   children: [
-                    Text(
-                      '${satToString(v.confirmed)} LTC',
-                      style: const TextStyle(
-                          fontSize: 30, fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      '${groupDigits(v.confirmed)} ${t('ltc_unit')}',
-                      style: const TextStyle(color: Colors.white60),
-                    ),
-                    if (v.delta != 0) ...[
-                      const SizedBox(height: 6),
+                    if (v == null && _busy)
+                      const Center(child: CircularProgressIndicator())
+                    else if (v == null)
                       Text(
-                        tf('mempool_row',
-                            {'value': '${signedLitString(v.delta)} LTC'}),
-                        style: const TextStyle(color: Colors.orangeAccent),
+                        t('not_synced_note'),
+                        style: const TextStyle(color: Colors.white70),
+                      )
+                    else ...[
+                      VAmount(
+                        DisplayPrefs.maskAmount(
+                          '${satToBtcString(v.confirmed)} LTC',
+                        ),
+                        fontSize: 30,
                       ),
-                    ],
-                    const SizedBox(height: 10),
-                    kvRow(t('utxo_available'), '${v.utxo}'),
-                    kvRow(t('chain_height'), v.tip > 0 ? '${v.tip}' : '—'),
-                    if (v.at != null) ...[
-                      const SizedBox(height: 4),
                       Text(
-                        tf('balance_asof_row', {
-                          'value':
-                              '${v.at!.day}.${v.at!.month}.${v.at!.year} ${v.at!.hour.toString().padLeft(2, '0')}:${v.at!.minute.toString().padLeft(2, '0')}'
-                        }),
-                        style: const TextStyle(
-                            color: VColors.textSecondary, fontSize: 11),
+                        '${groupDigits(v.confirmed)} ${t('ltc_unit')}',
+                        style: const TextStyle(color: Colors.white60),
                       ),
-                    ],
-                    if (_busy) ...[
+                      if (v.delta != 0) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          tf('mempool_row', {
+                            'value':
+                                '${DisplayPrefs.maskAmount(signedSatToBtcString(v.delta))} LTC',
+                          }),
+                          style: const TextStyle(color: Colors.orangeAccent),
+                        ),
+                      ],
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2),
+                      kvRow(t('utxo_available'), '${v.utxo}'),
+                      kvRow(t('chain_height'), v.tip > 0 ? '${v.tip}' : '—'),
+                      if (v.at != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          tf('balance_asof_row', {
+                            'value':
+                                '${v.at!.day}.${v.at!.month}.${v.at!.year} ${v.at!.hour.toString().padLeft(2, '0')}:${v.at!.minute.toString().padLeft(2, '0')}',
+                          }),
+                          style: const TextStyle(
+                            color: VColors.textSecondary,
+                            fontSize: 11,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _busyLabel,
-                              style: const TextStyle(
-                                  color: VColors.textSecondary,
-                                  fontSize: 11.5),
+                        ),
+                      ],
+                      if (_busy) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _busyLabel,
+                                style: const TextStyle(
+                                  color: VColors.textSecondary,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      if (unlocked) ...[
+                        FilledButton.tonalIcon(
+                          onPressed: _busy ? null : _doSync,
+                          icon: const Icon(Icons.sync),
+                          label: Text(t('refresh_btn')),
+                        ),
+                      ] else
+                        FilledButton(
+                          onPressed: _busy ? null : () => _unlock(),
+                          child: Text(_busy ? _busyLabel : t('unlock_ltc_btn')),
+                        ),
                     ],
-                    const SizedBox(height: 10),
-                    if (unlocked) ...[
-                      FilledButton.tonalIcon(
-                        onPressed: _busy ? null : _doSync,
-                        icon: const Icon(Icons.sync),
-                        label: Text(t('refresh_btn')),
-                      ),
-                    ] else
-                      FilledButton(
-                        onPressed: _busy ? null : () => _unlock(),
-                        child: Text(
-                            _busy ? _busyLabel : t('unlock_ltc_btn')),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -587,30 +625,12 @@ class _LtcScreenState extends State<LtcScreen> {
   }
 
   Future<void> _openReceive() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const ReceiveScreen(coin: WalletCoin.ltc),
-    ));
+    await pushVeyro<void>(context, const ReceiveScreen(coin: WalletCoin.ltc));
     if (mounted) await _refresh(autosyncIfUnlocked: false);
   }
 
   Future<void> _openHistory() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => HistoryScreen(walletCoin: WalletCoin.ltc),
-    ));
+    await pushVeyro<void>(context, HistoryScreen(walletCoin: WalletCoin.ltc));
     if (mounted) await _refresh(autosyncIfUnlocked: true);
   }
-}
-
-/// Сатоши/лит → строка (для отрицательных значений тоже: mempool строка).
-String satToString(int sat) {
-  if (sat < 0) {
-    return '-${satToString(-sat)}';
-  }
-  return satToBtcString(sat);
-}
-
-String signedLitString(int signedLit) {
-  if (signedLit > 0) return '+${satToString(signedLit)}';
-  if (signedLit < 0) return '-${satToString(-signedLit)}';
-  return '0';
 }

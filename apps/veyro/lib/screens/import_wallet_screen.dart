@@ -9,10 +9,12 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/bip39_suggest.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/password_policy.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
 import 'dashboard_screen.dart';
@@ -37,9 +39,9 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   @override
   void initState() {
     super.initState();
-    Bip39Dictionary.instance
-        .ensureLoaded()
-        .then((_) => mounted ? setState(() {}) : null);
+    Bip39Dictionary.instance.ensureLoaded().then(
+      (_) => mounted ? setState(() {}) : null,
+    );
   }
 
   @override
@@ -61,9 +63,18 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   /// Последний (недописанный) токен фразы — для подсказок.
   String get _currentToken => Bip39Dictionary.lastToken(_phraseController.text);
 
-  /// Честная проверка словаря через общий класс.
-  List<String> get _unknownWords =>
-      Bip39Dictionary.instance.unknownWords(_phraseWords);
+  /// Честная проверка словаря через общий класс. Мемоизация по тексту фразы:
+  /// перебор 2048 слов с edit-distance не должен выполняться на каждый
+  /// setState (например, от соседнего поля).
+  List<String> _unknownWordsCache = const [];
+  String _unknownWordsFor = '';
+  List<String> get _unknownWords {
+    final phrase = _phraseController.text.trim();
+    if (phrase == _unknownWordsFor) return _unknownWordsCache;
+    _unknownWordsFor = phrase;
+    _unknownWordsCache = Bip39Dictionary.instance.unknownWords(_phraseWords);
+    return _unknownWordsCache;
+  }
 
   /// Варианты слов для печатаемого токена (общий класс).
   List<String> get _suggestions =>
@@ -87,7 +98,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       _nameController.text.trim().isNotEmpty &&
       _phraseController.text.trim().split(RegExp(r'\s+')).length >= 12 &&
       _phraseController.text.trim().split(RegExp(r'\s+')).length <= 24 &&
-      _passwordController.text.isNotEmpty &&
+      _passwordController.text.length >= kMinPasswordLength &&
       _passwordController.text == _confirmController.text;
 
   Future<void> _restore() async {
@@ -104,15 +115,12 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(tf(
-            'wallet_restored_snack',
-            {'name': restored.name},
-          )),
+          content: Text(tf('wallet_restored_snack', {'name': restored.name})),
           backgroundColor: VColors.success,
         ),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
+        VeyroSceneRoute<void>(builder: (_) => const DashboardScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -124,8 +132,10 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wordCount =
-        _phraseController.text.trim().split(RegExp(r'\s+')).length;
+    final wordCount = _phraseController.text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .length;
     return Scaffold(
       appBar: AppBar(title: Text(t('import_title'))),
       body: VScreen(
@@ -158,65 +168,55 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   enableSuggestions: false,
                   decoration: InputDecoration(
                     labelText: t('phrase_field'),
-                    helperText:
-                        wordCount >= 12 && wordCount <= 24
-                            ? tf(
-                                'words_entered',
-                                {'count': '$wordCount'},
-                              )
-                            : tf(
-                                'words_counter',
-                                {'count': '$wordCount'},
-                              ),
+                    helperText: wordCount >= 12 && wordCount <= 24
+                        ? tf('words_entered', {'count': '$wordCount'})
+                        : tf('words_counter', {'count': '$wordCount'}),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
                 // Подсказки BIP39 (решение владельца): чипы похожих слов.
-                Builder(builder: (context) {
-                  final suggestions = _suggestions;
-                  final unknown = _unknownWords;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (suggestions.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final word in suggestions)
-                              ActionChip(
-                                label: Text(word),
-                                labelStyle: const TextStyle(fontSize: 12.5),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () => _applySuggestion(word),
-                              ),
-                          ],
-                        ),
-                      ],
-                      if (unknown.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          tf(
-                            'unknown_words',
-                            {'words': unknown.join(', ')},
+                Builder(
+                  builder: (context) {
+                    final suggestions = _suggestions;
+                    final unknown = _unknownWords;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (suggestions.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final word in suggestions)
+                                ActionChip(
+                                  label: Text(word),
+                                  labelStyle: const TextStyle(fontSize: 12.5),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () => _applySuggestion(word),
+                                ),
+                            ],
                           ),
-                          style: TextStyle(
-                            color: VColors.error,
-                            fontSize: 11.5,
+                        ],
+                        if (unknown.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            tf('unknown_words', {'words': unknown.join(', ')}),
+                            style: TextStyle(
+                              color: VColors.error,
+                              fontSize: 11.5,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  );
-                }),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _passphraseController,
                   obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: t('passphrase_field'),
-                  ),
+                  decoration: InputDecoration(labelText: t('passphrase_field')),
                   onChanged: (_) => setState(() {}),
                 ),
               ],
@@ -230,8 +230,10 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   controller: _passwordController,
                   obscureText: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  decoration:
-                      InputDecoration(labelText: t('password_field')),
+                  decoration: InputDecoration(
+                    labelText: t('password_field'),
+                    helperText: t('password_min_helper'),
+                  ),
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
@@ -239,8 +241,9 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   controller: _confirmController,
                   obscureText: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  decoration:
-                      InputDecoration(labelText: t('password_repeat_field')),
+                  decoration: InputDecoration(
+                    labelText: t('password_repeat_field'),
+                  ),
                   onChanged: (_) => setState(() {}),
                 ),
               ],

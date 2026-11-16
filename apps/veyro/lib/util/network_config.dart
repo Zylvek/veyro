@@ -2,12 +2,11 @@
 //!
 //! Хранение — не-секретные SQLite-настройки через мост:
 //! - `btc.network` — код сети (0 mainnet / 1 testnet3 / 2 testnet4);
-//! - `node_endpoints.<code>` — URL Electrum-сервера этой сети
-//!   (пользовательский адрес; ключ из плана PHASE 4 §5).
+//! - `node_endpoints.<code>` — URL Electrum-сервера этой сети.
 //!
-//! По умолчанию выбирается testnet3 — безопасность средств: mainnet
-//! переключается только осознанным действием пользователя (плюс баннер на UI
-//! и fund-safety genesis-проверка в Rust при каждом unlock).
+//! По умолчанию сеть — mainnet (код 0), решениевладельца: автоматический
+//! выбор без ручного testnet-переключения; genesis-проверка в Rust при
+//! каждом unlock отвергает сервер чужой сети (fund-safety).
 //!
 //! Дефолтные серверы всех трёх сетей верифицированы probe-тестом
 //! `chains/tests/e2e_probe.rs` (11.11.2026): live-опрос + genesis-проверка;
@@ -71,7 +70,10 @@ String? defaultServerUrl(int code) {
 class BtcNetworkSettings {
   final int networkCode;
   final String serverUrl;
-  const BtcNetworkSettings({required this.networkCode, required this.serverUrl});
+  const BtcNetworkSettings({
+    required this.networkCode,
+    required this.serverUrl,
+  });
 }
 
 /// Сеть из настроек. Значение по умолчанию — mainnet (код 0),

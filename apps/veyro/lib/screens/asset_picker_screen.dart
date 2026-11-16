@@ -1,20 +1,24 @@
 //! Группа 3 спеки: выбор актива для Receive/Send (мультивалютная обёртка
-//! над реальным BTC-потоком). Ядро реализует только адаптер BTC — остальные
-//! активы отображаются отключёнными с честным статусом из матрицы
-//! (Researched/Blocked/…), без имитации форм и балансов.
+//! над реальными потоками). Реализованы адаптеры BTC и LTC — их ветки
+//! активны и ведут в настоящие экраны/центры; остальные активы отображаются
+//! отключёнными с честным статусом из матрицы, без имитации форм и балансов.
 
 import 'package:flutter/material.dart';
 
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
+import 'package:veyro/design/motion.dart';
+import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/display_prefs.dart';
 
 import 'asset_catalog_screen.dart' show CoinIcon;
 import 'btc_screen.dart';
+import 'ltc_screen.dart';
 import 'receive_screen.dart';
 import 'send_screen.dart';
 
@@ -42,6 +46,7 @@ class AssetPickerScreen extends StatefulWidget {
 
 class _AssetPickerScreenState extends State<AssetPickerScreen> {
   BtcSessionStateDto? _session;
+  LtcSessionStateDto? _ltcSession;
   WalletInfoDto? _chosenWallet;
 
   @override
@@ -72,8 +77,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     }
     try {
       final loader = widget.sessionLoader;
-      final session =
-          loader != null ? await loader() : await btcSessionState();
+      final session = loader != null ? await loader() : await btcSessionState();
       if (!mounted) return;
       setState(() => _session = session);
     } catch (_) {
@@ -81,16 +85,48 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       if (!mounted) return;
       setState(() => _session = null);
     }
+    try {
+      // Живая LTC-сессия делает ветку LTC в пикире активной (Receive/Send
+      // поверх ядра); иначе — центр LTC разблокирует честным паролем.
+      final ltc = await ltcSessionState();
+      if (!mounted) return;
+      setState(() => _ltcSession = ltc);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _ltcSession = null);
+    }
+  }
+
+  Future<void> _openLtc() async {
+    if (_ltcSession != null) {
+      await pushVeyro<void>(
+        context,
+        widget.isReceive
+            ? const ReceiveScreen(coin: WalletCoin.ltc)
+            : const SendScreen(coin: WalletCoin.ltc),
+      );
+      if (mounted) await _load();
+      return;
+    }
+    final wallet = _chosenWallet;
+    if (wallet == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t('no_wallets_ltc'))));
+      return;
+    }
+    await pushVeyro<void>(context, LtcScreen(info: wallet));
+    if (mounted) await _load();
   }
 
   Future<void> _openBtc() async {
     final session = _session;
     if (session != null) {
       // Сессия активна: реальная форма получения/отправки поверх ядра.
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) =>
-            widget.isReceive ? const ReceiveScreen() : const SendScreen(),
-      ));
+      await pushVeyro<void>(
+        context,
+        widget.isReceive ? const ReceiveScreen() : const SendScreen(),
+      );
       if (mounted) await _load();
       return;
     }
@@ -98,26 +134,26 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     // (реальный пароль → unlock). Без кошелька это невозможно.
     final wallet = _chosenWallet;
     if (wallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(t('no_wallets_btc')),
-      ));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t('no_wallets_btc'))));
       return;
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => BtcScreen(info: wallet)),
-    );
+    await pushVeyro<void>(context, BtcScreen(info: wallet));
     if (mounted) await _load();
   }
 
   @override
   Widget build(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
-    final others = kAssetRegistry.where((a) => a.ticker != 'BTC').toList();
+    final ltc = kAssetRegistry.firstWhere((a) => a.ticker == 'LTC');
+    final others = kAssetRegistry
+        .where((a) => a.ticker != 'BTC' && a.ticker != 'LTC')
+        .toList();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isReceive
-            ? t('receive_pick_title')
-            : t('send_pick_title')),
+        title: Text(
+          widget.isReceive ? t('receive_pick_title') : t('send_pick_title'),
+        ),
       ),
       body: Center(
         child: ConstrainedBox(
@@ -126,13 +162,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
-              _BtcTile(
-                asset: btc,
-                onTap: _openBtc,
-              ),
+              _BtcTile(asset: btc, onTap: _openBtc),
               const SizedBox(height: 10),
-              for (final asset in others)
-                _DisabledAssetTile(asset: asset),
+              _LtcTile(asset: ltc, onTap: _openLtc),
+              const SizedBox(height: 10),
+              for (final asset in others) _DisabledAssetTile(asset: asset),
             ],
           ),
         ),
@@ -154,7 +188,11 @@ class _BtcTile extends StatelessWidget {
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: CoinIcon(asset: asset, radius: 20, key: ValueKey(asset.ticker)),
+        leading: CoinIcon(
+          asset: asset,
+          radius: 20,
+          key: ValueKey(asset.ticker),
+        ),
         title: RichText(
           text: TextSpan(
             children: [
@@ -178,8 +216,63 @@ class _BtcTile extends StatelessWidget {
             ],
           ),
         ),
-        trailing:
-            const Icon(Icons.chevron_right, size: 18, color: VColors.textSecondary),
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 18,
+          color: VColors.textSecondary,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// Реальная плитка LTC: адаптер реализован и протестирован — ветка ведёт в
+/// живой поток Receive/Send или в центр управления LTC (разблокировка).
+class _LtcTile extends StatelessWidget {
+  final VeyroAsset asset;
+  final VoidCallback onTap;
+
+  const _LtcTile({required this.asset, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: CoinIcon(
+          asset: asset,
+          radius: 20,
+          key: ValueKey(asset.ticker),
+        ),
+        title: RichText(
+          text: TextSpan(
+            children: [
+              const TextSpan(
+                text: 'LTC',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
+                  color: VColors.textPrimary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const WidgetSpan(child: SizedBox(width: 6)),
+              TextSpan(
+                text: '${asset.name} ${t('implemented_tag')}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: VColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 18,
+          color: VColors.textSecondary,
+        ),
         onTap: onTap,
       ),
     );
@@ -196,18 +289,23 @@ class _DisabledAssetTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tf(
-        'disabled_adapter_tooltip',
-        {'status': asset.lifecycle.labelLocalized},
-      ),
+      message: tf('disabled_adapter_tooltip', {
+        'status': asset.lifecycle.labelLocalized,
+      }),
       child: Opacity(
         opacity: 0.55,
         child: Card(
           child: ListTile(
             enabled: false,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            leading: CoinIcon(asset: asset, radius: 20, key: ValueKey(asset.ticker)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            leading: CoinIcon(
+              asset: asset,
+              radius: 20,
+              key: ValueKey(asset.ticker),
+            ),
             title: RichText(
               text: TextSpan(
                 children: [
@@ -231,8 +329,11 @@ class _DisabledAssetTile extends StatelessWidget {
                 ],
               ),
             ),
-            trailing: Icon(Icons.block_outlined,
-                size: 18, color: VColors.textSecondary.withValues(alpha: 0.6)),
+            trailing: Icon(
+              Icons.block_outlined,
+              size: 18,
+              color: VColors.textSecondary.withValues(alpha: 0.6),
+            ),
           ),
         ),
       ),

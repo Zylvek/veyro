@@ -7,11 +7,10 @@
 //!   2. the one-time mnemonic phrase shown to the user right after wallet
 //!      creation, and the phrase revealed by the explicit user action
 //!      "reveal mnemonic".
-//! - The BIP39 **seed** and backup **payloads** never cross the boundary:
-//!   backup export/import runs entirely inside Rust
-//!   (`wallet_core::reveal_secrets` → `backup_manager`).
+//! - The BIP39 **seed** never crosses the boundary: unlocking keeps it inside
+//!   Rust in a zeroizing coin session; signing runs against that copy.
 //! - Wallet operations open the wallet directory per call; the bridge keeps
-//!   no secret state.
+//!   no secret state besides sessions and the per-wallet password cache.
 //!
 //! Unlike the core crates (`#![forbid(unsafe_code)]`), this crate does NOT
 //! forbid `unsafe`: the flutter_rust_bridge generated glue
@@ -25,6 +24,7 @@ mod frb_generated;
 mod ltc_session;
 mod session_password;
 
+use chains::ChainError;
 use crypto_vault::KdfParams;
 
 /// Production KDF parameters for wallets created or restored through the UI
@@ -35,4 +35,12 @@ pub fn production_kdf() -> KdfParams {
         t: 3,
         p: 1,
     }
+}
+
+/// Единственный классификатор «один reconnect/retry оправдан» для синхронных
+/// операций BTC/LTC (transport + protocol от ядра; одна реализация вместо
+/// четырёх копий строковых проверок). Ошибки содержания (адрес, сумма, ключи)
+/// никогда не триггерят retry.
+pub(crate) fn is_transient_sync_error(e: &ChainError) -> bool {
+    matches!(e, ChainError::Transport(_) | ChainError::Protocol(_))
 }

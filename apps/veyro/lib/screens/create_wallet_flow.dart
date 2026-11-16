@@ -14,7 +14,10 @@ import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/bip39_suggest.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/password_policy.dart';
 import 'package:veyro/util/ui_helpers.dart';
+
+import 'package:veyro/design/motion.dart';
 
 import 'dashboard_screen.dart';
 
@@ -41,8 +44,9 @@ class CreateWalletFlow extends StatefulWidget {
 
 enum _Step { profile, password, phrase, verify }
 
-/// Минимальная длина пароля кошелька (решение владельца — 8 символов).
-const int _kMinPasswordLength = 8;
+/// Минимальная длина пароля кошелька — общий контракт с импортом
+/// (lib/util/password_policy.dart).
+const int _kMinPasswordLength = kMinPasswordLength;
 
 class _CreateWalletFlowState extends State<CreateWalletFlow> {
   final _nameController = TextEditingController();
@@ -80,13 +84,10 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
       case _Step.phrase:
         return _wroteItDown;
       case _Step.verify:
-        return verifyPhraseAnswers(
-          _phraseWords,
-          {
-            for (final entry in _phraseChecks.entries)
-              entry.value: entry.key.text,
-          },
-        );
+        return verifyPhraseAnswers(_phraseWords, {
+          for (final entry in _phraseChecks.entries)
+            entry.value: entry.key.text,
+        });
     }
   }
 
@@ -142,9 +143,9 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
       _phraseChecks[TextEditingController()] = position;
     }
     // Словарь для подсказок слов (решение владельца): грузим к verify.
-    Bip39Dictionary.instance
-        .ensureLoaded()
-        .then((_) => mounted ? setState(() {}) : null);
+    Bip39Dictionary.instance.ensureLoaded().then(
+      (_) => mounted ? setState(() {}) : null,
+    );
   }
 
   Future<void> _finish() async {
@@ -152,15 +153,14 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(tf(
-          'wallet_created_snack',
-          {'name': _created!.info.name},
-        )),
+        content: Text(
+          tf('wallet_created_snack', {'name': _created!.info.name}),
+        ),
         backgroundColor: VColors.success,
       ),
     );
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
+      VeyroSceneRoute<void>(builder: (_) => const DashboardScreen()),
       (route) => false,
     );
   }
@@ -343,10 +343,9 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               autofillHints: const [AutofillHints.newPassword],
               decoration: InputDecoration(
                 labelText: t('password_field'),
-                helperText: tf(
-                  'password_min_helper',
-                  {'n': '$_kMinPasswordLength'},
-                ),
+                helperText: tf('password_min_helper', {
+                  'n': '$_kMinPasswordLength',
+                }),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -355,20 +354,16 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
               controller: _confirmController,
               obscureText: true,
               autofillHints: const [AutofillHints.newPassword],
-              decoration:
-                  InputDecoration(labelText: t('password_repeat_field')),
+              decoration: InputDecoration(
+                labelText: t('password_repeat_field'),
+              ),
               onChanged: (_) => setState(() {}),
             ),
             if (_passwordController.text.length < _kMinPasswordLength) ...[
               const SizedBox(height: 8),
               Text(
-                tf(
-                  'password_min_note',
-                  {'n': '$_kMinPasswordLength'},
-                ),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall!
+                tf('password_min_note', {'n': '$_kMinPasswordLength'}),
+                style: Theme.of(context).textTheme.bodySmall!
                     .copyWith(color: VColors.warning),
               ),
             ],
@@ -431,10 +426,10 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Builder(
                   builder: (context) {
-                    final token =
-                        Bip39Dictionary.lastToken(entry.key.text);
-                    final suggestions =
-                        Bip39Dictionary.instance.suggestions(token);
+                    final token = Bip39Dictionary.lastToken(entry.key.text);
+                    final suggestions = Bip39Dictionary.instance.suggestions(
+                      token,
+                    );
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -442,20 +437,17 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
                           controller: entry.key,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                                RegExp(r'[A-Za-z ]'))
+                              RegExp(r'[A-Za-z ]'),
+                            ),
                           ],
                           decoration: InputDecoration(
-                            labelText: tf(
-                              'word_n_field',
-                              {'n': '${entry.value + 1}'},
-                            ),
-                            helperText: tf(
-                              'position_n_of_m',
-                              {
-                                'n': '${entry.value + 1}',
-                                'm': '${words.length}',
-                              },
-                            ),
+                            labelText: tf('word_n_field', {
+                              'n': '${entry.value + 1}',
+                            }),
+                            helperText: tf('position_n_of_m', {
+                              'n': '${entry.value + 1}',
+                              'm': '${words.length}',
+                            }),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
@@ -468,14 +460,14 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
                               for (final word in suggestions)
                                 ActionChip(
                                   label: Text(word),
-                                  labelStyle:
-                                      const TextStyle(fontSize: 12.5),
+                                  labelStyle: const TextStyle(fontSize: 12.5),
                                   visualDensity: VisualDensity.compact,
                                   onPressed: () {
                                     entry.key.text = '$word ';
-                                    entry.key.selection = TextSelection
-                                        .collapsed(
-                                            offset: entry.key.text.length);
+                                    entry.key.selection =
+                                        TextSelection.collapsed(
+                                          offset: entry.key.text.length,
+                                        );
                                     setState(() {});
                                   },
                                 ),

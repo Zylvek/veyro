@@ -105,7 +105,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoUW (AI-вычисления)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/PRL.md',
-    note: 'Taproot-only; SDK только Go — клиент пишем сами; формат '
+    note:
+        'Taproot-only; SDK только Go — клиент пишем сами; формат '
         'мнемоники не подтверждён — восстановление не обещать.',
   ),
   VeyroAsset(
@@ -115,7 +116,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · Substrate · постквантовая',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/QTC.md',
-    note: 'ML-DSA-87; BIP39-24. Конфликт тикера с Qubitcoin — сверять '
+    note:
+        'ML-DSA-87; BIP39-24. Конфликт тикера с Qubitcoin — сверять '
         'по сети/адресу, предупреждение в UI обязательно.',
   ),
   VeyroAsset(
@@ -125,7 +127,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · sharded PoW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/QUAI.md',
-    note: 'Активен шард cyprus-1; транзакции protobuf; Qi (UTXO) вне '
+    note:
+        'Активен шард cyprus-1; транзакции protobuf; Qi (UTXO) вне '
         'MVP; узел/SDK GPL-3.0 — только внешний доступ.',
   ),
   VeyroAsset(
@@ -135,7 +138,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · Mimblewimble · гибридный PoW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XTM.md',
-    note: 'Seed 24 слова — НЕ BIP39 (cipher seed); Tari L2/Ootle — '
+    note:
+        'Seed 24 слова — НЕ BIP39 (cipher seed); Tari L2/Ootle — '
         'протокол без запущенной сети, кошелька нет: активом не '
         'считается (решение владельца).',
   ),
@@ -146,7 +150,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW (privacy)',
     lifecycle: AssetLifecycle.blocked,
     passport: 'docs/coins/IRON.md',
-    note: 'Блокер: непропатченный consensus-инфляционный баг, миграции '
+    note:
+        'Блокер: непропатченный consensus-инфляционный баг, миграции '
         'балансов нет, официальная поддержка снята 30.10.2026.',
   ),
   VeyroAsset(
@@ -156,7 +161,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · BlockDAG (Rust)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XEL.md',
-    note: 'Нативная мнемоника 24+1 (не BIP39); bech32 `xel:`; privacy-'
+    note:
+        'Нативная мнемоника 24+1 (не BIP39); bech32 `xel:`; privacy-'
         'очередь №3.',
   ),
   VeyroAsset(
@@ -166,7 +172,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW KAWPOW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/RVN.md',
-    note: 'Base58 R…/r… (без SegWit); зрелый Electrum-стек; бэкенды '
+    note:
+        'Base58 R…/r… (без SegWit); зрелый Electrum-стек; бэкенды '
         'только Core ≥ v4.8.0.',
   ),
   VeyroAsset(
@@ -176,7 +183,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · eUTXO + Sigma',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ERG.md',
-    note: 'Адреса P2PK `9…`; ergo-lib (CC0) — лучший профиль группы; '
+    note:
+        'Адреса P2PK `9…`; ergo-lib (CC0) — лучший профиль группы; '
         'storage rent ~4 года — предупреждение майнеру.',
   ),
   VeyroAsset(
@@ -186,7 +194,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · eSpace (EVM) + Core Space',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/CFX.md',
-    note: 'Приоритет eSpace (chain 1030, полный EVM); Core Space вне MVP; '
+    note:
+        'Приоритет eSpace (chain 1030, полный EVM); Core Space вне MVP; '
         'предупреждение о путанице пространств.',
   ),
   VeyroAsset(
@@ -196,7 +205,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · Bitcoin Unlimited',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/NEXA.md',
-    note: 'Cashaddr `nexa:`; Schnorr; «Big»-ключи — модуль BTC не '
+    note:
+        'Cashaddr `nexa:`; Schnorr; «Big»-ключи — модуль BTC не '
         'переиспользуется; maturity 5000 блоков.',
   ),
   VeyroAsset(
@@ -206,7 +216,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW KAWPOW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XNA.md',
-    note: 'Двойная деривация (coin 0 и 1900) — импорт сканирует оба '
+    note:
+        'Двойная деривация (coin 0 и 1900) — импорт сканирует оба '
         'пути; майнинговые выплаты — legacy N…',
   ),
   VeyroAsset(
@@ -216,7 +227,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · CryptoNote PoW',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XMR.md',
-    note: 'Полный цикл без нашего сервера: remote node или локальная '
+    note:
+        'Полный цикл без нашего сервера: remote node или локальная '
         'нода; privacy-очередь №1; предупреждение о приватности '
         'remote nodes.',
   ),
@@ -227,7 +239,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · форк Monero',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ZEPH.md',
-    note: '4 нативных актива (ZPH/ZSD/ZRS/ZYS), asset_type в RPC; '
+    note:
+        '4 нативных актива (ZPH/ZSD/ZRS/ZYS), asset_type в RPC; '
         'privacy-очередь №2 после XMR.',
   ),
   VeyroAsset(
@@ -237,7 +250,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · EVM (chain 61)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ETC.md',
-    note: 'Legacy-газ без EIP-1559; testnet Mordor; первый кандидат '
+    note:
+        'Legacy-газ без EIP-1559; testnet Mordor; первый кандидат '
         'EVM-группы по простоте.',
   ),
   VeyroAsset(
@@ -247,7 +261,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · EVM (Ethash)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ETHW.md',
-    note: 'Chain 10001; ключи идентичны Ethereum — анти-путаница в UI; '
+    note:
+        'Chain 10001; ключи идентичны Ethereum — анти-путаница в UI; '
         'testnet нет, один публичный RPC.',
   ),
   VeyroAsset(
@@ -257,7 +272,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · EVM-форк (GPU-рынок)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/OCTA.md',
-    note: 'Chain 800001; микрокап: узел заморожен, единственный публичный '
+    note:
+        'Chain 800001; микрокап: узел заморожен, единственный публичный '
         'RPC — хрупкость; приоритет низкий.',
   ),
   VeyroAsset(
@@ -267,7 +283,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · BlockFlow (16 цепей)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ALPH.md',
-    note: 'Официальный SDK только TS (LGPL) — критичное реализуем сами; '
+    note:
+        'Официальный SDK только TS (LGPL) — критичное реализуем сами; '
         'консолидация мелких UTXO обязательна.',
   ),
   VeyroAsset(
@@ -278,7 +295,8 @@ const List<VeyroAsset> kAssetRegistry = [
     lifecycle: AssetLifecycle.sendSupported,
     implemented: true,
     passport: 'docs/coins/BTC.md',
-    note: 'Единственный реализованный адаптер: полный живой цикл на '
+    note:
+        'Единственный реализованный адаптер: полный живой цикл на '
         'testnet4 (faucet → self-transfer → broadcast → mempool → '
         'история → lock). Full support не заявляется до app-уровневого '
         'цикла. BIP84 bech32; верифицированные Electrum-серверы; '
@@ -291,7 +309,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW SHA-256d (форк BTC)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/BCH.md',
-    note: 'Cashaddr обязателен; sighash ALL|FORKID 0x41 — свой модуль '
+    note:
+        'Cashaddr обязателен; sighash ALL|FORKID 0x41 — свой модуль '
         'подписи; 23 живых Electrum-сервера; полугодовые апгрейды.',
   ),
   VeyroAsset(
@@ -301,7 +320,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW (форк BCH)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/BSV.md',
-    note: 'Внедрение отложено: Electrum-инфраструктуры нет; единый '
+    note:
+        'Внедрение отложено: Electrum-инфраструктуры нет; единый '
         'контролёр протокола; код SV Node в продукт не включать.',
   ),
   VeyroAsset(
@@ -311,7 +331,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · merge-mined SHA256d',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/FB.md',
-    note: 'Главный риск — путаница BTC↔FB: адреса/ключи идентичны '
+    note:
+        'Главный риск — путаница BTC↔FB: адреса/ключи идентичны '
         'Bitcoin (защиты обязательны); лёгкой инфраструктуры нет.',
   ),
   VeyroAsset(
@@ -321,7 +342,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW (форк BCH)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/XEC.md',
-    note: 'Cashaddr `ecash:`; раскол деривации 899/1899 — сканировать '
+    note:
+        'Cashaddr `ecash:`; раскол деривации 899/1899 — сканировать '
         'оба; 3 независимых лёгких пути (Chronik/Electrum/узел).',
   ),
   VeyroAsset(
@@ -331,7 +353,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW (5 алгоритмов)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/DGB.md',
-    note: 'SPV обязан проверять пер-алго ретаргетинг; официального '
+    note:
+        'SPV обязан проверять пер-алго ретаргетинг; официального '
         'SPV/Electrum нет — community-серверы.',
   ),
   VeyroAsset(
@@ -342,7 +365,8 @@ const List<VeyroAsset> kAssetRegistry = [
     lifecycle: AssetLifecycle.receiveSupported,
     implemented: true,
     passport: 'docs/coins/LTC.md',
-    note: 'Ядро + UI полностью: ltc1 bech32, m/84\'/2\', genesis-чек, '
+    note:
+        'Ядро + UI полностью: ltc1 bech32, m/84\'/2\', genesis-чек, '
         'живые серверы electrum-ltc; приём/баланс/история live, отправка '
         'через общую tx-машину (живой цикл не заявлен). Без MWEB: '
         'обязательное предупреждение о MWEB-слепоте (баланс может быть '
@@ -355,7 +379,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · BlockDAG GHOSTDAG',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/KAS.md',
-    note: 'Комиссия по модели mass; подтверждения — blue score; '
+    note:
+        'Комиссия по модели mass; подтверждения — blue score; '
         'rusty-kaspa (ISC); для RPC нужен узел с --utxoindex.',
   ),
   VeyroAsset(
@@ -365,7 +390,8 @@ const List<VeyroAsset> kAssetRegistry = [
     network: 'L1 · PoW (transparent + shielded)',
     lifecycle: AssetLifecycle.researched,
     passport: 'docs/coins/ZEC.md',
-    note: 'Transparent и watch-only (UFVK) — Researched; полный '
+    note:
+        'Transparent и watch-only (UFVK) — Researched; полный '
         'shielded-цикл — Research required, не заявлять.',
   ),
 ];
@@ -373,10 +399,3 @@ const List<VeyroAsset> kAssetRegistry = [
 /// Реализованные активы (реальные балансы/транзакции возможны).
 List<VeyroAsset> get implementedAssets =>
     kAssetRegistry.where((a) => a.implemented).toList();
-
-/// Честный ценз реестра для отображения (из матрицы).
-const int kRegistryResearchedCount = 24;
-const int kRegistrySendSupportedCount = 1;
-const int kRegistryResearchRequiredCount = 1;
-const int kRegistryBlockedCount = 1;
-const int kRegistryHistoricalCount = 1;

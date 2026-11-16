@@ -15,6 +15,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
@@ -78,10 +79,16 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
           ? await widget.walletsLoader!()
           : await listWallets(walletsDir: walletsDir());
       if (!mounted) return;
-      setState(() => _wallets = wallets);
-    } catch (_) {
+      setState(() {
+        _wallets = wallets;
+        _error = null;
+      });
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _wallets = const []);
+      setState(() {
+        _wallets = const [];
+        _error = e.toString();
+      });
     }
   }
 
@@ -91,11 +98,12 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   Future<void> _openBtc() async {
     final wallets = _wallets ?? const <WalletInfoDto>[];
     if (wallets.isEmpty) {
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => AssetDetailScreen(
+      await pushVeyro<void>(
+        context,
+        AssetDetailScreen(
           asset: kAssetRegistry.firstWhere((a) => a.ticker == 'BTC'),
         ),
-      ));
+      );
       return;
     }
     final preferredId = DisplayPrefs.walletId;
@@ -104,9 +112,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
       if (w.id == preferredId) chosen = w;
     }
     chosen ??= wallets.first;
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => BtcScreen(info: chosen!),
-    ));
+    await pushVeyro<void>(context, BtcScreen(info: chosen));
   }
 
   Future<void> _toggleFavorite(String ticker) async {
@@ -144,16 +150,16 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   List<MapEntry<String, List<VeyroAsset>>> get _groupedAssets {
     final groups = <String, List<VeyroAsset>>{};
     for (final asset in _visibleAssets) {
-      final title =
-          asset.implemented ? t('filter_implemented') : asset.lifecycle.labelLocalized;
+      final title = asset.implemented
+          ? t('filter_implemented')
+          : asset.lifecycle.labelLocalized;
       groups.putIfAbsent(title, () => []).add(asset);
     }
     final ordered = <MapEntry<String, List<VeyroAsset>>>[];
     // Реализованные — всегда первой секцией.
     final implementedTitle = t('filter_implemented');
     if (groups.containsKey(implementedTitle)) {
-      ordered.add(MapEntry(
-          implementedTitle, groups.remove(implementedTitle)!));
+      ordered.add(MapEntry(implementedTitle, groups.remove(implementedTitle)!));
     }
     final keys = groups.keys.toList()..sort();
     for (final key in keys) {
@@ -191,19 +197,24 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     _filterChip(t('filter_all'), CatalogFilter.all),
                     _filterChip(
-                        t('filter_implemented'), CatalogFilter.implemented),
+                      t('filter_implemented'),
+                      CatalogFilter.implemented,
+                    ),
                     _filterChip(
-                        t('filter_researched'), CatalogFilter.researched),
-                    _filterChip(
-                        t('filter_special'), CatalogFilter.special),
+                      t('filter_researched'),
+                      CatalogFilter.researched,
+                    ),
+                    _filterChip(t('filter_special'), CatalogFilter.special),
                     _toggleChip(
                       t('group_by_status'),
                       _grouped,
@@ -213,8 +224,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                       padding: const EdgeInsets.only(left: 4),
                       child: Card(
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: DropdownButton<bool>(
                             value: _sortAlphabetical,
                             underline: const SizedBox.shrink(),
@@ -241,17 +251,16 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  tf(
-                    'catalog_note',
-                    {'count': '${kAssetRegistry.length}'},
-                  ),
+                  tf('catalog_note', {'count': '${kAssetRegistry.length}'}),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               if (_prefsLoaded && DisplayPrefs.degraded)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: VStatusChip(
@@ -262,18 +271,15 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                 ),
               if (_error != null)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      tf(
-                        'core_session_read_error',
-                        {'error': '$_error'},
-                      ),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall!
+                      tf('core_session_read_error', {'error': '$_error'}),
+                      style: Theme.of(context).textTheme.bodySmall!
                           .copyWith(color: VColors.warning),
                     ),
                   ),
@@ -288,64 +294,63 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
                           message: t('nothing_found_msg'),
                         )
                       : _grouped
-                          ? ListView(
-                              physics:
-                                  const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(16),
-                              children: [
-                                for (final group in _groupedAssets) ...[
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: 6),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        '${group.key} · ${group.value.length}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall,
-                                      ),
-                                    ),
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            for (final group in _groupedAssets) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${group.key} · ${group.value.length}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall,
                                   ),
-                                  for (final asset in group.value)
-                                    _AssetTile(
-                                      asset: asset,
-                                      favorite: DisplayPrefs.favorites
-                                          .contains(asset.ticker),
-                                      onFavorite: () =>
-                                          _toggleFavorite(asset.ticker),
-                                      onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => AssetDetailScreen(
-                                              asset: asset),
-                                        ),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 10),
-                                ],
-                              ],
-                            )
-                          : ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _visibleAssets.length,
-                              itemBuilder: (context, index) {
-                                final asset = _visibleAssets[index];
-                                return _AssetTile(
+                                ),
+                              ),
+                              for (final asset in group.value)
+                                _AssetTile(
                                   asset: asset,
-                                  favorite: DisplayPrefs.favorites
-                                      .contains(asset.ticker),
+                                  favorite: DisplayPrefs.favorites.contains(
+                                    asset.ticker,
+                                  ),
                                   onFavorite: () =>
                                       _toggleFavorite(asset.ticker),
-                                  onOpen: asset.ticker == 'BTC' ? _openBtc : () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
+                                  onOpen: asset.ticker == 'BTC'
+                                      ? _openBtc
+                                      : () => pushVeyro<void>(
+                                          context,
                                           AssetDetailScreen(asset: asset),
+                                        ),
+                                ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _visibleAssets.length,
+                          itemBuilder: (context, index) {
+                            final asset = _visibleAssets[index];
+                            return _AssetTile(
+                              asset: asset,
+                              favorite: DisplayPrefs.favorites.contains(
+                                asset.ticker,
+                              ),
+                              onFavorite: () => _toggleFavorite(asset.ticker),
+                              onOpen: asset.ticker == 'BTC'
+                                  ? _openBtc
+                                  : () => pushVeyro<void>(
+                                      context,
+                                      AssetDetailScreen(asset: asset),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+                            );
+                          },
+                        ),
                 ),
               ),
             ],
@@ -452,7 +457,10 @@ class _AssetTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(networkLabel(asset.network), style: const TextStyle(fontSize: 12)),
+          child: Text(
+            networkLabel(asset.network),
+            style: const TextStyle(fontSize: 12),
+          ),
         ),
         isThreeLine: false,
         trailing: IconButton(
@@ -500,9 +508,29 @@ class AssetMonogram extends StatelessWidget {
 /// официальные логотипы из CoinGecko). Для активов без загруженной
 /// иконки — монограмма-фолбэк выше (спека «Logo or approved fallback»).
 const Set<String> kBundledCoinIcons = {
-  'ALPH', 'BCH', 'BSV', 'BTC', 'CFX', 'DGB', 'ERG', 'ETC', 'ETHW', 'FB',
-  'IRON', 'KAS', 'LTC', 'NEXA', 'OCTA', 'QUAI', 'RVN', 'XEC', 'XEL',
-  'XMR', 'XNA', 'ZEC', 'ZEPH',
+  'ALPH',
+  'BCH',
+  'BSV',
+  'BTC',
+  'CFX',
+  'DGB',
+  'ERG',
+  'ETC',
+  'ETHW',
+  'FB',
+  'IRON',
+  'KAS',
+  'LTC',
+  'NEXA',
+  'OCTA',
+  'QUAI',
+  'RVN',
+  'XEC',
+  'XEL',
+  'XMR',
+  'XNA',
+  'ZEC',
+  'ZEPH',
 };
 
 /// Иконки монет, уложенные в билд (``assets/coins/<ticker>.svg`` —
@@ -510,9 +538,32 @@ const Set<String> kBundledCoinIcons = {
 /// владельцем; оффлайн и чёткие в любом размере). PNG-набор остаётся
 /// запасным оффлайн-фолбэком.
 const Set<String> kBundledCoinVectorIcons = {
-  'ALPH', 'BCH', 'BSV', 'BTC', 'CFX', 'DGB', 'ERG', 'ETC', 'ETHW', 'FB',
-  'IRON', 'KAS', 'LTC', 'NEXA', 'OCTA', 'PRL', 'QTC', 'QUAI', 'RVN', 'XEC',
-  'XEL', 'XNA', 'XMR', 'XTM', 'ZEC', 'ZEPH',
+  'ALPH',
+  'BCH',
+  'BSV',
+  'BTC',
+  'CFX',
+  'DGB',
+  'ERG',
+  'ETC',
+  'ETHW',
+  'FB',
+  'IRON',
+  'KAS',
+  'LTC',
+  'NEXA',
+  'OCTA',
+  'PRL',
+  'QTC',
+  'QUAI',
+  'RVN',
+  'XEC',
+  'XEL',
+  'XNA',
+  'XMR',
+  'XTM',
+  'ZEC',
+  'ZEPH',
 };
 
 /// Значок монеты: единый круглый контейнер фиксированного размера с
@@ -533,8 +584,7 @@ class _CoinIconState extends State<CoinIcon> {
   /// Кэш текстов бандл-SVG (одна загрузка за процесс).
   static final Map<String, String> _svgCache = <String, String>{};
 
-  bool get _hasVector =>
-      kBundledCoinVectorIcons.contains(widget.asset.ticker);
+  bool get _hasVector => kBundledCoinVectorIcons.contains(widget.asset.ticker);
 
   String? _svg;
 
@@ -568,8 +618,9 @@ class _CoinIconState extends State<CoinIcon> {
       final key = widget.asset.ticker.toUpperCase();
       if (!_svgCache.containsKey(key)) {
         try {
-          _svgCache[key] = await rootBundle
-              .loadString('assets/coins/${key.toLowerCase()}.svg');
+          _svgCache[key] = await rootBundle.loadString(
+            'assets/coins/${key.toLowerCase()}.svg',
+          );
         } catch (_) {}
       }
       if (!mounted) return;
@@ -591,11 +642,13 @@ class _CoinIconState extends State<CoinIcon> {
     // Настоящий вектор (Kryptex / Iconify) в единой оправе.
     final svg = _svg;
     if (svg != null) {
-      return _framed(SvgPicture.string(
-        svg,
-        fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => _pngOrMonogram(size),
-      ));
+      return _framed(
+        SvgPicture.string(
+          svg,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => _pngOrMonogram(size),
+        ),
+      );
     }
     // Пока SVG читается / не получился — bundle-PNG, затем монограмма.
     return _framed(_pngOrMonogram(size));

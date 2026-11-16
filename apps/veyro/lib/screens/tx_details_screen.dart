@@ -12,6 +12,7 @@ import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
+
 import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
@@ -28,10 +29,7 @@ String directionLabel(String direction) {
     case 'internal':
       return t('tx_internal_short');
     default:
-      return tf(
-        'direction_row',
-        {'dir': direction},
-      );
+      return tf('direction_row', {'dir': direction});
   }
 }
 
@@ -102,7 +100,9 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   }
 
   Future<void> _resolveNetwork() async {
-    if (_networkCode != null) return;
+    // LTC-провод не нуждается в коде сети (свой explorer); код BTC-сессии
+    // к LTC-записи отношения не имеет — не подмешиваем чужое.
+    if (_networkCode != null || widget.coin == WalletCoin.ltc) return;
     try {
       final session = await btcSessionState();
       if (!mounted) return;
@@ -169,29 +169,22 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
   String get _directionNote {
     switch (widget.item.direction) {
       case 'incoming':
-        return tf(
-          'summary_incoming',
-          {'value': groupDigits(widget.item.receivedSat.toInt())},
-        );
+        return tf('summary_incoming', {
+          'value': groupDigits(widget.item.receivedSat.toInt()),
+        });
       case 'outgoing':
-        return tf(
-          'summary_outgoing',
-          {'value': groupDigits(widget.item.sentNetSat.toInt())},
-        );
+        return tf('summary_outgoing', {
+          'value': groupDigits(widget.item.sentNetSat.toInt()),
+        });
       case 'internal':
         return t('summary_internal');
       default:
-        return tf(
-          'summary_unknown',
-          {'dir': widget.item.direction},
-        );
+        return tf('summary_unknown', {'dir': widget.item.direction});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    final inMempool = item.height < 1; // −1 = mempool (см. FFI-док).
     return Scaffold(
       appBar: AppBar(title: Text(t('tx_details_title'))),
       body: RefreshIndicator(
@@ -205,7 +198,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
               children: [
                 _buildHeadCard(context),
                 const SizedBox(height: 12),
-                _buildStatusCard(context, inMempool),
+                _buildStatusCard(context),
                 const SizedBox(height: 12),
                 _buildExplorerCard(context),
                 const SizedBox(height: 12),
@@ -217,8 +210,13 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
     );
   }
 
-  Widget _row(BuildContext context, String key, String value,
-      {bool mono = false, Color? valueColor}) {
+  Widget _row(
+    BuildContext context,
+    String key,
+    String value, {
+    bool mono = false,
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -231,11 +229,11 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           Expanded(
             child: mono
                 ? VMono(value, fontSize: 12.5, color: valueColor)
-                : Text(value,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium!
-                        .copyWith(color: valueColor)),
+                : Text(
+                    value,
+                    style: Theme.of(context).textTheme.bodyMedium!
+                        .copyWith(color: valueColor),
+                  ),
           ),
         ],
       ),
@@ -250,58 +248,60 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
       children: [
         Row(
           children: [
-            Icon(directionIcon(item.direction),
-                size: 20, color: VColors.textSecondary),
+            Icon(
+              directionIcon(item.direction),
+              size: 20,
+              color: VColors.textSecondary,
+            ),
             const SizedBox(width: 8),
-            Text(directionLabel(item.direction),
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              directionLabel(item.direction),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ],
         ),
         const SizedBox(height: 10),
         VMonoCopyRow(label: 'TXID', value: item.txid),
         const SizedBox(height: 8),
-        VAmount(_amountText,
-            suffix: item.direction == 'internal'
-                ? null
-                : widget.coin == WalletCoin.ltc
-                    ? 'LTC'
-                    : 'BTC',
-            fontSize: 26),
+        VAmount(
+          _amountText,
+          suffix: item.direction == 'internal'
+              ? null
+              : widget.coin == WalletCoin.ltc
+              ? 'LTC'
+              : 'BTC',
+          fontSize: 26,
+        ),
         const SizedBox(height: 4),
         Text(_directionNote, style: Theme.of(context).textTheme.bodySmall),
         const Divider(height: 24),
-        _row(context, t('block_height_row'),
-            item.height >= 1 ? '${item.height}' : t('in_mempool_short')),
+        _row(
+          context,
+          t('block_height_row'),
+          item.height >= 1 ? '${item.height}' : t('in_mempool_short'),
+        ),
         _row(
           context,
           t('fee_row_label'),
           widget.coin == WalletCoin.ltc
               ? item.feeSat != null
-                  ? tf(
-                      'tx_fee_row_ltc',
-                      {
+                    ? tf('tx_fee_row_ltc', {
                         'ltc': satToBtcString(item.feeSat!.toInt()),
                         'sats': groupDigits(item.feeSat!.toInt()),
-                      },
-                    )
-                  : '—'
+                      })
+                    : '—'
               : item.feeSat != null
-                  ? tf(
-                      'tx_fee_row',
-                      {
-                        'btc': satToBtcString(item.feeSat!.toInt()),
-                        'sats': groupDigits(item.feeSat!.toInt()),
-                        'vsize': '0',
-                        'rate': '0',
-                      },
-                    )
-                  : '—',
+              ? tf('tx_fee_row_btc', {
+                  'btc': satToBtcString(item.feeSat!.toInt()),
+                  'sats': groupDigits(item.feeSat!.toInt()),
+                })
+              : '—',
         ),
       ],
     );
   }
 
-  Widget _buildStatusCard(BuildContext context, bool inMempool) {
+  Widget _buildStatusCard(BuildContext context) {
     final status = _status;
     return VCard(
       title: t('status_card'),
@@ -318,14 +318,11 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(tf(
-                'status_read_error',
-                {'error': '$_statusError'},
+              Text(
+                tf('status_read_error', {'error': '$_statusError'}),
+                style: Theme.of(context).textTheme.bodySmall!
+                    .copyWith(color: VColors.error),
               ),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall!
-                      .copyWith(color: VColors.error)),
               const SizedBox(height: 8),
               VButton.secondary(t('retry_query_btn'), onPressed: _loadStatus),
             ],
@@ -338,30 +335,38 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
             runSpacing: 8,
             children: [
               switch (status.state) {
-                'confirmed' => VStatusChip(t('status_confirmed'),
-                    kind: VChipKind.success),
-                'mempool' => VStatusChip(t('status_mempool'),
-                    kind: VChipKind.warning),
+                'confirmed' => VStatusChip(
+                  t('status_confirmed'),
+                  kind: VChipKind.success,
+                ),
+                'mempool' => VStatusChip(
+                  t('status_mempool'),
+                  kind: VChipKind.warning,
+                ),
                 'unknown' => VStatusChip(
-                    t('status_not_found'), kind: VChipKind.error),
+                  t('status_not_found'),
+                  kind: VChipKind.error,
+                ),
                 _ => VStatusChip(
-                    tf(
-                      'tx_status_chip',
-                      {'status': status.state},
-                    ),
-                    kind: VChipKind.neutral),
+                  tf('tx_status_chip', {'status': status.state}),
+                  kind: VChipKind.neutral,
+                ),
               },
             ],
           ),
           const SizedBox(height: 10),
-          _row(context, t('confirmations_row'), status.confirmations?.toString() ?? '—'),
-          _row(context, t('server_height_row'), status.height?.toString() ?? '—'),
+          _row(
+            context,
+            t('confirmations_row'),
+            status.confirmations?.toString() ?? '—',
+          ),
+          _row(
+            context,
+            t('server_height_row'),
+            status.height?.toString() ?? '—',
+          ),
           const SizedBox(height: 6),
         ],
-        if (status == null && !_statusLoading && _statusError == null)
-          const SizedBox.shrink(),
-        if (inMempool && status?.state == 'confirmed')
-          const SizedBox.shrink(),
       ],
     );
   }
@@ -390,10 +395,7 @@ class _TxDetailsScreenState extends State<TxDetailsScreen> {
           const SizedBox(height: 6),
         ] else
           Text(
-            tf(
-              'explorer_note',
-              {'name': explorerName},
-            ),
+            tf('explorer_note', {'name': explorerName}),
             style: Theme.of(context).textTheme.bodySmall,
           ),
       ],

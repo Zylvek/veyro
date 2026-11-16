@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/ambience.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -17,6 +18,7 @@ import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/network.dart';
 import 'package:veyro/util/server_probe.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/network_config.dart';
@@ -30,8 +32,12 @@ class LockScreen extends StatefulWidget {
   final Future<BtcSessionStateDto?> Function()? sessionLoader;
   final Future<void> Function(String walletId, String password)? unlockAction;
 
-  const LockScreen(
-      {super.key, this.walletsLoader, this.sessionLoader, this.unlockAction});
+  const LockScreen({
+    super.key,
+    this.walletsLoader,
+    this.sessionLoader,
+    this.unlockAction,
+  });
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -53,6 +59,9 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
   static bool _introShown = false;
   bool _introActive = false;
 
+  /// Переход на Welcome запланирован один раз (одноразовый флаг).
+  bool _welcomeScheduled = false;
+
   @override
   void initState() {
     super.initState();
@@ -73,13 +82,13 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
 
   Future<List<WalletInfoDto>> _loadWallets() async =>
       widget.walletsLoader != null
-          ? await widget.walletsLoader!()
-          : await listWallets(walletsDir: walletsDir());
+      ? await widget.walletsLoader!()
+      : await listWallets(walletsDir: walletsDir());
 
   Future<BtcSessionStateDto?> _loadSession() async =>
       widget.sessionLoader != null
-          ? await widget.sessionLoader!()
-          : await btcSessionState();
+      ? await widget.sessionLoader!()
+      : await btcSessionState();
 
   /// Старт: сессия активна → сразу каркас; сессия закрыта и есть
   /// кошельки → форма входа; кошельков нет → Welcome.
@@ -96,10 +105,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _phase = _LockPhase.enter;
-        _error = tf(
-          'lock_registry_error',
-          {'error': '$e'},
-        );
+        _error = tf('lock_registry_error', {'error': '$e'});
         _wallets = const [];
       });
       return;
@@ -118,8 +124,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
     }
     setState(() {
       _wallet = chosen;
-      _phase =
-          chosen == null ? _LockPhase.noWallets : _LockPhase.needsPassword;
+      _phase = chosen == null ? _LockPhase.noWallets : _LockPhase.needsPassword;
     });
   }
 
@@ -129,22 +134,15 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
   }
 
   void _enterShell() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
-      (route) => false,
-    );
+    resetToVeyro<void>(context, const DashboardScreen());
   }
 
   void _enterWelcome() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const WelcomeScreen()),
-      (route) => false,
-    );
+    resetToVeyro<void>(context, const WelcomeScreen());
   }
 
   Future<void> _submit() async {
-    debugPrint('veyro-flow: lock submit phase=$_phase wallet=${_wallet?.name} '
-        'passLen=${_passwordController.text.length}');
+    debugPrint('veyro-flow: lock submit phase=$_phase wallet=${_wallet?.name}');
     final password = _passwordController.text;
     if (password.isEmpty) {
       setState(() => _error = t('lock_empty_password'));
@@ -181,12 +179,16 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         }.toList();
         Object? unlockError;
         var unlocked = false;
-        for (var attempt = 0;
-            attempt < candidates.length && attempt < 3;
-            attempt++) {
+        for (
+          var attempt = 0;
+          attempt < candidates.length && attempt < 3;
+          attempt++
+        ) {
           final server = candidates[attempt];
           try {
-            debugPrint('veyro-flow: unlock via $server (attempt ${attempt + 1})');
+            debugPrint(
+              'veyro-flow: unlock via $server (attempt ${attempt + 1})',
+            );
             await btcUnlock(
               walletsDir: walletsDir(),
               walletId: _wallet!.id,
@@ -198,14 +200,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
             break;
           } catch (e) {
             unlockError = e;
-            final raw = e.toString();
-            final transient = raw.contains('electrum') ||
-                raw.contains('unexpected end of file') ||
-                raw.contains('all errored') ||
-                raw.contains('timed out') ||
-                raw.contains('connection') ||
-                raw.contains('EOF');
-            if (!transient) break;
+            if (!isTransientNetworkError(e)) break;
             // Вежливая пауза — даёт честный шанс следующему кандидату.
             await Future.delayed(const Duration(milliseconds: 1200));
           }
@@ -216,10 +211,11 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       }
       if (!mounted) return;
       try {
-        final sync = await btcSync(gapLimit: 20);
-        // Результат — в кэш: центр управления покажет баланс мгновенно,
-        // без второго gap-скана (жалоба владельца на двойную синхронизацию).
-        BtcStateCache.instance.store(sync);
+        final sync = await btcSync(gapLimit: kDefaultGapLimit);
+        // Результат — в кэш этого кошелька: центр управления покажет баланс
+        // мгновенно, без второго gap-скана (жалоба владельца на двойную
+        // синхронизацию).
+        BtcStateCache.instance.store(sync, walletId: _wallet!.id);
       } catch (e) {
         // Сессия уже открыта: синхронизация дочитает позже из центра
         // BTC (там кнопка Повторить). Не блокируем вход.
@@ -231,16 +227,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
     } catch (e) {
       if (!mounted) return;
       final raw = e.toString();
-      final connectionLike = raw.contains('electrum') ||
-          raw.contains('unexpected end of file') ||
-          raw.contains('all errored') ||
-          raw.contains('timed out') ||
-          raw.contains('connection');
-      if (connectionLike) {
-        // TCP прошёл, но протокол/соединение упали: кэш подбора сбрасываем —
-        // следующая попытка прониует кандидатов и возьмёт живой сервер.
-        invalidateProbe();
-      }
+      final connectionLike = isTransientNetworkError(e);
       if (!mounted) return;
       setState(() {
         _phase = _LockPhase.needsPassword;
@@ -248,13 +235,10 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
             ? raw
             : null;
         _error = raw.contains('decryption failed')
-            ? tf(
-                'lock_wrong_password',
-                {'name': _wallet!.name},
-              )
+            ? tf('lock_wrong_password', {'name': _wallet!.name})
             : connectionLike
-                ? t('err_lock_connection')
-                : raw;
+            ? t('err_lock_connection')
+            : raw;
       });
     }
   }
@@ -310,7 +294,12 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
         // Мгновение до replace-навигации — молча, без загрузки.
         return const Scaffold(body: SizedBox.shrink());
       case _LockPhase.noWallets:
-        WidgetsBinding.instance.addPostFrameCallback((_) => _enterWelcome());
+        // Одноразовый переход: пост-фрейм-колбэк ставится ровно один раз
+        // (повторные build этой фазы не должны накапливать навигацию).
+        if (!_welcomeScheduled) {
+          _welcomeScheduled = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) => _enterWelcome());
+        }
         return const Scaffold(body: SizedBox.shrink());
       case _LockPhase.needsPassword:
         // Пока играет интро, знак-фон формы не ставим: интро сам
@@ -346,8 +335,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: GlassPanel(
-                      borderRadius:
-                          const BorderRadius.all(Radius.circular(24)),
+                      borderRadius: const BorderRadius.all(Radius.circular(24)),
                       sigma: 22,
                       // Панель почти прозрачная: матовое стекло без
                       // плотной заливки (решение владельца).
@@ -404,8 +392,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                               Center(
                                 child: TextButton.icon(
                                   onPressed: () => _chooseWallet(context),
-                                  icon:
-                                      const Icon(Icons.swap_horiz, size: 18),
+                                  icon: const Icon(Icons.swap_horiz, size: 18),
                                   label: Text(t('lock_switch_wallet')),
                                 ),
                               ),
@@ -428,7 +415,7 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
     final picked = await showDialog<WalletInfoDto>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
-        title: const Text('Кошелёк для входа'),
+        title: Text(t('lock_choose_wallet')),
         children: [
           for (final w in _wallets)
             SimpleDialogOption(
@@ -437,7 +424,9 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
                 dense: true,
                 title: Text(w.name),
                 subtitle: Text(
-                  'создан ${formatWalletDate(w.createdAtUnix.toInt())}',
+                  tf('wallet_created_at', {
+                    'date': formatWalletDate(w.createdAtUnix.toInt()),
+                  }),
                   style: const TextStyle(fontSize: 12),
                 ),
               ),

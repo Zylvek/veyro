@@ -46,15 +46,17 @@ pub fn sat_per_vb_from_btc_per_kb(btc_per_kb: f64) -> Result<u64, ChainError> {
     Ok(sat_per_vb as u64)
 }
 
-/// Ask the server for three depth presets (1/3/6 blocks ≈ fast/normal/slow).
+/// Ask the server for three depth presets (1/3/6 blocks ≈ fast/normal/slow)
+/// in ONE batched round-trip (3 sequential `estimatefee` calls before).
 pub fn estimate_fee_rates<G: Gateway + ?Sized>(gateway: &G) -> Result<FeeRates, ChainError> {
-    let depth = |blocks: u32| -> Result<u64, ChainError> {
-        sat_per_vb_from_btc_per_kb(gateway.estimate_fee_btc_per_kb(blocks)?)
-    };
+    let fees = gateway.estimate_fees_batch(&[1, 3, 6])?;
+    let [fast, normal, slow]: [f64; 3] = fees.try_into().map_err(|v: Vec<f64>| {
+        ChainError::Protocol(format!("estimatefee batch returned {} values", v.len()))
+    })?;
     Ok(FeeRates {
-        fast_sat_vb: depth(1)?,
-        normal_sat_vb: depth(3)?,
-        slow_sat_vb: depth(6)?,
+        fast_sat_vb: sat_per_vb_from_btc_per_kb(fast)?,
+        normal_sat_vb: sat_per_vb_from_btc_per_kb(normal)?,
+        slow_sat_vb: sat_per_vb_from_btc_per_kb(slow)?,
     })
 }
 

@@ -41,3 +41,10 @@ pub fn btc_session_state() -> Result<Option<BtcSessionStateDto>> {
 pub fn session_password_cached(wallet_id: String) -> Result<bool> {
     crate::session_password::cached_for(&wallet_id)
 }
+
+/// Unified app session: wipe ONLY this wallet's cached password. Called
+/// after the irreversible deletion of a wallet so its password does not
+/// survive in memory. No secret crosses FFI.
+pub fn session_password_erase_for(wallet_id: String) -> Result<()> {
+    crate::session_password::erase_for(&wallet_id)
+}

@@ -73,8 +73,9 @@ class CoinIconService {
   /// Iconify API: сначала цветная иконка, затем монохромная.
   static Future<List<int>?> httpFetch(String ticker) async {
     final name = ticker.toLowerCase();
-    final colored =
-        await _get('https://api.iconify.design/cryptocurrency-color/$name.svg');
+    final colored = await _get(
+      'https://api.iconify.design/cryptocurrency-color/$name.svg',
+    );
     if (colored != null) return colored;
     return _get('https://api.iconify.design/cryptocurrency/$name.svg');
   }
@@ -86,8 +87,8 @@ class CoinIconService {
           .getUrl(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
-            const Duration(seconds: 10),
-          );
+        const Duration(seconds: 10),
+      );
       if (response.statusCode != 200) return null;
       return await response.expand((chunk) => chunk).toList();
     } catch (_) {

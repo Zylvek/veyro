@@ -59,3 +59,45 @@ pub fn erase_if_all_locked() -> Result<()> {
     }
     Ok(())
 }
+
+/// Wipe ONLY one wallet's cached password (owner decision: after an
+/// irreversible wallet deletion its password must not survive in memory).
+/// The rest of the map is untouched.
+pub fn erase_for(wallet_id: &str) -> Result<()> {
+    let mut now_empty = false;
+    {
+        let mut guard = with_lock()?;
+        if let Some(map) = guard.as_mut() {
+            if map.remove(wallet_id).is_some() && map.is_empty() {
+                now_empty = true;
+            }
+        }
+    }
+    if now_empty {
+        // Empty map holds no secrets: drop to release the allocation.
+        *with_lock()? = None;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn per_wallet_cache_and_erase_for() {
+        // Tests run in one process: make sure these ids are unique enough not
+        // to clash with other tests touching the cache (none do by name).
+        store_for("test-wallet-erase", &Zeroizing::new("pw-a".to_string())).unwrap();
+        assert!(cached_for("test-wallet-erase").unwrap());
+        assert!(!cached_for("test-wallet-other").unwrap());
+
+        let got = get_for("test-wallet-erase").unwrap().unwrap();
+        assert_eq!(&*got, "pw-a");
+
+        assert!(erase_for("test-wallet-other").is_ok());
+        assert!(cached_for("test-wallet-erase").unwrap());
+        erase_for("test-wallet-erase").unwrap();
+        assert!(!cached_for("test-wallet-erase").unwrap());
+    }
+}

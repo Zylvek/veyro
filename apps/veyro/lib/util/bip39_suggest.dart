@@ -82,8 +82,11 @@ class Bip39Dictionary {
       var best = row[0];
       for (var j = 1; j <= b.length; j++) {
         final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
-        row[j] = [prev[j] + 1, row[j - 1] + 1, prev[j - 1] + cost]
-            .reduce((x, y) => x < y ? x : y);
+        row[j] = [
+          prev[j] + 1,
+          row[j - 1] + 1,
+          prev[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
         if (row[j] < best) best = row[j];
       }
       if (best > maxDistance) return maxDistance + 1;

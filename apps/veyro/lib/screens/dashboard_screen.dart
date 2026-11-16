@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:veyro/data/asset_registry.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
@@ -22,6 +23,7 @@ import 'package:veyro/util/btc_state_cache.dart';
 import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
+import 'package:veyro/util/network.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/price_source.dart';
 
@@ -112,13 +114,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<List<WalletInfoDto>> _loadWallets() async =>
       widget.walletLoader != null
-          ? (await widget.walletLoader!()) ?? const []
-          : await listWallets(walletsDir: walletsDir());
+      ? (await widget.walletLoader!()) ?? const []
+      : await listWallets(walletsDir: walletsDir());
 
   Future<BtcSessionStateDto?> _loadSession() async =>
       widget.sessionLoader != null
-          ? await widget.sessionLoader!()
-          : await btcSessionState();
+      ? await widget.sessionLoader!()
+      : await btcSessionState();
 
   Future<void> _refresh() async {
     // Никакой полноэкранной загрузки (решение владельца): Обзор сразу
@@ -133,7 +135,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final wallets = await _loadWallets();
       final session = await _loadSession();
       if (!mounted) return;
-      final selected = DisplayPrefs.walletId != null &&
+      final selected =
+          DisplayPrefs.walletId != null &&
               wallets.any((w) => w.id == DisplayPrefs.walletId)
           ? DisplayPrefs.walletId
           : (wallets.isEmpty ? null : wallets.first.id);
@@ -197,16 +200,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _coinSyncRunning = true;
     final wallet = _selected;
     try {
-      // BTC: кэш свежее 5 минут — не тратим соединений.
+      // BTC: кэш этого кошелька свежее 5 минут — не тратим соединений.
       final btcSession = await btcSessionState();
       if (btcSession != null && !mounted) return;
       if (btcSession != null) {
-        final fresh = BtcStateCache.instance.take();
+        final fresh = wallet == null
+            ? null
+            : BtcStateCache.instance.take(walletId: wallet.id);
         if (fresh == null) {
           BtcConnectState.instance.setBusy(true);
           try {
-            final sync = await btcSync(gapLimit: 20);
-            if (mounted) BtcStateCache.instance.store(sync);
+            final sync = await btcSync(gapLimit: kDefaultGapLimit);
+            if (mounted && wallet != null) {
+              BtcStateCache.instance.store(sync, walletId: wallet.id);
+            }
           } catch (e) {
             debugPrint('veyro-flow: btc background sync failed: $e');
           } finally {
@@ -252,11 +259,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }
             }
             if (unlocked) {
-              final sync = await ltcSync(gapLimit: 20);
-              if (mounted) LtcStateCache.instance.store(sync);
+              final sync = await ltcSync(gapLimit: kDefaultGapLimit);
+              if (mounted) {
+                LtcStateCache.instance.store(sync, walletId: wallet.id);
+              }
               try {
                 await dbSetSetting(
-                    key: 'ltc_last_good_server', value: sync.serverUrl);
+                  key: 'ltc_last_good_server',
+                  value: sync.serverUrl,
+                );
               } catch (_) {}
             }
           } catch (e) {
@@ -266,12 +277,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
         }
       } else if (ltcSession != null) {
-        final fresh = LtcStateCache.instance.take();
+        final fresh = wallet == null
+            ? null
+            : LtcStateCache.instance.take(walletId: wallet.id);
         if (fresh == null) {
           LtcConnectState.instance.setBusy(true);
           try {
-            final sync = await ltcSync(gapLimit: 20);
-            if (mounted) LtcStateCache.instance.store(sync);
+            final sync = await ltcSync(gapLimit: kDefaultGapLimit);
+            if (mounted && wallet != null) {
+              LtcStateCache.instance.store(sync, walletId: wallet.id);
+            }
           } catch (e) {
             debugPrint('veyro-flow: ltc background sync failed: $e');
           } finally {
@@ -280,6 +295,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
       if (mounted) setState(() {});
+    } catch (e) {
+      // Само чтение состояния сессий тоже может упасть (ядро/FFI):
+      // Обзор обязан молча деградировать, а не показывать «Ядро недоступно».
+      debugPrint('veyro-flow: background coin sync state failed: $e');
     } finally {
       _coinSyncRunning = false;
     }
@@ -335,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final items = widget.historyLoader != null
           ? await widget.historyLoader!()
-          : await btcHistory();
+          : (await btcHistory()).items;
       if (!mounted) return;
       setState(() => _recent = items.take(3).toList());
     } catch (e) {
@@ -358,7 +377,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   WalletInfoDto? get _selected {
     final wallets = _wallets;
     if (wallets == null || wallets.isEmpty) return null;
-    return wallets.firstWhere((w) => w.id == _selectedId, orElse: () => wallets.first);
+    return wallets.firstWhere(
+      (w) => w.id == _selectedId,
+      orElse: () => wallets.first,
+    );
   }
 
   String _maskAmount(String value) =>
@@ -373,57 +395,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: RefreshIndicator(
             onRefresh: _refresh,
             child: _error != null
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: VEmptyState(
-                          icon: Icons.cloud_off_outlined,
-                          title: t('core_unavailable'),
-                          message: '$_error\n${t('check_install')}',
-                          action: FilledButton.tonal(
-                            onPressed: _refresh,
-                            child: Text(t('retry')),
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          VEntrance(
-                            step: 0,
-                            child: _buildTopPanel(context),
-                          ),
-                          const SizedBox(height: 14),
-                          VEntrance(
-                            step: 1,
-                            child: _buildBalanceBlock(context),
-                          ),
-                          const SizedBox(height: 14),
-                          VEntrance(
-                            step: 2,
-                            child: _buildActionsRow(context),
-                          ),
-                          const SizedBox(height: 20),
-                          VEntrance(
-                            step: 3,
-                            child: VTwoColumn(
-                            left: Column(
-                              children: [
-                                _buildAssetsCard(context),
-                                const SizedBox(height: 16),
-                                _buildFavoritesCard(context),
-                              ],
-                            ),
-                            right: Column(
-                              children: [
-                                _buildRecentCard(context),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ],
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: VEmptyState(
+                      icon: Icons.cloud_off_outlined,
+                      title: t('core_unavailable'),
+                      message: '$_error\n${t('check_install')}',
+                      action: FilledButton.tonal(
+                        onPressed: _refresh,
+                        child: Text(t('retry')),
                       ),
+                    ),
+                  )
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      VEntrance(step: 0, child: _buildTopPanel(context)),
+                      const SizedBox(height: 14),
+                      VEntrance(step: 1, child: _buildBalanceBlock(context)),
+                      const SizedBox(height: 14),
+                      VEntrance(step: 2, child: _buildActionsRow(context)),
+                      const SizedBox(height: 20),
+                      VEntrance(
+                        step: 3,
+                        child: VTwoColumn(
+                          left: Column(
+                            children: [
+                              _buildAssetsCard(context),
+                              const SizedBox(height: 16),
+                              _buildFavoritesCard(context),
+                            ],
+                          ),
+                          right: Column(children: [_buildRecentCard(context)]),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -437,9 +446,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final wallets = _wallets ?? const <WalletInfoDto>[];
     return Row(
       children: [
-        const Expanded(
-          child: SizedBox.shrink(),
-        ),
         Flexible(
           child: Card(
             child: Padding(
@@ -451,8 +457,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 6,
+                  ),
                 ),
                 items: [
                   for (final w in wallets)
@@ -473,10 +481,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             alignment: WrapAlignment.end,
             children: [
               if (DisplayPrefs.degraded)
-                VStatusChip(
-                  t('db_unavailable'),
-                  kind: VChipKind.warning,
-                ),
+                VStatusChip(t('db_unavailable'), kind: VChipKind.warning),
               IconButton(
                 tooltip: DisplayPrefs.hideBalances
                     ? t('show_amounts')
@@ -495,13 +500,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // применяются сразу, без перезапуска приложения.
               IconButton(
                 tooltip: t('settings_title'),
-                icon: const Icon(Icons.settings_outlined,
-                    color: VColors.textSecondary),
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: VColors.textSecondary,
+                ),
                 onPressed: () async {
-                  await Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const SettingsScreen(),
-                  ));
-                  await _refresh();
+                  await pushVeyro<void>(context, const SettingsScreen());
+                  if (mounted) await _refresh();
                 },
               ),
             ],
@@ -546,10 +551,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   alignment: WrapAlignment.end,
                   children: [
                     if (session != null && session.hasSpendables)
-                      VStatusChip(
-                        t('synced_funds'),
-                        kind: VChipKind.success,
-                      ),
+                      VStatusChip(t('synced_funds'), kind: VChipKind.success),
                   ],
                 ),
               ],
@@ -573,10 +575,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Эквивалент суммы в ВЫБРАННОЙ монете графика — решение
             // владельца («≈ на эту же монету»); цены монеты нет —
             // строки нет. По умолчанию ETH, как в референсе.
-            if (rate != null &&
-                _chartCoinRate != null &&
-                _chartCoinRate! > 0)
-              Text(
+            if (rate != null && _chartCoinRate != null && _chartCoinRate! > 0)
+              VAnimatedText(
                 '≈ ${_maskAmount((balanceSat / 1e8 * rate / _chartCoinRate!).toStringAsFixed(4))} ${DisplayPrefs.chartCoin}',
                 style: TextStyle(
                   fontFamily: kMonoFont,
@@ -593,10 +593,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               height: 126,
               width: double.infinity,
               child: (_seriesPrices != null && _seriesPrices!.length >= 2)
-                  ? VSparkline(
-                      values: _seriesPrices!,
-                      hints: _seriesHints,
-                    )
+                  ? VSparkline(values: _seriesPrices!, hints: _seriesHints)
                   : null,
             ),
             const SizedBox(height: 6),
@@ -665,10 +662,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Реальный подтверждённый баланс BTC из последней синхронизации
-  /// (кэш от экрана входа/центра). Данных нет — 0 (решение владельца).
+  /// Реальный подтверждённый баланс BTC из последней синхронизации АКТИВНОГО
+  /// кошелька (кэш от экрана входа/центра; ключ — id кошелька, чужие данные
+  /// не показываются). Данных нет — 0 (решение владельца).
   int _btcBalanceSat() {
-    final sync = BtcStateCache.instance.take();
+    final id = _selected?.id;
+    if (id == null) return 0;
+    final sync = BtcStateCache.instance.take(walletId: id);
     if (sync == null) return 0;
     final confirmed = sync.confirmedSat.toInt();
     final delta = sync.unconfirmedDeltaSat.toInt();
@@ -723,9 +723,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ActionChip(
                 avatar: _AssetAvatar(asset),
                 label: Text(asset.ticker),
-                onPressed: () => _push(
-                  AssetDetailScreen(asset: asset, wallet: _selected),
-                ),
+                onPressed: () =>
+                    _push(AssetDetailScreen(asset: asset, wallet: _selected)),
               ),
           ],
         ),
@@ -734,24 +733,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAssetsCard(BuildContext context) {
+    // Бейдж фонового синка BTC/LTC должен перерисовываться по факту смены
+    // состояния, не только по setState Обзора — подписка на оба нотифаера.
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        BtcConnectState.instance,
+        LtcConnectState.instance,
+      ]),
+      builder: (context, _) => _buildAssetsCardBody(context),
+    );
+  }
+
+  Widget _buildAssetsCardBody(BuildContext context) {
     final btc = kAssetRegistry.firstWhere((a) => a.ticker == 'BTC');
     final ltc = kAssetRegistry.firstWhere((a) => a.ticker == 'LTC');
     final wallet = _selected;
     // Сумма монеты — реальный подтверждённый баланс из последней
-    // синхронизации (кэш; без данных — 0 по решению владельца).
-    final sync = BtcStateCache.instance.take();
+    // синхронизации ЭТОГО кошелька (кэш ключён по id; без данных — 0).
+    final sync = wallet == null
+        ? null
+        : BtcStateCache.instance.take(walletId: wallet.id);
     final balanceSat = _btcBalanceSat();
     // LTC — вторая реализованная монета (receive-only ядро + send): та же
-    // карточка-шапка, баланс из LTC-кэша, фиат от того же источника цен.
-    final ltcSync = LtcStateCache.instance.take();
+    // карточка-шапка, баланс из LTC-кэша этого же кошелька, фиат — тот же
+    // источник цен.
+    final ltcSync = wallet == null
+        ? null
+        : LtcStateCache.instance.take(walletId: wallet.id);
     final ltcBalanceLit = ltcSync == null
         ? 0
         : (ltcSync.unconfirmedDeltaSat.toInt() < 0
-            ? ltcSync.confirmedSat.toInt() +
-                ltcSync.unconfirmedDeltaSat.toInt()
-            : ltcSync.confirmedSat.toInt());
+              ? ltcSync.confirmedSat.toInt() +
+                    ltcSync.unconfirmedDeltaSat.toInt()
+              : ltcSync.confirmedSat.toInt());
     final rate = _fiatRate;
     final ltcRate = _ltcRate;
+    final btcBusy = BtcConnectState.instance.busy;
     return VCard(
       icon: Icons.grid_view_outlined,
       title: t('assets_title'),
@@ -762,14 +779,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
             leading: _AssetAvatar(btc),
             title: const Text('Bitcoin'),
             // Количество под именем — как в референсе.
-            subtitle: Text(
-              '${_maskAmount(satToBtcString(balanceSat))} BTC',
-              style: const TextStyle(
-                fontFamily: kMonoFont,
-                fontSize: 11.5,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
+            subtitle: btcBusy
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        height: 12,
+                        width: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        t('sync_now_short'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  )
+                : VAnimatedText(
+                    '${_maskAmount(satToBtcString(balanceSat))} BTC',
+                    style: const TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11.5,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -777,7 +810,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // Фиатное выражение позиции — от того же курса, что и
                 // hero-карта; курса нет — справа пусто (без выдумок).
                 if (rate != null) ...[
-                  Text(
+                  VAnimatedText(
                     _maskAmount(formatFiat(balanceSat / 1e8 * rate)),
                     style: const TextStyle(
                       fontFamily: kMonoFont,
@@ -798,7 +831,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
                 if (sync != null && sync.unconfirmedDeltaSat.toInt() != 0)
                   Text(
-                    '${signedSatToBtcString(sync.unconfirmedDeltaSat.toInt())} BTC ${t('mempool_suffix')}',
+                    '${_maskAmount(signedSatToBtcString(sync.unconfirmedDeltaSat.toInt()))} BTC ${t('mempool_suffix')}',
                     style: TextStyle(
                       fontFamily: kMonoFont,
                       fontSize: 11,
@@ -809,9 +842,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             // Тап по BTC → сразу центр управления (решение владельца:
             // никакой промежуточной страницы деталей).
-            onTap: wallet == null
-                ? null
-                : () => _push(BtcScreen(info: wallet)),
+            onTap: wallet == null ? null : () => _push(BtcScreen(info: wallet)),
           ),
         ),
         AnimatedBuilder(
@@ -830,8 +861,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(
                             width: 12,
                             height: 12,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -844,7 +874,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ],
                       )
-                    : Text(
+                    : VAnimatedText(
                         '${_maskAmount(satToBtcString(ltcBalanceLit))} LTC',
                         style: const TextStyle(
                           fontFamily: kMonoFont,
@@ -859,9 +889,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           if (ltcRate != null) ...[
-                            Text(
+                            VAnimatedText(
                               _maskAmount(
-                                  formatFiat(ltcBalanceLit / 1e8 * ltcRate)),
+                                formatFiat(ltcBalanceLit / 1e8 * ltcRate),
+                              ),
                               style: const TextStyle(
                                 fontFamily: kMonoFont,
                                 fontSize: 14,
@@ -882,7 +913,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           if (ltcSync != null &&
                               ltcSync.unconfirmedDeltaSat.toInt() != 0)
                             Text(
-                              '${signedSatToBtcString(ltcSync.unconfirmedDeltaSat.toInt())} LTC ${t('mempool_suffix')}',
+                              '${_maskAmount(signedSatToBtcString(ltcSync.unconfirmedDeltaSat.toInt()))} LTC ${t('mempool_suffix')}',
                               style: TextStyle(
                                 fontFamily: kMonoFont,
                                 fontSize: 11,
@@ -906,9 +937,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             t('all_assets'),
             icon: Icons.grid_view_outlined,
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => AssetCatalogScreen(),
-              ));
+              pushVeyro<void>(context, AssetCatalogScreen());
             },
           ),
         ),
@@ -943,12 +972,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Center(
-                  child: VeyroMark(size: 40, opacity: 0.45),
-                ),
+                const Center(child: VeyroMark(size: 40, opacity: 0.45)),
                 const SizedBox(height: 8),
-                Text(t('no_transactions'),
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  t('no_transactions'),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
           )
@@ -999,14 +1028,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               subtitle: Text(
                 item.height >= 1
-                    ? tf(
-                        'height_n',
-                        {'height': '${item.height}'},
-                      )
+                    ? tf('height_n', {'height': '${item.height}'})
                     : t('in_mempool'),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall!
+                style: Theme.of(context).textTheme.bodySmall!
                     .copyWith(fontFamily: kMonoFont, fontSize: 11),
               ),
               // Сумма справа, цветом направления.
@@ -1030,11 +1054,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
               ),
-              onTap: () =>
-                  _push(TxDetailsScreen(
-                item: item,
-                networkCode: _session?.networkCode,
-              )),
+              onTap: () => _push(
+                TxDetailsScreen(item: item, networkCode: _session?.networkCode),
+              ),
             ),
           const SizedBox(height: 4),
           VButton.secondary(
@@ -1049,7 +1071,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _push(Widget screen, {bool reload = false}) async {
     debugPrint('veyro-flow: overview pushing ${screen.runtimeType}');
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    await pushVeyro<void>(context, screen);
     debugPrint('veyro-flow: overview push returned');
     if (mounted && reload) await _refresh();
   }

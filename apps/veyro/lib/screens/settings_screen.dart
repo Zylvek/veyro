@@ -13,10 +13,14 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/btc.dart' show btcLock;
+import 'package:veyro/src/rust/api/ltc.dart' show ltcLock;
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/price_source.dart';
 import 'package:veyro/util/display_prefs.dart';
@@ -44,7 +48,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _prefsReady = false;
   bool _lockBusy = false;
-
 
   BtcSessionStateDto? _session;
   bool _sessionChecked = false;
@@ -123,16 +126,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Удаление кошелька: подтверждение + снятие vault-файла
-  /// (`<id>.wallet.json`) с диска — реестр ядра перечитывает каталог.
+  /// Удаление кошелька: подтверждение → закрыть его монетные сессии (если
+  /// они принадлежат удалённому активному кошельку), стереть пароль из
+  /// кэша ядра, снять vault-файл (`<id>.wallet.json`) с диска — реестр
+  /// ядра перечитывает каталог. Секреты не выживают удаление: сессия с
+  /// seed и кэш пароля для этого id вычищаются до снятия файла.
   Future<void> _deleteWallet(WalletInfoDto info) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(tf(
-          'delete_wallet_title',
-          {'name': info.name},
-        )),
+        title: Text(tf('delete_wallet_title', {'name': info.name})),
         content: Text(t('delete_wallet_body')),
         actions: [
           TextButton(
@@ -149,16 +152,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      final file = File(
-          '${walletsDir()}${Platform.pathSeparator}${info.id}.wallet.json');
-      if (file.existsSync()) file.deleteSync();
+      final wasActive = DisplayPrefs.walletId == info.id;
+      if (wasActive) {
+        // Сессии ядра держат seed в памяти: блокируем обе монеты (худший
+        // случай для владельца — повторный ввод пароля; честность выше
+        // удобства при необратимом удалении), кэши монет сбрасываем.
+        try {
+          await btcLock();
+        } catch (_) {}
+        try {
+          await ltcLock();
+        } catch (_) {}
+        BtcStateCache.instance.clear();
+        LtcStateCache.instance.clear();
+      }
+      // Пароль удалённого кошелька не переживёт удаление (owner decision).
+      try {
+        await sessionPasswordEraseFor(walletId: info.id);
+      } catch (_) {}
+      // Снятие файла — асинхронно: блокирующий IO в UI-потоке не нужен.
+      final vaultFile = File(
+        '${walletsDir()}${Platform.pathSeparator}${info.id}.wallet.json',
+      );
+      if (await vaultFile.exists()) await vaultFile.delete();
+      // Зависший tmp-писатель создания (crash mid-write) подчищаем заодно.
+      final tmp = File(
+        '${walletsDir()}${Platform.pathSeparator}${info.id}.wallet.tmp',
+      );
+      if (await tmp.exists()) await tmp.delete();
+      await DisplayPrefs.forgetWalletIf(info.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(tf(
-          'wallet_deleted',
-          {'name': info.name},
-        )),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tf('wallet_deleted', {'name': info.name}))),
+      );
       await _reloadWallets();
     } catch (e) {
       if (!mounted) return;
@@ -171,10 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _revealMnemonic(WalletInfoDto info) async {
     final password = await promptPassword(
       context,
-      title: tf(
-        'reveal_title',
-        {'name': info.name},
-      ),
+      title: tf('reveal_title', {'name': info.name}),
     );
     if (password == null || !mounted) return;
     try {
@@ -256,19 +279,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Spacer(),
                   DropdownButton<String>(
-                    value: PriceSource.chartCoins.containsKey(
-                            DisplayPrefs.chartCoin)
+                    value:
+                        PriceSource.chartCoins.containsKey(
+                          DisplayPrefs.chartCoin,
+                        )
                         ? DisplayPrefs.chartCoin
                         : 'ETH',
                     underline: const SizedBox.shrink(),
                     items: [
                       for (final symbol in PriceSource.chartCoins.keys)
-                        DropdownMenuItem(
-                            value: symbol, child: Text(symbol)),
+                        DropdownMenuItem(value: symbol, child: Text(symbol)),
                     ],
                     onChanged: (symbol) {
-                      if (symbol == null ||
-                          symbol == DisplayPrefs.chartCoin) {
+                      if (symbol == null || symbol == DisplayPrefs.chartCoin) {
                         return;
                       }
                       DisplayPrefs.setChartCoin(symbol);
@@ -292,7 +315,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     items: [
                       for (final entry in DisplayPrefs.languages.entries)
                         DropdownMenuItem(
-                            value: entry.key, child: Text(entry.value)),
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
                     ],
                     onChanged: (code) {
                       if (code == null) return;
@@ -310,10 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: VStatusChip(
-                      t('db_note'),
-                      kind: VChipKind.warning,
-                    ),
+                    child: VStatusChip(t('db_note'), kind: VChipKind.warning),
                   ),
                 ),
             ]
@@ -338,13 +360,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           )
         else if (_sessionError != null)
           Text(
-            tf(
-              'session_state_error',
-              {'error': '$_sessionError'},
-            ),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
+            tf('session_state_error', {'error': '$_sessionError'}),
+            style: Theme.of(context).textTheme.bodySmall!
                 .copyWith(color: VColors.error),
           )
         else
@@ -357,7 +374,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _honestRow(context, t('idle_lock_label'), t('idle_lock_note')),
         _honestRow(context, t('biometry_label'), t('biometry_note')),
         _honestRow(
-            context, t('password_change_label'), t('password_change_note')),
+          context,
+          t('password_change_label'),
+          t('password_change_note'),
+        ),
         _honestRow(context, t('secrets_label'), t('secrets_note')),
       ],
     );
@@ -375,10 +395,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             VStatusChip(
               sessionActive
-                  ? tf(
-                      'session_keys_active',
-                      {'network': ruNetworkText(session.networkDisplay) ?? 'BTC'},
-                    )
+                  ? tf('session_keys_active', {
+                      'network': ruNetworkText(session.networkDisplay) ?? 'BTC',
+                    })
                   : t('btc_locked_chip'),
               kind: sessionActive ? VChipKind.warning : VChipKind.success,
             ),
@@ -405,15 +424,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Expanded(
             flex: 2,
-            child: Text('$title:',
-                style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              '$title:',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
           Expanded(
             flex: 3,
-            child: Text(
-              note,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            child: Text(note, style: Theme.of(context).textTheme.bodySmall),
           ),
         ],
       ),
@@ -449,10 +467,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 t('wallets_create'),
                 icon: Icons.add_circle_outline,
                 onPressed: () async {
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const CreateWalletFlow(),
-                  ));
-                  await _reloadWallets();
+                  // ДОЖИДАЕМСЯ возврата: иначе реестр перечитывается до
+                  // создания кошелька, и новый кошелёк не появляется.
+                  await pushVeyro<void>(context, const CreateWalletFlow());
+                  if (mounted) await _reloadWallets();
                 },
               ),
             ),
@@ -462,10 +480,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 t('wallets_import'),
                 icon: Icons.restore_outlined,
                 onPressed: () async {
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const ImportWalletScreen(),
-                  ));
-                  await _reloadWallets();
+                  await pushVeyro<void>(context, const ImportWalletScreen());
+                  if (mounted) await _reloadWallets();
                 },
               ),
             ),
@@ -476,20 +492,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Center(child: CircularProgressIndicator(strokeWidth: 2))
         else if (_walletsError != null)
           Text(
-            tf(
-              'wallets_registry_error',
-              {'error': '$_walletsError'},
-            ),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
+            tf('wallets_registry_error', {'error': '$_walletsError'}),
+            style: Theme.of(context).textTheme.bodySmall!
                 .copyWith(color: VColors.error),
           )
         else if (wallets == null || wallets.isEmpty)
-          Text(
-            t('wallets_empty'),
-            style: Theme.of(context).textTheme.bodySmall,
-          )
+          Text(t('wallets_empty'), style: Theme.of(context).textTheme.bodySmall)
         else
           for (final info in wallets)
             Padding(
@@ -517,23 +525,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const SizedBox(height: 2),
                     Text(
-                      tf(
-                        'wallet_created',
-                        {
-                          'date':
-                              formatWalletDate(info.createdAtUnix.toInt()),
-                        },
-                      ),
+                      tf('wallet_created', {
+                        'date': formatWalletDate(info.createdAtUnix.toInt()),
+                      }),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      tf(
-                        'wallet_id',
-                        {'id': info.id},
-                      ),
+                      tf('wallet_id', {'id': info.id}),
                       style: const TextStyle(
-                          fontFamily: kMonoFont, fontSize: 12),
+                        fontFamily: kMonoFont,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -557,9 +560,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 onTap: () async {
-                  await Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => PortfolioScreen(info: info),
-                  ));
+                  await pushVeyro<void>(context, PortfolioScreen(info: info));
                   if (mounted) await _reloadWallets();
                 },
               ),

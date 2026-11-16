@@ -41,16 +41,23 @@ class DisplayPrefs {
   static const List<String> fiatCurrencies = ['USD', 'EUR', 'GBP', 'RUB'];
 
   static bool _loaded = false;
+  static Future<void>? _loadingOnce;
 
-  /// Одна ленивая загрузка на процесс.
-  static Future<void> ensureLoaded() async {
-    if (_loaded) return;
-    _loaded = true;
+  /// Одна ленивая загрузка на процесс. Параллельные вызовы дожидаются той
+  /// же самой загрузки (race «второй вызов получает дефолты до конца
+  /// чтения» устранён): флаг ставится строго после чтения.
+  static Future<void> ensureLoaded() {
+    if (_loaded) return Future.value();
+    return _loadingOnce ??= _doLoad();
+  }
+
+  static Future<void> _doLoad() async {
     try {
       await _readAll();
     } catch (_) {
       degraded = true;
     }
+    _loaded = true;
   }
 
   static Future<void> _readAll() async {
@@ -117,6 +124,11 @@ class DisplayPrefs {
 
   static bool get hideBalances => _hideBalances;
 
+  /// Единая маскировка сумм («глазик» на Обзоре): включён — прочерки,
+  /// иначе значение как есть. Использовать для ВСЕХ денежных строк
+  /// (балансы, дельты мемпула, центры монет).
+  static String maskAmount(String value) => _hideBalances ? '••••••' : value;
+
   static Future<void> setHideBalances(bool hide) async {
     _hideBalances = hide;
     await _write(_kHide, hide ? '1' : '0');
@@ -124,8 +136,15 @@ class DisplayPrefs {
 
   static String? get walletId => _walletId;
 
-  static Future<void> setWalletId(String id) async {
+  static Future<void> setWalletId(String? id) async {
     _walletId = id;
-    await _write(_kWallet, id);
+    // null — активный кошелёк удалён: сбрасываем настройку, выбор вернётся
+    // к первому живому кошельку при следующем входе.
+    await _write(_kWallet, id ?? '');
+  }
+
+  /// Очистить выбор, если он указывал на удалённый кошелёк.
+  static Future<void> forgetWalletIf(String id) async {
+    if (_walletId == id) await setWalletId(null);
   }
 }

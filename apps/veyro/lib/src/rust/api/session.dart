@@ -23,6 +23,14 @@ Future<bool> sessionPasswordCached({required String walletId}) => RustLib
     .api
     .crateApiSessionSessionPasswordCached(walletId: walletId);
 
+/// Unified app session: wipe ONLY this wallet's cached password. Called
+/// after the irreversible deletion of a wallet so its password does not
+/// survive in memory. No secret crosses FFI.
+Future<void> sessionPasswordEraseFor({required String walletId}) => RustLib
+    .instance
+    .api
+    .crateApiSessionSessionPasswordEraseFor(walletId: walletId);
+
 /// Non-secret session state for the UI; `None` when locked.
 class BtcSessionStateDto {
   final int networkCode;

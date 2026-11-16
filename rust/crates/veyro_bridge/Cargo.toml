@@ -21,7 +21,6 @@ crypto_vault = { path = "../crypto_vault" }
 key_manager = { path = "../key_manager" }
 wallet_core = { path = "../wallet_core" }
 storage = { path = "../storage" }
-backup_manager = { path = "../backup_manager" }
 chains = { path = "../chains" }
 zeroize = { workspace = true }
 hex = { workspace = true }

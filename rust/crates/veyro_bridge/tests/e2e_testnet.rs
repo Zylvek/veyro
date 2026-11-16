@@ -176,6 +176,7 @@ fn full_cycle_testnet() {
     //    direction is "internal".
     let history = btc::btc_history().expect("history");
     let item = history
+        .items
         .iter()
         .find(|i| i.txid == result.txid)
         .expect("broadcast tx in history");

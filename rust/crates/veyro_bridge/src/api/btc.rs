@@ -26,15 +26,16 @@ use chains::bitcoin::tx::{
     estimate_fee_rates_with_fallback, idempotent_broadcast, plan_transfer, KeyPath,
     SignedTransferBuilder,
 };
-use chains::electrum::{BtcNetwork, ElectrumGateway, Gateway};
+use chains::electrum::{failover_candidates, BtcNetwork, ElectrumGateway, Gateway};
+use chains::ChainError;
 use zeroize::Zeroizing;
 
 use key_manager::from_phrase;
 use wallet_core::WalletManager;
 
 use crate::btc_session::{
-    invalidate_utxos, network_from_code, snapshot, store_gateway, store_sync, with_lock,
-    with_session, BtcSession,
+    after_send, network_from_code, snapshot, store_gateway, store_sync, with_lock, with_session,
+    BtcSession,
 };
 use crate::production_kdf;
 
@@ -202,35 +203,42 @@ pub struct BtcSyncDto {
 /// Discover all wallet addresses (gap-limited), compute the balance and the
 /// spendable set. Run this after unlock (and after every send, see
 /// `btc_send`).
+///
+/// Transient failures get ONE reconnect retry — against the next live-verified
+/// preset server (core-owned list, the failed server goes last), not against
+/// the same dead URL twice.
 pub fn btc_sync(gap_limit: u32) -> Result<BtcSyncDto> {
     let (gateway, account_pub, network) = snapshot()?;
     match attempt_sync(&gateway, &account_pub, network, gap_limit) {
         Ok(dto) => Ok(dto),
         Err(e) => {
-            // Транспорт/протокол иногда «отрезают» свежее соединение
-            // (flaky EOF у публичных серверов): пересобираем gateway с
-            // честным хэндшейк-бэкоффом и пробуем ровно один раз.
-            if !transient_sync_error(&e) {
+            if !crate::is_transient_sync_error(&e) {
                 return Err(anyhow!("{e}"));
             }
-            // Reconnect with the honest handshake backoff and retry once.
-            let fresh =
-                ElectrumGateway::connect(gateway.url(), network).map_err(|e| anyhow!("{e}"))?;
-            store_gateway(fresh)?;
-            let (gateway, account_pub, network) = snapshot()?;
-            attempt_sync(&gateway, &account_pub, network, gap_limit)
+            let mut last_err = e;
+            for url in failover_candidates(network, gateway.url()).iter().take(2) {
+                let fresh = match ElectrumGateway::connect(url, network) {
+                    Ok(g) => g,
+                    Err(ce) => {
+                        last_err = ce;
+                        continue;
+                    }
+                };
+                store_gateway(fresh).map_err(|err| anyhow!("{err}"))?;
+                let (gateway, account_pub, network) = snapshot()?;
+                match attempt_sync(&gateway, &account_pub, network, gap_limit) {
+                    Ok(dto) => return Ok(dto),
+                    Err(ce) => {
+                        if !crate::is_transient_sync_error(&ce) {
+                            return Err(anyhow!("{ce}"));
+                        }
+                        last_err = ce;
+                    }
+                }
+            }
+            Err(anyhow!("{last_err}"))
         }
     }
-}
-
-fn transient_sync_error(e: &anyhow::Error) -> bool {
-    let text = format!("{e}").to_lowercase();
-    text.contains("electrum")
-        || text.contains("unexpected end of file")
-        || text.contains("eof while parsing")
-        || text.contains("all errored")
-        || text.contains("timed out")
-        || text.contains("connection")
 }
 
 fn attempt_sync(
@@ -238,10 +246,10 @@ fn attempt_sync(
     account_pub: &AccountPubkeys,
     network: BtcNetwork,
     gap_limit: u32,
-) -> Result<BtcSyncDto> {
-    let discovery = discover(gateway, account_pub, gap_limit).map_err(|e| anyhow!("{e}"))?;
-    let balance = wallet_balance(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
-    let utxos = collect_utxos(gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
+) -> Result<BtcSyncDto, ChainError> {
+    let discovery = discover(gateway, account_pub, gap_limit)?;
+    let balance = wallet_balance(gateway, &discovery)?;
+    let utxos = collect_utxos(gateway, &discovery)?;
     let utxo_count = utxos.len() as u32;
     let used_addresses = discovery
         .slots()
@@ -255,20 +263,14 @@ fn attempt_sync(
         })
         .collect();
 
-    let next_receive = derive_dto(
-        account_pub,
-        BRANCH_EXTERNAL,
-        discovery.external.next_index(),
-        false,
-    )?;
-    let next_change = derive_dto(
-        account_pub,
-        BRANCH_INTERNAL,
-        discovery.internal.next_index(),
-        false,
-    )?;
-
-    store_sync(discovery, utxos)?;
+    let tip_height = gateway.tip_height()?;
+    let next_receive = account_pub
+        .derive_address(BRANCH_EXTERNAL, discovery.external.next_index())
+        .map(|a| address_dto(&a, false))?;
+    let next_change = account_pub
+        .derive_address(BRANCH_INTERNAL, discovery.internal.next_index())
+        .map(|a| address_dto(&a, false))?;
+    store_sync(discovery, utxos).map_err(|e| ChainError::Internal(format!("{e}")))?;
 
     Ok(BtcSyncDto {
         network_code: network.code(),
@@ -278,7 +280,7 @@ fn attempt_sync(
         used_addresses,
         next_receive,
         next_change,
-        tip_height: gateway.tip_height()?,
+        tip_height,
         server_url: gateway.url().to_string(),
     })
 }
@@ -397,12 +399,23 @@ pub fn btc_send(recipient: String, amount_sat: u64, fee_sat_vb: u64) -> Result<B
         builder.sign(&plan, tip_height).map_err(|e| anyhow!("{e}"))
     })?;
 
-    // Idempotent broadcast outside the lock.
-    let outcome = idempotent_broadcast(&gateway, &signed).map_err(|e| anyhow!("{e}"))?;
+    // Idempotent broadcast outside the lock. A broadcast that FAILED is
+    // still a broadcast ATTEMPT: the tx may have reached the network before
+    // the error surfaced. The spendable set is invalidated either way — a
+    // second send from the same set without a fresh sync is possible only
+    // through the stale-set error path (no silent double-spend).
+    let outcome = match idempotent_broadcast(&gateway, &signed) {
+        Ok(outcome) => outcome,
+        Err(e) => {
+            after_send().map_err(|err| anyhow!("{err}"))?;
+            return Err(anyhow!("{e}"));
+        }
+    };
 
-    // Spend-safety: the spendable set is stale now; force a re-sync before
-    // any further send (prevents a repeated send from the same coins).
-    invalidate_utxos()?;
+    // Success: force a re-sync before any further send (stale set would
+    // double-spend) and advance the change index so two consecutive sends
+    // never reuse the same change address.
+    after_send().map_err(|e| anyhow!("{e}"))?;
 
     let (already_known, status) = match outcome {
         chains::electrum::BroadcastOutcome::Sent(txid) => {
@@ -499,26 +512,42 @@ pub struct BtcHistoryItemDto {
 }
 
 /// The wallet history with computed amounts (requires a prior `btc_sync`).
-/// Capped by the scan module's MAX_HISTORY_ITEMS safety valve.
-pub fn btc_history() -> Result<Vec<BtcHistoryItemDto>> {
+///
+/// Honest truncation: a wallet with more than MAX_HISTORY_ITEMS per-address
+/// history entries gets its MOST RECENT items resolved; `truncated` is true
+/// and `total_entries` reports the full count, so the UI can say exactly
+/// what is shown (never a fabricated "all", never a hard failure).
+#[derive(Debug)]
+pub struct BtcHistoryDto {
+    pub items: Vec<BtcHistoryItemDto>,
+    pub total_entries: i64,
+    pub truncated: bool,
+}
+
+pub fn btc_history() -> Result<BtcHistoryDto> {
     let (gateway, _account, _network) = snapshot()?;
     let discovery = with_session(|s| Ok(s.discovery.clone()))?
         .ok_or_else(|| anyhow!("no scanned addresses — run btc_sync first"))?;
-    let items = history_with_amounts(&gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
-    Ok(items
-        .into_iter()
-        .map(|item| BtcHistoryItemDto {
-            txid: item.txid.to_string(),
-            height: item.height,
-            direction: match item.direction {
-                Some(HistoryDirection::Incoming) => "incoming".to_string(),
-                Some(HistoryDirection::Outgoing) => "outgoing".to_string(),
-                Some(HistoryDirection::Internal) => "internal".to_string(),
-                None => "unknown".to_string(),
-            },
-            received_sat: item.received_sat,
-            sent_net_sat: item.sent_net_sat,
-            fee_sat: item.fee_sat,
-        })
-        .collect())
+    let resolution = history_with_amounts(&gateway, &discovery).map_err(|e| anyhow!("{e}"))?;
+    Ok(BtcHistoryDto {
+        items: resolution
+            .items
+            .into_iter()
+            .map(|item| BtcHistoryItemDto {
+                txid: item.txid.to_string(),
+                height: item.height,
+                direction: match item.direction {
+                    Some(HistoryDirection::Incoming) => "incoming".to_string(),
+                    Some(HistoryDirection::Outgoing) => "outgoing".to_string(),
+                    Some(HistoryDirection::Internal) => "internal".to_string(),
+                    None => "unknown".to_string(),
+                },
+                received_sat: item.received_sat,
+                sent_net_sat: item.sent_net_sat,
+                fee_sat: item.fee_sat,
+            })
+            .collect(),
+        total_entries: resolution.total_entries as i64,
+        truncated: resolution.truncated,
+    })
 }

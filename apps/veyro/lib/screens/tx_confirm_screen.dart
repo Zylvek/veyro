@@ -90,9 +90,7 @@ class TxConfirmScreen extends StatelessWidget {
                   Text(
                     '${groupDigits(amountSat)} '
                     '${coin == WalletCoin.ltc ? t('ltc_unit') : t('sats')}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall!
+                    style: Theme.of(context).textTheme.bodySmall!
                         .copyWith(color: VColors.textSecondary),
                   ),
                 ],
@@ -129,15 +127,16 @@ class TxConfirmScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber_outlined,
-                        size: 20, color: VColors.error),
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      size: 20,
+                      color: VColors.error,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         t('send_irreversible'),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall!
+                        style: Theme.of(context).textTheme.bodySmall!
                             .copyWith(color: VColors.error),
                       ),
                     ),
@@ -170,8 +169,12 @@ class TxConfirmScreen extends StatelessWidget {
     );
   }
 
-  Widget _row(BuildContext context, String key, String value,
-      {bool mono = false}) {
+  Widget _row(
+    BuildContext context,
+    String key,
+    String value, {
+    bool mono = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

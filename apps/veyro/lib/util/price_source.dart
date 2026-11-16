@@ -147,10 +147,12 @@ class PriceSource {
           point.length == 2 &&
           point[0] is num &&
           point[1] is num) {
-        points.add(MarketPoint(
-          DateTime.fromMillisecondsSinceEpoch((point[0] as num).toInt()),
-          (point[1] as num).toDouble(),
-        ));
+        points.add(
+          MarketPoint(
+            DateTime.fromMillisecondsSinceEpoch((point[0] as num).toInt()),
+            (point[1] as num).toDouble(),
+          ),
+        );
       }
     }
     return points;
@@ -166,11 +168,7 @@ class PriceSource {
       final at = _at;
       final payload = <String, dynamic>{
         if (rates != null && at != null) ...{
-          'rates': {
-            'btc': rates.btc,
-            'eth': rates.eth,
-            'others': rates.others,
-          },
+          'rates': {'btc': rates.btc, 'eth': rates.eth, 'others': rates.others},
           'ratesAt': at.millisecondsSinceEpoch,
         },
         'series': {
@@ -195,16 +193,22 @@ class PriceSource {
   static Future<FiatRates?> httpLoader() async {
     final client = HttpClient();
     try {
-      final ids = <String>{'bitcoin', 'ethereum', ...chartCoins.values}
-          .toList();
+      final ids = <String>{
+        'bitcoin',
+        'ethereum',
+        ...chartCoins.values,
+      }.toList();
       final request = await client
-          .getUrl(Uri.parse(
+          .getUrl(
+            Uri.parse(
               'https://api.coingecko.com/api/v3/simple/price'
-              '?ids=${ids.join(',')}&vs_currencies=usd,eur,gbp,rub'))
+              '?ids=${ids.join(',')}&vs_currencies=usd,eur,gbp,rub',
+            ),
+          )
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
-            const Duration(seconds: 10),
-          );
+        const Duration(seconds: 10),
+      );
       if (response.statusCode != 200) return null;
       final body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
@@ -306,8 +310,11 @@ class PriceSource {
 
   /// Точка замены в тестах для исторической серии (без сети).
   static Future<List<MarketPoint>?> Function(
-          String coinId, String fiat, int days)?
-      marketLoader;
+    String coinId,
+    String fiat,
+    int days,
+  )?
+  marketLoader;
 
   /// Кэш серий по ключу «валюта:монета:окно». Линия истории меняется
   /// редко (для окна от 30 дней — вообще по суткам провайдера), поэтому
@@ -324,13 +331,16 @@ class PriceSource {
     final client = HttpClient();
     try {
       final request = await client
-          .getUrl(Uri.parse(
+          .getUrl(
+            Uri.parse(
               'https://api.coingecko.com/api/v3/coins/$coinId/market_chart'
-              '?vs_currency=${fiat.toLowerCase()}&days=$days'))
+              '?vs_currency=${fiat.toLowerCase()}&days=$days',
+            ),
+          )
           .timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(
-            const Duration(seconds: 10),
-          );
+        const Duration(seconds: 10),
+      );
       if (response.statusCode != 200) return null;
       final body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
@@ -342,10 +352,12 @@ class PriceSource {
         final ts = list[0];
         final price = list[1];
         if (ts is num && price is num) {
-          points.add(MarketPoint(
-            DateTime.fromMillisecondsSinceEpoch(ts.toInt()),
-            price.toDouble(),
-          ));
+          points.add(
+            MarketPoint(
+              DateTime.fromMillisecondsSinceEpoch(ts.toInt()),
+              price.toDouble(),
+            ),
+          );
         }
       }
       return points;
@@ -370,8 +382,7 @@ class PriceSource {
     final key = '$code:$coinId:$days';
     await _ensureLoaded();
     final entry = _seriesCache[key];
-    if (entry != null &&
-        DateTime.now().difference(entry.at) <= _seriesMaxAge) {
+    if (entry != null && DateTime.now().difference(entry.at) <= _seriesMaxAge) {
       return entry.values; // Свежая линия: ноль сетевых запросов.
     }
     final load = marketLoader ?? httpMarketLoader;

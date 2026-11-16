@@ -18,7 +18,7 @@ final ValueNotifier<int> languageRevision = ValueNotifier<int>(0);
 void bumpLanguageRevision() => languageRevision.value++;
 
 const Map<String, Map<String, String>> _strings = {
-// Обзор.
+  // Обзор.
   'total_balance': {'ru': 'Общий баланс', 'en': 'Total balance'},
   'synced_funds': {
     'ru': 'Есть синхронизированные средства',
@@ -41,7 +41,10 @@ const Map<String, Map<String, String>> _strings = {
   'retry': {'ru': 'Повторить', 'en': 'Retry'},
   'show_amounts': {'ru': 'Показать суммы', 'en': 'Show amounts'},
   'hide_amounts': {'ru': 'Скрыть суммы', 'en': 'Hide amounts'},
-  'db_unavailable': {'ru': 'БД настроек недоступна', 'en': 'Settings DB unavailable'},
+  'db_unavailable': {
+    'ru': 'БД настроек недоступна',
+    'en': 'Settings DB unavailable',
+  },
   'period_1d': {'ru': '1Д', 'en': '1D'},
   'period_1w': {'ru': '1Н', 'en': '1W'},
   'period_1m': {'ru': '1М', 'en': '1M'},
@@ -76,9 +79,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Registry could not be read: {error}',
   },
   'wallets_empty': {
-    'ru': 'Кошельков нет. Первый появится после создания или '
+    'ru':
+        'Кошельков нет. Первый появится после создания или '
         'восстановления фразы.',
-    'en': 'No wallets yet. The first one appears after creating a wallet '
+    'en':
+        'No wallets yet. The first one appears after creating a wallet '
         'or restoring a phrase.',
   },
   'wallet_created': {
@@ -96,10 +101,12 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Delete wallet "{name}"?',
   },
   'delete_wallet_body': {
-    'ru': 'Хранилище ключей этого кошелька (vault-файл) будет удалено с '
+    'ru':
+        'Хранилище ключей этого кошелька (vault-файл) будет удалено с '
         'диска навсегда. Без резервной копии восстановить доступ к '
         'средствам будет невозможно.',
-    'en': 'This wallet\'s key storage (vault file) will be removed from '
+    'en':
+        'This wallet\'s key storage (vault file) will be removed from '
         'the disk for good. Without a backup, access to the funds '
         'cannot be restored.',
   },
@@ -129,9 +136,11 @@ const Map<String, Map<String, String>> _strings = {
   'lock_btc_btn': {'ru': 'Заблокировать BTC', 'en': 'Lock BTC'},
   'locking_now': {'ru': 'Блокировка…', 'en': 'Locking…'},
   'manual_lock_note': {
-    'ru': 'Ручная блокировка выгружает ключи сессии из памяти ядра: '
+    'ru':
+        'Ручная блокировка выгружает ключи сессии из памяти ядра: '
         'повторная разблокировка требует пароля кошелька.',
-    'en': 'Manual lock unloads the session keys from the core memory: '
+    'en':
+        'Manual lock unloads the session keys from the core memory: '
         'unlocking again requires the wallet password.',
   },
   'idle_lock_label': {
@@ -139,7 +148,8 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Auto-lock on idle',
   },
   'idle_lock_note': {
-    'ru': 'не реализовано в ядре (нет таймера бездействия) — '
+    'ru':
+        'не реализовано в ядре (нет таймера бездействия) — '
         'переключатель не добавляется',
     'en': 'not implemented in the core (no idle timer) — no toggle is added',
   },
@@ -150,27 +160,33 @@ const Map<String, Map<String, String>> _strings = {
   },
   'password_change_label': {'ru': 'Смена пароля', 'en': 'Password change'},
   'password_change_note': {
-    'ru': 'API смены пароля в ядре отсутствует; честный путь — экспорт '
+    'ru':
+        'API смены пароля в ядре отсутствует; честный путь — экспорт '
         'и импорт с новым паролем',
-    'en': 'there is no password-change API in the core; the honest path '
+    'en':
+        'there is no password-change API in the core; the honest path '
         'is export and import with a new password',
   },
   'secrets_label': {'ru': 'Хранение секретов', 'en': 'Secret storage'},
   'secrets_note': {
-    'ru': 'seed и ключи — только в зашифрованном vault ядра; показ фразы '
+    'ru':
+        'seed и ключи — только в зашифрованном vault ядра; показ фразы '
         'требует пароля',
-    'en': 'seed and keys live only in the encrypted core vault; revealing '
+    'en':
+        'seed and keys live only in the encrypted core vault; revealing '
         'the phrase requires the password',
   },
   // Уведомления.
   'notifications_note': {
-    'ru': 'Уведомления не реализованы в этой сборке — переключателей '
+    'ru':
+        'Уведомления не реализованы в этой сборке — переключателей '
         'и имитации здесь нет. Если функция появится, допустимые '
         'события (по спецификации): подтверждение входящей '
         'транзакции, сбои и восстановление сетевого подключения, '
         'завершение синхронизации, статус бэкапа. Маркетинг и '
         'реклама исключены безусловно.',
-    'en': 'Notifications are not implemented in this build — there are no '
+    'en':
+        'Notifications are not implemented in this build — there are no '
         'toggles or imitation here. If the feature lands, the allowed '
         'events (per the spec) are: incoming-transaction confirmation, '
         'network failure and recovery, sync completion, backup status. '
@@ -195,10 +211,12 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Unlock BTC — "{name}"',
   },
   'password_mismatch_hint': {
-    'ru': 'Похоже, это пароль другого кошелька. Пароль — от '
+    'ru':
+        'Похоже, это пароль другого кошелька. Пароль — от '
         '«{name}»; при забытых паролях паре кошельков переключите '
         'кошелёк на Обзоре.',
-    'en': 'This looks like another wallet\'s password. The password '
+    'en':
+        'This looks like another wallet\'s password. The password '
         'belongs to "{name}"; if the two wallets have different '
         'passwords, switch wallets on the dashboard.',
   },
@@ -218,13 +236,18 @@ const Map<String, Map<String, String>> _strings = {
   'connection_section': {'ru': 'Подключение', 'en': 'Connection'},
   'network_label': {'ru': 'Сеть', 'en': 'Network'},
   'server_label': {'ru': 'Сервер', 'en': 'Server'},
-  'xpub_note': {'ru': 'xpub (только публичный): ', 'en': 'xpub (public only): '},
+  'xpub_note': {
+    'ru': 'xpub (только публичный): ',
+    'en': 'xpub (public only): ',
+  },
   'lock_btn': {'ru': 'Заблокировать', 'en': 'Lock'},
   'balance_section': {'ru': 'Баланс', 'en': 'Balance'},
   'not_synced_note': {
-    'ru': 'Ещё не синхронизировано. Синхронизация опрашивает сервер по всем '
+    'ru':
+        'Ещё не синхронизировано. Синхронизация опрашивает сервер по всем '
         'адресам аккаунта (gap-limit 20).',
-    'en': 'Not synced yet. Syncing polls the server across all the account '
+    'en':
+        'Not synced yet. Syncing polls the server across all the account '
         'addresses (gap limit 20).',
   },
   'sats': {'ru': 'сат', 'en': 'sat'},
@@ -254,9 +277,11 @@ const Map<String, Map<String, String>> _strings = {
   'copy_address_btn': {'ru': 'Копировать адрес', 'en': 'Copy address'},
   'share_btn': {'ru': 'Поделиться', 'en': 'Share'},
   'share_note': {
-    'ru': 'Системный Share появится в Android-группе: '
+    'ru':
+        'Системный Share появится в Android-группе: '
         'канал шерингa в этой сборке не подключён.',
-    'en': 'The system Share lands with the Android group: the sharing '
+    'en':
+        'The system Share lands with the Android group: the sharing '
         'channel is not wired in this build.',
   },
   'core_no_address': {
@@ -264,7 +289,10 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'The core returned no address: {error}{extra}',
   },
   'also_extra': {'ru': '\n(также: {error})', 'en': '\n(also: {error})'},
-  'address_unavailable': {'ru': 'Адрес недоступен.', 'en': 'Address is unavailable.'},
+  'address_unavailable': {
+    'ru': 'Адрес недоступен.',
+    'en': 'Address is unavailable.',
+  },
   'copied_snackbar': {'ru': '{label} скопировано', 'en': '{label} copied'},
   // Общие компоненты.
   'copy_tooltip': {'ru': 'Копировать', 'en': 'Copy'},
@@ -292,20 +320,34 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Status could not be read: {error}',
   },
   'retry_query_btn': {'ru': 'Повторить запрос', 'en': 'Retry query'},
-  'status_confirmed': {'ru': 'Подтверждено сетью', 'en': 'Confirmed by network'},
+  'status_confirmed': {
+    'ru': 'Подтверждено сетью',
+    'en': 'Confirmed by network',
+  },
   'status_mempool': {
     'ru': 'В мемпуле — не подтверждено',
     'en': 'In mempool — not confirmed',
   },
-  'status_not_found': {'ru': 'Не найдено на сервере', 'en': 'Not found on the server'},
+  'status_not_found': {
+    'ru': 'Не найдено на сервере',
+    'en': 'Not found on the server',
+  },
   'confirmations_row': {'ru': 'Подтверждения', 'en': 'Confirmations'},
   'server_height_row': {'ru': 'Высота (сервер)', 'en': 'Height (server)'},
-  'network_explorer_card': {'ru': 'Сеть и explorer', 'en': 'Network and explorer'},
-  'network_unknown': {'ru': '— (сеть не определена)', 'en': '— (network unknown)'},
+  'network_explorer_card': {
+    'ru': 'Сеть и explorer',
+    'en': 'Network and explorer',
+  },
+  'network_unknown': {
+    'ru': '— (сеть не определена)',
+    'en': '— (network unknown)',
+  },
   'explorer_note': {
-    'ru': 'Explorer для этой сети не настроен ({name} '
+    'ru':
+        'Explorer для этой сети не настроен ({name} '
         'поддерживает сети mainnet/testnet3/testnet4).',
-    'en': 'No explorer is configured for this network ({name} '
+    'en':
+        'No explorer is configured for this network ({name} '
         'supports mainnet/testnet3/testnet4).',
   },
   'summary_incoming': {
@@ -321,15 +363,20 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Transfer between own addresses: the net wallet sum is zero.',
   },
   'summary_unknown': {
-    'ru': 'Направление «{dir}» отдало ядро — суммы проверьте в explorer по TXID.',
-    'en': 'The core reported direction "{dir}" — check the amounts in an '
+    'ru':
+        'Направление «{dir}» отдало ядро — суммы проверьте в explorer по TXID.',
+    'en':
+        'The core reported direction "{dir}" — check the amounts in an '
         'explorer by TXID.',
   },
   // Детали монеты.
   'identification_card': {'ru': 'Идентификация', 'en': 'Identification'},
   'ticker_label': {'ru': 'Тикер', 'en': 'Ticker'},
   'name_label': {'ru': 'Имя', 'en': 'Name'},
-  'implemented_in_core': {'ru': 'Реализован в ядре', 'en': 'Implemented in the core'},
+  'implemented_in_core': {
+    'ru': 'Реализован в ядре',
+    'en': 'Implemented in the core',
+  },
   'yes': {'ru': 'да', 'en': 'yes'},
   'no': {'ru': 'нет', 'en': 'no'},
   'research_state_card': {
@@ -346,16 +393,20 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Funds are not synced yet',
   },
   'session_closed_note': {
-    'ru': 'Сессия закрыта: разблокировка происходит в центре управления '
+    'ru':
+        'Сессия закрыта: разблокировка происходит в центре управления '
         'по паролю кошелька (реальная, не имитация).',
-    'en': 'Session is closed: unlocking happens in the control center '
+    'en':
+        'Session is closed: unlocking happens in the control center '
         'with the wallet password (real, not imitated).',
   },
   'sync_note': {
-    'ru': 'Баланс и транзакции появляются после явной синхронизации в центре '
+    'ru':
+        'Баланс и транзакции появляются после явной синхронизации в центре '
         'управления (btcSync — сетевая операция, из экрана деталей '
         'не запускается). Receive/Send поверх реальных FFI-вызовов.',
-    'en': 'Balances and transactions appear after an explicit sync in the '
+    'en':
+        'Balances and transactions appear after an explicit sync in the '
         'control center (btcSync is a network operation; it is not started '
         'from the details screen). Receive/Send run over real FFI calls.',
   },
@@ -364,7 +415,8 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Wallets could not be read: {error}',
   },
   'no_wallets_btc': {
-    'ru': 'Кошельков нет — создайте или импортируйте кошелёк, затем '
+    'ru':
+        'Кошельков нет — создайте или импортируйте кошелёк, затем '
         'вернитесь к BTC.',
     'en': 'No wallets — create or import a wallet, then come back to BTC.',
   },
@@ -379,10 +431,7 @@ const Map<String, Map<String, String>> _strings = {
   },
   // LTC-центр (receive-only milestone: приём/баланс/история; отправка
   // LTC — отдельный этап).
-  'unlock_ltc_btn': {
-    'ru': 'Разблокировать LTC',
-    'en': 'Unlock LTC',
-  },
+  'unlock_ltc_btn': {'ru': 'Разблокировать LTC', 'en': 'Unlock LTC'},
   'ltc_unlock_title': {
     'ru': 'Разблокировать LTC — «{name}»',
     'en': 'Unlock LTC — "{name}"',
@@ -397,10 +446,12 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Unlock and manage LTC',
   },
   'ltc_mweb_warning': {
-    'ru': 'Лайткоин имеет расширение конфиденциальности MWEB: переводы '
+    'ru':
+        'Лайткоин имеет расширение конфиденциальности MWEB: переводы '
         'в MWEB-адреса не видны этому кошельку. Баланс и история '
         'отражают только прозрачные (обычные) транзакции ltc1….',
-    'en': 'Litecoin has the MWEB privacy extension: transfers to MWEB '
+    'en':
+        'Litecoin has the MWEB privacy extension: transfers to MWEB '
         'addresses are invisible to this wallet. Balance and history '
         'cover transparent (regular) ltc1… transactions only.',
   },
@@ -409,9 +460,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'MWEB transfers are invisible to this wallet (regular ltc1… only) — incoming MWEB payments may be hidden.',
   },
   'ltc_server_autopick_note': {
-    'ru': 'Сервер Electrum-LTC подбирается автоматически из живых '
+    'ru':
+        'Сервер Electrum-LTC подбирается автоматически из живых '
         'публичных (проверка genesis обязателен).',
-    'en': 'The Electrum-LTC server is picked automatically from live '
+    'en':
+        'The Electrum-LTC server is picked automatically from live '
         'public ones (the genesis check is mandatory).',
   },
   'ltc_unit': {'ru': 'лит.', 'en': 'lits'},
@@ -424,24 +477,29 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
   },
   'server_status_row': {'ru': 'Сервер: {value}', 'en': 'Server: {value}'},
-  'ltc_connecting_badge': {
-    'ru': 'Подключается…',
-    'en': 'Connecting…',
-  },
+  'ltc_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
   'connecting_title': {'ru': 'Подключение', 'en': 'Connecting'},
   'balance_asof_row': {
     'ru': 'Данные: {value} (прошлая синхронизация)',
     'en': 'Data: {value} (last sync)',
   },
-  'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
+  'fav_remove_tooltip': {
+    'ru': 'Убрать из избранного',
+    'en': 'Remove from favorites',
+  },
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).
-  'state_unavailable': {'ru': 'Состояние недоступно', 'en': 'State unavailable'},
+  'state_unavailable': {
+    'ru': 'Состояние недоступно',
+    'en': 'State unavailable',
+  },
   'open_btc_btn': {'ru': 'Открыть BTC', 'en': 'Open BTC'},
   'secrets_ui_note': {
-    'ru': 'Секреты живут только внутри Rust-ядра: интерфейс ни разу не '
+    'ru':
+        'Секреты живут только внутри Rust-ядра: интерфейс ни разу не '
         'получает seed — лишь адреса и балансы.',
-    'en': 'Secrets live only inside the Rust core: the UI never receives '
+    'en':
+        'Secrets live only inside the Rust core: the UI never receives '
         'the seed — only addresses and balances.',
   },
   'session_open_synced': {
@@ -453,9 +511,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Session open — sync needed',
   },
   'connect_tap_note': {
-    'ru': 'Нажмите, чтобы подключиться к Electrum-серверу и синхронизировать '
+    'ru':
+        'Нажмите, чтобы подключиться к Electrum-серверу и синхронизировать '
         'баланс. Сеть и сервер настраиваются на экране BTC.',
-    'en': 'Tap to connect to the Electrum server and sync the balance. '
+    'en':
+        'Tap to connect to the Electrum server and sync the balance. '
         'Network and server are configured on the BTC screen.',
   },
   // Создание кошелька.
@@ -466,10 +526,12 @@ const Map<String, Map<String, String>> _strings = {
   },
   'abort_title': {'ru': 'Прервать создание?', 'en': 'Abort creating?'},
   'abort_body': {
-    'ru': 'Кошелёк ещё не прошёл проверку фразы. Отмена удалит его '
+    'ru':
+        'Кошелёк ещё не прошёл проверку фразы. Отмена удалит его '
         'насовсем — вместе с записанной фразой. Если фраза уже переписана '
         'на бумагу и кошелёк нужен — пройдите проверку до конца.',
-    'en': 'The wallet has not passed the phrase check yet. Cancelling '
+    'en':
+        'The wallet has not passed the phrase check yet. Cancelling '
         'deletes it for good — together with the recorded phrase. If the '
         'phrase is already written down and the wallet is needed — finish '
         'the check first.',
@@ -489,9 +551,11 @@ const Map<String, Map<String, String>> _strings = {
   'name_field': {'ru': 'Название', 'en': 'Name'},
   'step_password_title': {'ru': 'Пароль кошелька', 'en': 'Wallet password'},
   'step_password_subtitle': {
-    'ru': 'Шаг 2 из 4. Расшифровывает хранилище на этом устройстве; '
+    'ru':
+        'Шаг 2 из 4. Расшифровывает хранилище на этом устройстве; '
         'восстановление пароля невозможно.',
-    'en': 'Step 2 of 4. It decrypts the storage on this device; password '
+    'en':
+        'Step 2 of 4. It decrypts the storage on this device; password '
         'recovery is impossible.',
   },
   'encryption_title': {'ru': 'Шифрование', 'en': 'Encryption'},
@@ -503,7 +567,8 @@ const Map<String, Map<String, String>> _strings = {
   'password_repeat_field': {'ru': 'Повтор пароля', 'en': 'Repeat password'},
   'password_min_note': {
     'ru': 'Пароль короче {n} символов — кнопка создания заблокирована.',
-    'en': 'With a password shorter than {n} characters the create button '
+    'en':
+        'With a password shorter than {n} characters the create button '
         'stays disabled.',
   },
   'step_seed_title': {'ru': 'Резервная фраза', 'en': 'Recovery phrase'},
@@ -511,7 +576,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Шаг 3 из 4. Показывается один раз — запишите её на бумаге.',
     'en': 'Step 3 of 4. Shown once — write it down on paper.',
   },
-  'seed_header': {'ru': 'BIP39-фраза — 24 слова', 'en': 'BIP39 phrase — 24 words'},
+  'seed_header': {
+    'ru': 'BIP39-фраза — 24 слова',
+    'en': 'BIP39 phrase — 24 words',
+  },
   'shown_once_chip': {'ru': 'показ один раз', 'en': 'shown once'},
   'wrote_it_down_btn': {
     'ru': 'Я записал фразу на бумаге',
@@ -524,10 +592,7 @@ const Map<String, Map<String, String>> _strings = {
   },
   'enter_words_title': {'ru': 'Введите слова', 'en': 'Enter the words'},
   'word_n_field': {'ru': 'Слово № {n}', 'en': 'Word #{n}'},
-  'position_n_of_m': {
-    'ru': 'Позиция {n} из {m}',
-    'en': 'Position {n} of {m}',
-  },
+  'position_n_of_m': {'ru': 'Позиция {n} из {m}', 'en': 'Position {n} of {m}'},
   'check_after_all_words': {
     'ru': 'Проверка пройдёт после ввода всех четырёх слов.',
     'en': 'The check runs after all four words are entered.',
@@ -544,15 +609,23 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Restore from a phrase',
   },
   'import_from_phrase_subtitle': {
-    'ru': 'Собственный BIP39-фразы достаточно для полного восстановления. '
+    'ru':
+        'Собственный BIP39-фразы достаточно для полного восстановления. '
         'Фраза остаётся на устройстве.',
-    'en': 'A valid BIP39 phrase alone is enough for a full restoration. '
+    'en':
+        'A valid BIP39 phrase alone is enough for a full restoration. '
         'The phrase never leaves the device.',
   },
   'wallet_card': {'ru': 'Кошелёк', 'en': 'Wallet'},
   'wallet_name_field': {'ru': 'Название кошелька', 'en': 'Wallet name'},
-  'phrase_field': {'ru': 'BIP39-фраза (12 или 24 слова)', 'en': 'BIP39 phrase (12 or 24 words)'},
-  'words_entered': {'ru': 'Слов введено: {count}', 'en': 'Words entered: {count}'},
+  'phrase_field': {
+    'ru': 'BIP39-фраза (12 или 24 слова)',
+    'en': 'BIP39 phrase (12 or 24 words)',
+  },
+  'words_entered': {
+    'ru': 'Слов введено: {count}',
+    'en': 'Words entered: {count}',
+  },
   'words_counter': {
     'ru': 'Слов: {count} — нужно 12 или 24',
     'en': 'Words: {count} — 12 or 24 needed',
@@ -583,7 +656,10 @@ const Map<String, Map<String, String>> _strings = {
   },
   'amount_card': {'ru': 'Сумма', 'en': 'Amount'},
   'amount_field': {'ru': 'Сумма, BTC', 'en': 'Amount, BTC'},
-  'available_row': {'ru': 'Доступно: {value} BTC', 'en': 'Available: {value} BTC'},
+  'available_row': {
+    'ru': 'Доступно: {value} BTC',
+    'en': 'Available: {value} BTC',
+  },
   'available_row_ltc': {
     'ru': 'Доступно: {value} LTC',
     'en': 'Available: {value} LTC',
@@ -600,13 +676,16 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Custom rate, sat/vB',
   },
   'fees_fallback_note': {
-    'ru': 'Сервер не дал оценку комиссии — показаны консервативные '
+    'ru':
+        'Сервер не дал оценку комиссии — показаны консервативные '
         'дефолты, а не измерение. Ставку можно ввести вручную.',
-    'en': 'The server returned no fee estimate — conservative defaults '
+    'en':
+        'The server returned no fee estimate — conservative defaults '
         'are shown, not a measurement. The rate can be set manually.',
   },
   'fees_error_note': {
-    'ru': 'Пресеты сервера недоступны: {error}\nВведите ставку вручную (sat/vB).',
+    'ru':
+        'Пресеты сервера недоступны: {error}\nВведите ставку вручную (sat/vB).',
     'en': 'Server fee presets unavailable: {error}\nSet the rate manually (sat/vB).',
   },
   'send_submit_btn': {'ru': 'Отправить', 'en': 'Send'},
@@ -615,9 +694,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Signing and broadcasting…',
   },
   'sign_local_note': {
-    'ru': 'Подпись выполняется локально в Rust (BIP143). Seed и '
+    'ru':
+        'Подпись выполняется локально в Rust (BIP143). Seed и '
         'приватные ключи не покидают ядро и не отправляются на сервер.',
-    'en': 'Signing happens locally in Rust (BIP143). The seed and private '
+    'en':
+        'Signing happens locally in Rust (BIP143). The seed and private '
         'keys never leave the core and are not sent to any server.',
   },
   'err_recipient': {
@@ -641,14 +722,13 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'The core rejected the send: {error}',
   },
   // Результат отправки.
-  'tx_sent_title': {
-    'ru': 'Транзакция отправлена',
-    'en': 'Transaction sent',
-  },
+  'tx_sent_title': {'ru': 'Транзакция отправлена', 'en': 'Transaction sent'},
   'tx_already_known': {
-    'ru': 'Эта транзакция уже была известна сети — повторная '
+    'ru':
+        'Эта транзакция уже была известна сети — повторная '
         'отправка не выполнялась (идемпотентный broadcast).',
-    'en': 'This transaction was already known to the network — it was '
+    'en':
+        'This transaction was already known to the network — it was '
         'not broadcast again (idempotent broadcast).',
   },
   'tx_broadcast_chip': {
@@ -680,10 +760,12 @@ const Map<String, Map<String, String>> _strings = {
   'tx_asset_network': {'ru': 'Актив и сеть', 'en': 'Asset and network'},
   'asset_label': {'ru': 'Актив', 'en': 'Asset'},
   'confirm_network_desc': {
-    'ru': 'Подпись выполняется в Rust-ядре для сети активной '
+    'ru':
+        'Подпись выполняется в Rust-ядре для сети активной '
         'сессии; транзакция уйдёт только на выбранный '
         'Electrum-сервер.',
-    'en': 'Signing happens in the Rust core for the active session '
+    'en':
+        'Signing happens in the Rust core for the active session '
         'network; the transaction goes only to the selected '
         'Electrum server.',
   },
@@ -697,23 +779,24 @@ const Map<String, Map<String, String>> _strings = {
   },
   'speed_label': {'ru': 'Скорость', 'en': 'Speed'},
   'fee_final_note': {
-    'ru': 'Финальная комиссия считается ядром при подписи '
+    'ru':
+        'Финальная комиссия считается ядром при подписи '
         'и показывается в результате отправки.',
-    'en': 'The final fee is computed by the core at signing time and is '
+    'en':
+        'The final fee is computed by the core at signing time and is '
         'shown in the send result.',
   },
   'send_irreversible': {
-    'ru': 'Отправка необратима. Перепроверьте адрес: '
+    'ru':
+        'Отправка необратима. Перепроверьте адрес: '
         'транзакцию нельзя отменить после broadcast. '
         'Подпись локальная (BIP143): ключи не покидают ядро.',
-    'en': 'The send is irreversible. Re-check the address: the '
+    'en':
+        'The send is irreversible. Re-check the address: the '
         'transaction cannot be undone after broadcast. Signing is '
         'local (BIP143): keys never leave the core.',
   },
-  'sign_send_btn': {
-    'ru': 'Подписать и отправить',
-    'en': 'Sign and send',
-  },
+  'sign_send_btn': {'ru': 'Подписать и отправить', 'en': 'Sign and send'},
   'core_session_read_error': {
     'ru': 'Ядро недоступно (состояние сессии BTC не прочитано): {error}',
     'en': 'Core unavailable (the BTC session state could not be read): {error}',
@@ -729,9 +812,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Sync failed: {error}',
   },
   'history_need_sync': {
-    'ru': 'История собирается при синхронизации адресов. Выполните '
+    'ru':
+        'История собирается при синхронизации адресов. Выполните '
         'синхронизацию на экране BTC (или ниже).',
-    'en': 'History is built while syncing addresses. Sync on the BTC '
+    'en':
+        'History is built while syncing addresses. Sync on the BTC '
         'screen (or below).',
   },
   'history_sync_btn': {
@@ -739,9 +824,11 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Sync and refresh',
   },
   'history_empty': {
-    'ru': 'История пуста: ни один адрес кошелька ещё не получал средств '
+    'ru':
+        'История пуста: ни один адрес кошелька ещё не получал средств '
         '(или не выполнена синхронизация).',
-    'en': 'History is empty: no wallet address has received funds yet '
+    'en':
+        'History is empty: no wallet address has received funds yet '
         '(or no sync has been run).',
   },
   'search_txid': {'ru': 'Поиск по TXID', 'en': 'Search by TXID'},
@@ -751,15 +838,19 @@ const Map<String, Map<String, String>> _strings = {
   'filter_confirmed': {'ru': 'Подтверждённые', 'en': 'Confirmed'},
   'filter_failed': {'ru': 'Неудачные', 'en': 'Failed'},
   'failed_chip_tooltip': {
-    'ru': 'Ядро не отдаёт неуспешные транзакции: их нет в истории. '
+    'ru':
+        'Ядро не отдаёт неуспешные транзакции: их нет в истории. '
         'Фильтр оставлен отключённым, чтобы не имитировать работу.',
-    'en': 'The core returns no failed transactions: they are absent from '
+    'en':
+        'The core returns no failed transactions: they are absent from '
         'history. The filter stays disabled so nothing is imitated.',
   },
   'nothing_found_msg': {
-    'ru': 'По текущему фильтру и поиску транзакций нет. '
+    'ru':
+        'По текущему фильтру и поиску транзакций нет. '
         'Измените фильтр или очистите поиск.',
-    'en': 'No transactions match the current filter and search. '
+    'en':
+        'No transactions match the current filter and search. '
         'Change the filter or clear the search.',
   },
   'reset_filters': {
@@ -786,10 +877,12 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Import from a seed phrase',
   },
   'welcome_note': {
-    'ru': 'Адреса и балансы отображаются только на сетях с '
+    'ru':
+        'Адреса и балансы отображаются только на сетях с '
         'реализованными адаптерами. Остальные активы — справочно, '
         'после своих обновлений.\nСекреты не покидают устройство.',
-    'en': 'Addresses and balances appear only for networks with '
+    'en':
+        'Addresses and balances appear only for networks with '
         'implemented adapters. The other assets are reference-only '
         'until their updates.\nSecrets never leave the device.',
   },
@@ -801,15 +894,19 @@ const Map<String, Map<String, String>> _strings = {
     'en': 'Enter the wallet password.',
   },
   'lock_wrong_password': {
-    'ru': 'Неверный пароль для «{name}». '
+    'ru':
+        'Неверный пароль для «{name}». '
         'Если у кошельков разные пароли — смените кошелёк ниже.',
-    'en': 'Wrong password for "{name}". If the wallets have different '
+    'en':
+        'Wrong password for "{name}". If the wallets have different '
         'passwords — switch the wallet below.',
   },
   'err_lock_connection': {
-    'ru': 'Не удалось подключиться к серверу. Проверьте '
+    'ru':
+        'Не удалось подключиться к серверу. Проверьте '
         'интернет-подключение и попробуйте ещё раз.',
-    'en': 'Could not reach the server. Check your internet connection '
+    'en':
+        'Could not reach the server. Check your internet connection '
         'and try again.',
   },
   'error_detail_prefix': {'ru': 'подробности: ', 'en': 'details: '},
@@ -817,10 +914,7 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Реестр кошельков недоступен: {error}',
     'en': 'The wallet registry is unavailable: {error}',
   },
-  'lock_wallet_label': {
-    'ru': 'Кошелёк «{name}»',
-    'en': 'Wallet "{name}"',
-  },
+  'lock_wallet_label': {'ru': 'Кошелёк «{name}»', 'en': 'Wallet "{name}"'},
   'filter_all': {'ru': 'Все', 'en': 'All'},
   'filter_implemented': {'ru': 'Реализованные', 'en': 'Implemented'},
   'filter_researched': {'ru': 'Исследованные', 'en': 'Researched'},
@@ -829,10 +923,12 @@ const Map<String, Map<String, String>> _strings = {
   'sort_matrix': {'ru': 'Порядок матрицы', 'en': 'Matrix order'},
   'sort_az': {'ru': 'A→Я по тикеру', 'en': 'A→Z by ticker'},
   'catalog_note': {
-    'ru': 'Справочник статусов {count} активов. Балансы и транзакции — '
+    'ru':
+        'Справочник статусов {count} активов. Балансы и транзакции — '
         'только реализованные активы; остальное — честные вердикты '
         'матрицы, без имитаций.',
-    'en': 'Status reference for {count} assets. Balances and transactions '
+    'en':
+        'Status reference for {count} assets. Balances and transactions '
         '— implemented assets only; the rest is honest matrix verdicts, '
         'no imitation.',
   },
@@ -854,8 +950,14 @@ const Map<String, Map<String, String>> _strings = {
   'lc_blocked': {'ru': 'Заблокировано', 'en': 'Blocked'},
   'lc_historical': {'ru': 'Исторический тикер', 'en': 'Historical ticker'},
   // Выбор актива для отправки.
-  'send_pick_title': {'ru': 'Отправка — выбор актива', 'en': 'Send — pick an asset'},
-  'receive_pick_title': {'ru': 'Получение — выбор актива', 'en': 'Receive — pick an asset'},
+  'send_pick_title': {
+    'ru': 'Отправка — выбор актива',
+    'en': 'Send — pick an asset',
+  },
+  'receive_pick_title': {
+    'ru': 'Получение — выбор актива',
+    'en': 'Receive — pick an asset',
+  },
   'session_open_chip': {
     'ru': 'Сессия: {network} — форма открыта',
     'en': 'Session: {network} — form is open',
@@ -871,10 +973,64 @@ const Map<String, Map<String, String>> _strings = {
   },
   'session_pending_chip': {'ru': 'Статус сессии: …', 'en': 'Session status: …'},
   'disabled_adapter_tooltip': {
-    'ru': 'Receive/Send недоступны: адаптер этой сети не реализован '
+    'ru':
+        'Receive/Send недоступны: адаптер этой сети не реализован '
         'в ядре ({status}).',
-    'en': 'Receive/Send unavailable: this network adapter is not '
+    'en':
+        'Receive/Send unavailable: this network adapter is not '
         'implemented in the core ({status}).',
+  },
+  // ─── Дополнения аудита 16.11 (единые честные подписи, ключи по монетам) ───
+  'receive_title_ltc': {'ru': 'Получение LTC', 'en': 'Receive LTC'},
+  'history_title_ltc': {'ru': 'История LTC', 'en': 'LTC history'},
+  'no_wallets_ltc': {
+    'ru':
+        'Кошельков нет — создайте или импортируйте кошелёк, затем '
+        'вернитесь к LTC.',
+    'en': 'No wallets — create or import a wallet, then come back to LTC.',
+  },
+  // Строка комиссии BTC без фиктивных vsize/rate (их нет в данных истории).
+  'tx_fee_row_btc': {
+    'ru': 'Комиссия: {btc} BTC ({sats} сат)',
+    'en': 'Fee: {btc} BTC ({sats} sat)',
+  },
+  // Честное усечение истории (ядро показывает только самые свежие записи).
+  'history_truncated_note': {
+    'ru':
+        'Показаны последние {shown} из {total} записей истории; старые '
+        'записи не потеряны — они ограничены бюджетом синхронизации.',
+    'en':
+        'Showing the latest {shown} of {total} history entries; older '
+        'entries are not lost — they are bounded by the sync budget.',
+  },
+  // Короткий бейдж фонового синка на Обзоре.
+  'sync_now_short': {'ru': 'Синхронизация…', 'en': 'Syncing…'},
+  // LTC-центр: свои подписи вместо BTC-ключей.
+  'ltc_connecting': {'ru': 'Подключение LTC…', 'en': 'Connecting LTC…'},
+  'ltc_syncing_addresses_long': {
+    'ru': 'Сканируем адреса Litecoin (gap-limit), это может занять минуту…',
+    'en': 'Scanning Litecoin addresses (gap limit), this can take a minute…',
+  },
+  // Экран деталей актива: честные ошибки чтения сессии.
+  'ltc_session_timeout': {
+    'ru': 'Состояние сессии LTC не получено за 12 c (ядро занято?)',
+    'en': 'LTC session state not received within 12 s (core busy?)',
+  },
+  'ltc_session_read_error': {
+    'ru': 'Состояние сессии LTC не прочитано: {error}',
+    'en': 'LTC session state could not be read: {error}',
+  },
+  'btc_session_read_error': {
+    'ru': 'Состояние сессии BTC не прочитано: {error}',
+    'en': 'BTC session state could not be read: {error}',
+  },
+  // Экран входа: выбор кошелька.
+  'lock_choose_wallet': {'ru': 'Кошелёк для входа', 'en': 'Wallet to sign in'},
+  'wallet_created_at': {'ru': 'создан {date}', 'en': 'created {date}'},
+  // Экран отправки: настройка сети не прочитана (БД/ядро недоступны).
+  'settings_read_error': {
+    'ru': 'Настройки сети недоступны: {error}',
+    'en': 'Network settings unavailable: {error}',
   },
 };
 

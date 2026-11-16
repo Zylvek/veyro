@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/motion.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/l10n.dart';
@@ -39,7 +40,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> _loadWalletCount() async {
     setState(() => _counting = true);
     try {
-      final loader = widget.walletCountLoader ??
+      final loader =
+          widget.walletCountLoader ??
           () async => (await listWallets(walletsDir: walletsDir())).length;
       final count = await loader();
       if (!mounted) return;
@@ -48,10 +50,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       // показывать не нужно — перебрасываем в каркас (кошелёк далее
       // сам откроется и запросит пароль). Один раз на вход в Welcome.
       if (count != null && count > 0 && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
-          (route) => false,
-        );
+        resetToVeyro<void>(context, const DashboardScreen());
       }
     } catch (_) {
       // Реестр недоступен (например, ядро без базы) — Welcome продолжает
@@ -65,83 +64,83 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 24),
-                    Center(child: const VeyroLogo(size: 96)),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'VEYRO',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 8,
-                        color: VColors.textPrimary,
-                      ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
+                  Center(child: const VeyroLogo(size: 96)),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'VEYRO',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 8,
+                      color: VColors.textPrimary,
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'YOUR CRYPTO. YOUR CONTROL.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 2.4,
-                        color: VColors.secondary,
-                        decoration: TextDecoration.none,
-                      ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'YOUR CRYPTO. YOUR CONTROL.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.4,
+                      color: VColors.secondary,
+                      decoration: TextDecoration.none,
                     ),
-                    const SizedBox(height: 28),
-                    if (_counting)
-                      const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // «Войти в кошелёк» не нужен: при наличии
-                          // кошельков Welcome сразу перебрасывает в каркас
-                          // (решение владельца).
-                          VButton.primary(
-                            t('welcome_create'),
-                            icon: Icons.add_circle_outline,
-                            onPressed: () => _push(const CreateWalletFlow()),
-                          ),
-                          const SizedBox(height: 10),
-                          VButton.secondary(
-                            t('welcome_import_phrase'),
-                            icon: Icons.restore_outlined,
-                            onPressed: () => _push(const ImportWalletScreen()),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 30),
-                    Text(
-                      t('welcome_note'),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall!
-                          .copyWith(fontSize: 11),
+                  ),
+                  const SizedBox(height: 28),
+                  if (_counting)
+                    const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // «Войти в кошелёк» не нужен: при наличии
+                        // кошельков Welcome сразу перебрасывает в каркас
+                        // (решение владельца).
+                        VButton.primary(
+                          t('welcome_create'),
+                          icon: Icons.add_circle_outline,
+                          onPressed: () => _push(const CreateWalletFlow()),
+                        ),
+                        const SizedBox(height: 10),
+                        VButton.secondary(
+                          t('welcome_import_phrase'),
+                          icon: Icons.restore_outlined,
+                          onPressed: () => _push(const ImportWalletScreen()),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  const SizedBox(height: 30),
+                  Text(
+                    t('welcome_note'),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall!
+                        .copyWith(fontSize: 11),
+                  ),
+                ],
               ),
             ),
           ),
-          ),
+        ),
+      ),
     );
   }
 
   Future<void> _push(Widget screen) async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    await pushVeyro<void>(context, screen);
     if (mounted) await _loadWalletCount();
   }
 }
