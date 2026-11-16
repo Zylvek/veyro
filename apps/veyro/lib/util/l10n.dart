@@ -420,6 +420,7 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Подключается…',
     'en': 'Connecting…',
   },
+  'connecting_title': {'ru': 'Подключение', 'en': 'Connecting'},
   'fav_remove_tooltip': {'ru': 'Убрать из избранного', 'en': 'Remove from favorites'},
   'fav_add_tooltip': {'ru': 'В избранное', 'en': 'Add to favorites'},
   // Кошельковый экран (портфель-карточка).

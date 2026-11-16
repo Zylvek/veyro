@@ -452,8 +452,8 @@ class _LtcScreenState extends State<LtcScreen> {
                   ),
                 if (state == null && _autoConnecting)
                   SectionCard(
-                    title: t('session_not_open'),
-                    icon: Icons.lock_outline,
+                    title: t('connecting_title'),
+                    icon: Icons.sync,
                     children: [
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
