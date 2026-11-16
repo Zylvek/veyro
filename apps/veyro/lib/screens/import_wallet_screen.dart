@@ -11,6 +11,7 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/bip39_suggest.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -31,24 +32,14 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   final _confirmController = TextEditingController();
   var _busy = false;
 
-  /// BIP39 English wordlist (lazily fetched from the core once per run).
-  List<String>? _dictionary;
+  /// BIP39 English wordlist — общий синглтон (util/bip39_suggest.dart).
 
   @override
   void initState() {
     super.initState();
-    _loadDictionary();
-  }
-
-  Future<void> _loadDictionary() async {
-    try {
-      final words = await bip39Wordlist();
-      if (!mounted || words.isEmpty) return;
-      setState(() => _dictionary = words);
-    } catch (e) {
-      // Словарь недоступен (старая DLL?) — ввод без подсказок, честно.
-      debugPrint('veyro-flow: bip39 wordlist unavailable: $e');
-    }
+    Bip39Dictionary.instance
+        .ensureLoaded()
+        .then((_) => mounted ? setState(() {}) : null);
   }
 
   @override
@@ -68,49 +59,15 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   }
 
   /// Последний (недописанный) токен фразы — для подсказок.
-  String get _currentToken {
-    final text = _phraseController.text;
-    if (text.isEmpty || text.endsWith(' ') || text.endsWith('\n')) return '';
-    final words = _phraseWords;
-    return words.isEmpty ? '' : words.last.toLowerCase();
-  }
+  String get _currentToken => Bip39Dictionary.lastToken(_phraseController.text);
 
-  /// Честная проверка словаря: какие введённые слова отсутствуют в BIP39
-  /// (последний токен — исключение: он может быть недописан).
-  List<String> get _unknownWords {
-    final dict = _dictionary;
-    if (dict == null || dict.isEmpty) return const [];
-    final set = Set<String>.from(dict);
-    final words = _phraseWords;
-    final editingLast = !_phraseController.text.endsWith(' ');
-    final unknown = <String>{};
-    for (var i = 0; i < words.length; i++) {
-      final w = words[i].toLowerCase();
-      if (w.isEmpty) continue;
-      if (editingLast && i == words.length - 1) continue;
-      if (!set.contains(w)) unknown.add(w);
-    }
-    return unknown.take(6).toList();
-  }
+  /// Честная проверка словаря через общий класс.
+  List<String> get _unknownWords =>
+      Bip39Dictionary.instance.unknownWords(_phraseWords);
 
-  /// Варианты слов (решение владельца): точный префикс, иначе ближайшие
-  /// по правкам (расстояние ≤ 2, отсортированные). Полное слово словаря —
-  /// вариантов не нужно.
-  List<String> get _suggestions {
-    final dict = _dictionary;
-    if (dict == null || dict.isEmpty) return const [];
-    final token = _currentToken;
-    if (token.length < 2 || dict.contains(token)) return const [];
-    final byPrefix = dict.where((w) => w.startsWith(token)).take(6).toList();
-    if (byPrefix.isNotEmpty) return byPrefix;
-    final scored = <MapEntry<String, int>>[];
-    for (final w in dict) {
-      final d = _levenshtein(token, w, maxDistance: 2);
-      if (d <= 2) scored.add(MapEntry(w, d));
-    }
-    scored.sort((a, b) => a.value.compareTo(b.value));
-    return scored.take(6).map((e) => e.key).toList();
-  }
+  /// Варианты слов для печатаемого токена (общий класс).
+  List<String> get _suggestions =>
+      Bip39Dictionary.instance.suggestions(_currentToken);
 
   void _applySuggestion(String word) {
     final words = _phraseWords;
@@ -124,32 +81,6 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       offset: _phraseController.text.length,
     );
     setState(() {});
-  }
-
-  /// Расстояние Левенштейна с ранним выходом.
-  static int _levenshtein(String a, String b, {required int maxDistance}) {
-    if ((a.length - b.length).abs() > maxDistance) return maxDistance + 1;
-    final prev =
-        List<int>.generate(b.length + 1, (j) => j, growable: false);
-    final row = List<int>.filled(b.length + 1, 0, growable: false);
-    for (var i = 1; i <= a.length; i++) {
-      row[0] = i;
-      var best = row[0];
-      for (var j = 1; j <= b.length; j++) {
-        final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
-        row[j] = [
-          prev[j] + 1,
-          row[j - 1] + 1,
-          prev[j - 1] + cost,
-        ].reduce((x, y) => x < y ? x : y);
-        if (row[j] < best) best = row[j];
-      }
-      if (best > maxDistance) return maxDistance + 1;
-      for (var j = 0; j <= b.length; j++) {
-        prev[j] = row[j];
-      }
-    }
-    return prev[b.length];
   }
 
   bool get _valid =>

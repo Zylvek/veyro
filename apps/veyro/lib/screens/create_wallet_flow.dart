@@ -12,6 +12,7 @@ import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
+import 'package:veyro/util/bip39_suggest.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ui_helpers.dart';
 
@@ -140,6 +141,10 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
     for (final position in picked) {
       _phraseChecks[TextEditingController()] = position;
     }
+    // Словарь для подсказок слов (решение владельца): грузим к verify.
+    Bip39Dictionary.instance
+        .ensureLoaded()
+        .then((_) => mounted ? setState(() {}) : null);
   }
 
   Future<void> _finish() async {
@@ -424,23 +429,62 @@ class _CreateWalletFlowState extends State<CreateWalletFlow> {
             for (final entry in _phraseChecks.entries)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: TextField(
-                  controller: entry.key,
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z ]'))],
-                  decoration: InputDecoration(
-                    labelText: tf(
-                      'word_n_field',
-                      {'n': '${entry.value + 1}'},
-                    ),
-                    helperText: tf(
-                      'position_n_of_m',
-                      {
-                        'n': '${entry.value + 1}',
-                        'm': '${words.length}',
-                      },
-                    ),
-                  ),
-                  onChanged: (_) => setState(() {}),
+                child: Builder(
+                  builder: (context) {
+                    final token =
+                        Bip39Dictionary.lastToken(entry.key.text);
+                    final suggestions =
+                        Bip39Dictionary.instance.suggestions(token);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: entry.key,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[A-Za-z ]'))
+                          ],
+                          decoration: InputDecoration(
+                            labelText: tf(
+                              'word_n_field',
+                              {'n': '${entry.value + 1}'},
+                            ),
+                            helperText: tf(
+                              'position_n_of_m',
+                              {
+                                'n': '${entry.value + 1}',
+                                'm': '${words.length}',
+                              },
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        if (suggestions.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final word in suggestions)
+                                ActionChip(
+                                  label: Text(word),
+                                  labelStyle:
+                                      const TextStyle(fontSize: 12.5),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: () {
+                                    entry.key.text = '$word ';
+                                    entry.key.selection = TextSelection
+                                        .collapsed(
+                                            offset: entry.key.text.length);
+                                    setState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             if (!_canProceed)
