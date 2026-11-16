@@ -1,5 +1,9 @@
 //! Экран 6 спеки (Wallet import): восстановление кошелька из BIP39-фразы
 //! на реальном restoreWallet. Passphrase (25-е слово) — опционально.
+//! Решение владельца: вместо ручного ввода всей фразы — подсказки слов из
+//! официального BIP39-словаря (2048 слов, comes from the audited bip39
+//! crate): точный префикс, иначе ближайшие по правкам; несловарные слова
+//! честно помечаются.
 
 import 'package:flutter/material.dart';
 
@@ -27,6 +31,26 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
   final _confirmController = TextEditingController();
   var _busy = false;
 
+  /// BIP39 English wordlist (lazily fetched from the core once per run).
+  List<String>? _dictionary;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDictionary();
+  }
+
+  Future<void> _loadDictionary() async {
+    try {
+      final words = await bip39Wordlist();
+      if (!mounted || words.isEmpty) return;
+      setState(() => _dictionary = words);
+    } catch (e) {
+      // Словарь недоступен (старая DLL?) — ввод без подсказок, честно.
+      debugPrint('veyro-flow: bip39 wordlist unavailable: $e');
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -35,6 +59,97 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
+  }
+
+  List<String> get _phraseWords {
+    final text = _phraseController.text.trim();
+    if (text.isEmpty) return const [];
+    return text.split(RegExp(r'\s+'));
+  }
+
+  /// Последний (недописанный) токен фразы — для подсказок.
+  String get _currentToken {
+    final text = _phraseController.text;
+    if (text.isEmpty || text.endsWith(' ') || text.endsWith('\n')) return '';
+    final words = _phraseWords;
+    return words.isEmpty ? '' : words.last.toLowerCase();
+  }
+
+  /// Честная проверка словаря: какие введённые слова отсутствуют в BIP39
+  /// (последний токен — исключение: он может быть недописан).
+  List<String> get _unknownWords {
+    final dict = _dictionary;
+    if (dict == null || dict.isEmpty) return const [];
+    final set = Set<String>.from(dict);
+    final words = _phraseWords;
+    final editingLast = !_phraseController.text.endsWith(' ');
+    final unknown = <String>{};
+    for (var i = 0; i < words.length; i++) {
+      final w = words[i].toLowerCase();
+      if (w.isEmpty) continue;
+      if (editingLast && i == words.length - 1) continue;
+      if (!set.contains(w)) unknown.add(w);
+    }
+    return unknown.take(6).toList();
+  }
+
+  /// Варианты слов (решение владельца): точный префикс, иначе ближайшие
+  /// по правкам (расстояние ≤ 2, отсортированные). Полное слово словаря —
+  /// вариантов не нужно.
+  List<String> get _suggestions {
+    final dict = _dictionary;
+    if (dict == null || dict.isEmpty) return const [];
+    final token = _currentToken;
+    if (token.length < 2 || dict.contains(token)) return const [];
+    final byPrefix = dict.where((w) => w.startsWith(token)).take(6).toList();
+    if (byPrefix.isNotEmpty) return byPrefix;
+    final scored = <MapEntry<String, int>>[];
+    for (final w in dict) {
+      final d = _levenshtein(token, w, maxDistance: 2);
+      if (d <= 2) scored.add(MapEntry(w, d));
+    }
+    scored.sort((a, b) => a.value.compareTo(b.value));
+    return scored.take(6).map((e) => e.key).toList();
+  }
+
+  void _applySuggestion(String word) {
+    final words = _phraseWords;
+    if (words.isEmpty) {
+      _phraseController.text = '$word ';
+    } else {
+      words[words.length - 1] = word;
+      _phraseController.text = '${words.join(' ')} ';
+    }
+    _phraseController.selection = TextSelection.collapsed(
+      offset: _phraseController.text.length,
+    );
+    setState(() {});
+  }
+
+  /// Расстояние Левенштейна с ранним выходом.
+  static int _levenshtein(String a, String b, {required int maxDistance}) {
+    if ((a.length - b.length).abs() > maxDistance) return maxDistance + 1;
+    final prev =
+        List<int>.generate(b.length + 1, (j) => j, growable: false);
+    final row = List<int>.filled(b.length + 1, 0, growable: false);
+    for (var i = 1; i <= a.length; i++) {
+      row[0] = i;
+      var best = row[0];
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
+        row[j] = [
+          prev[j] + 1,
+          row[j - 1] + 1,
+          prev[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
+        if (row[j] < best) best = row[j];
+      }
+      if (best > maxDistance) return maxDistance + 1;
+      for (var j = 0; j <= b.length; j++) {
+        prev[j] = row[j];
+      }
+    }
+    return prev[b.length];
   }
 
   bool get _valid =>
@@ -125,6 +240,45 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
+                // Подсказки BIP39 (решение владельца): чипы похожих слов.
+                Builder(builder: (context) {
+                  final suggestions = _suggestions;
+                  final unknown = _unknownWords;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (suggestions.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final word in suggestions)
+                              ActionChip(
+                                label: Text(word),
+                                labelStyle: const TextStyle(fontSize: 12.5),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => _applySuggestion(word),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (unknown.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          tf(
+                            'unknown_words',
+                            {'words': unknown.join(', ')},
+                          ),
+                          style: TextStyle(
+                            color: VColors.error,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                }),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _passphraseController,

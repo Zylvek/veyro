@@ -203,6 +203,10 @@ const Map<String, Map<String, String>> _strings = {
         'passwords, switch wallets on the dashboard.',
   },
   'connect_btn': {'ru': 'Подключиться', 'en': 'Connect'},
+  'unknown_words': {
+    'ru': 'Несловарные слова (проверь): {words}',
+    'en': 'Non-dictionary words (check): {words}',
+  },
   'error_title': {'ru': 'Ошибка', 'en': 'Error'},
   'session_not_open': {'ru': 'Сессия не открыта', 'en': 'Session is not open'},
   'session_desc': {

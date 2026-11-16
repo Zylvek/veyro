@@ -14,6 +14,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 anyhow = "1"
 flutter_rust_bridge = "=2.13.0"
+# BIP39 English wordlist for the seed-input suggestions (import screen).
+bip39 = { workspace = true }
 
 crypto_vault = { path = "../crypto_vault" }
 key_manager = { path = "../key_manager" }

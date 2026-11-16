@@ -42,6 +42,13 @@ Future<WalletInfoDto> restoreWallet({
 ///
 /// The decrypted seed stays inside Rust and never crosses the FFI boundary:
 /// signing will happen in the Rust chain adapters (Phase 4), not in Dart.
+/// English BIP39 wordlist (2048 words, audited crate `bip39`) for the
+/// seed-input suggestions on the import screen: prefix matches first,
+/// closest-by-edit-distance fallback. Public data — the wordlist is a
+/// published standard.
+Future<List<String>> bip39Wordlist() =>
+    RustLib.instance.api.crateApiWalletBip39Wordlist();
+
 Future<WalletInfoDto> unlockWallet({
   required String walletsDir,
   required String id,

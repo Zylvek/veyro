@@ -66,7 +66,6 @@ pub fn db_upsert_wallet(row: WalletRowDto) -> Result<()> {
         Ok(())
     })
 }
-
 /// List all wallet records.
 pub fn db_list_wallets() -> Result<Vec<WalletRowDto>> {
     with_db(|db| {

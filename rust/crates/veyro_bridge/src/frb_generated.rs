@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1769607484;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 892507362;
 
 // Section: executor
 
@@ -47,6 +47,38 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__wallet__bip39_wordlist_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "bip39_wordlist",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::wallet::bip39_wordlist())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__btc__btc_fees_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1977,46 +2009,47 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__btc__btc_fees_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__btc__btc_history_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__btc__btc_lock_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__btc__btc_receive_address_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__btc__btc_send_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__session__btc_session_state_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__btc__btc_sync_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__btc__btc_tx_status_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__btc__btc_unlock_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__wallet__create_wallet_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__storage__db_close_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__storage__db_delete_wallet_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__storage__db_get_setting_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__storage__db_list_wallets_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__storage__db_open_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__storage__db_schema_version_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__storage__db_set_setting_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__storage__db_upsert_wallet_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__backup__export_backup_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__backup__import_backup_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__wallet__list_wallets_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__ltc__ltc_fees_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__ltc__ltc_history_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__ltc__ltc_lock_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__ltc__ltc_receive_address_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__ltc__ltc_send_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__ltc__ltc_servers_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__ltc__ltc_session_state_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__ltc__ltc_sync_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__ltc__ltc_tx_status_impl(port, ptr, rust_vec_len, data_len),
-        31 => wire__crate__api__ltc__ltc_unlock_impl(port, ptr, rust_vec_len, data_len),
-        32 => wire__crate__api__wallet__restore_wallet_impl(port, ptr, rust_vec_len, data_len),
-        33 => wire__crate__api__wallet__reveal_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__session__session_password_cached_impl(
+        1 => wire__crate__api__wallet__bip39_wordlist_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__btc__btc_fees_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__btc__btc_history_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__btc__btc_lock_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__btc__btc_receive_address_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__btc__btc_send_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__session__btc_session_state_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__btc__btc_sync_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__btc__btc_tx_status_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__btc__btc_unlock_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__wallet__create_wallet_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__storage__db_close_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__storage__db_delete_wallet_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__storage__db_get_setting_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__storage__db_list_wallets_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__storage__db_open_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__storage__db_schema_version_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__storage__db_set_setting_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__storage__db_upsert_wallet_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__backup__export_backup_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__backup__import_backup_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__wallet__list_wallets_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__ltc__ltc_fees_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__ltc__ltc_history_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__ltc__ltc_lock_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__ltc__ltc_receive_address_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__ltc__ltc_send_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__ltc__ltc_servers_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__ltc__ltc_session_state_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__ltc__ltc_sync_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__ltc__ltc_tx_status_impl(port, ptr, rust_vec_len, data_len),
+        32 => wire__crate__api__ltc__ltc_unlock_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__wallet__restore_wallet_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__wallet__reveal_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__session__session_password_cached_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__wallet__unlock_wallet_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__wallet__unlock_wallet_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

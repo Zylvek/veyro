@@ -78,6 +78,18 @@ pub fn restore_wallet(
 ///
 /// The decrypted seed stays inside Rust and never crosses the FFI boundary:
 /// signing will happen in the Rust chain adapters (Phase 4), not in Dart.
+/// English BIP39 wordlist (2048 words, audited crate `bip39`) for the
+/// seed-input suggestions on the import screen: prefix matches first,
+/// closest-by-edit-distance fallback. Public data — the wordlist is a
+/// published standard.
+pub fn bip39_wordlist() -> Vec<String> {
+    bip39::Language::English
+        .word_list()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
 pub fn unlock_wallet(wallets_dir: String, id: String, password: String) -> Result<WalletInfoDto> {
     let manager = WalletManager::open(&wallets_dir, production_kdf())?;
     Ok(manager.unlock(&id, &password)?.info.into())

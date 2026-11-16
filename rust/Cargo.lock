@@ -1381,6 +1381,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "backup_manager",
+ "bip39",
  "bitcoin",
  "chains",
  "crypto_vault",
