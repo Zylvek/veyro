@@ -15,6 +15,7 @@ import 'package:veyro/src/rust/api/storage.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/design/app_colors.dart';
 import 'package:veyro/design/components.dart';
+import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/coin.dart';
 import 'package:veyro/util/l10n.dart';
@@ -54,6 +55,10 @@ class _LtcScreenState extends State<LtcScreen> {
   /// отмены остаются ручные кнопки.
   var _autoPrompted = false;
 
+  /// Auto-unlock is in flight (cache password lives): показываем индикатор
+  /// подключения вместо «Сессия не открыта» — никакого мигания на входе.
+  var _autoConnecting = false;
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +74,7 @@ class _LtcScreenState extends State<LtcScreen> {
   Future<void> _maybeAutoPrompt() async {
     if (_state != null || _autoPrompted || _busy || !mounted) return;
     _autoPrompted = true;
-    await _unlock();
+    await _unlock(auto: true);
   }
 
   Future<void> _refresh({required bool autosyncIfUnlocked}) async {
@@ -99,8 +104,24 @@ class _LtcScreenState extends State<LtcScreen> {
     }
   }
 
-  Future<void> _unlock() async {
+  Future<void> _unlock({bool auto = false}) async {
     if (!mounted) return;
+    // Авто-вход (кэш пароля жив) → сразу индикатор подключения вместо
+    // «Сессия не открыта» — никакого мигания на входе в монету.
+    if (auto) {
+      try {
+        _autoConnecting =
+            await sessionPasswordCached(walletId: widget.info.id);
+      } catch (_) {
+        _autoConnecting = false;
+      }
+      if (_autoConnecting && mounted) {
+        setState(() {
+          _busy = true;
+          _busyLabel = t('ltc_connecting_badge');
+        });
+      }
+    }
     // Единый вход (решение владельца): если пароль уже кэширован ядром
     // после первой разблокировки — монета подключается без диалога.
     String password;
@@ -143,7 +164,15 @@ class _LtcScreenState extends State<LtcScreen> {
         // ошибка «no cached password» вместо тишины.
         cacheKnown = true;
       }
-      if (!cacheKnown) return;
+      if (!cacheKnown) {
+        if (mounted) {
+          setState(() {
+            _autoConnecting = false;
+            _busy = false;
+          });
+        }
+        return;
+      }
     }
     if (!mounted) return;
     setState(() {
@@ -224,6 +253,7 @@ class _LtcScreenState extends State<LtcScreen> {
       if (!mounted) return;
       _failureStreak += 1;
       _lastSeriesFailedAt = DateTime.now();
+      _autoConnecting = false;
       LtcConnectState.instance.setBusy(false);
       setState(() {
         _error = _cleanError(e);
@@ -420,7 +450,32 @@ class _LtcScreenState extends State<LtcScreen> {
                       ),
                     ],
                   ),
-                if (state == null)
+                if (state == null && _autoConnecting)
+                  SectionCard(
+                    title: t('session_not_open'),
+                    icon: Icons.lock_outline,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: LogoLoader(
+                            mode: LogoLoaderMode.loading,
+                            size: 44,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _busyLabel,
+                        style: const TextStyle(color: Colors.white60),
+                      ),
+                      Text(
+                        tf('wallet_label', {'name': widget.info.name}),
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 12),
+                      ),
+                    ],
+                  )
+                else if (state == null)
                   SectionCard(
                     title: t('session_not_open'),
                     icon: Icons.lock_outline,
