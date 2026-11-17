@@ -12,7 +12,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-48C8F5?style=flat-square)](https://github.com/Zylvek/veyro/releases/latest)
 [![Flutter](https://img.shields.io/badge/Flutter-3-638CFF?style=flat-square&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Rust](https://img.shields.io/badge/Rust-stable-48C8F5?style=flat-square&logo=rust&color=424242)](https://rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-9CA3AF?style=flat-square)](#лицензия)
+[![License](https://img.shields.io/badge/license-AGPL--3.0--only-9CA3AF?style=flat-square)](#лицензия)
 [![Honest matrix](https://img.shields.io/badge/statuses-researched%20%E2%89%A0%20implemented-8A1E9A?style=flat-square)](#статус-монет-честно)
 
 **English summary below** · Полные паспорта монет в [`docs/coins/`](docs/coins)
@@ -147,9 +147,30 @@ powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1
 
 ## Лицензия
 
-Код — **MIT OR Apache-2.0** (двухслойная, `LICENSE-MIT` / `LICENSE-APACHE`).
-Директория `rust/crates/ffi/kawpow` — вендоренный KAWPOW-хэш
-(MintPond/Ravencoin, MIT/Apache).
+Проект — **AGPL-3.0-only** (файл [`LICENSE`](LICENSE), полный текст
+GNU Affero General Public License v3 от 19 ноября 2007). Смысл в одном
+абзаце: любой, кто модифицирует и распространяет код, а также **запускает
+модифицированную версию как сетевой сервис**, обязан опубликовать исходники
+своей версии. Проприетарные форки и реребрендинги исключены; изменения
+принимаются только обратно под AGPL-3.0-only.
+
+- Исключение — вендоренный KAWPOW-хэш (`rust/crates/kawpow_ffi/ffi`,
+  MintPond/Ravencoin): остаётся под `MIT OR Apache-2.0`
+  (`LICENSE-MIT` / `LICENSE-APACHE`).
+- Название VEYRO, логотип и бренд-ассеты **не являются частью**
+  лицензируемого кода: производные сборки обязаны использовать
+  собственное имя и знак.
+- Лицензии зависимостей сверялись при исследовании каждой сети
+  (раздел 7 паспортов): все они совместимы с AGPL — от MIT/Apache
+  до BSD/ISC; GPL-компоненты не линкуются в ядро.
+
+## Отказ от гарантий
+
+Программа поставляется «как есть», без каких-либо гарантий полезности
+или пригодности (AGPL, §15–17); авторы не несут ответственности за
+убытки. Это **не финансовый сервис**, не кастодиальное посредничество
+и не инвестиционная рекомендация: ключи и средства — исключительно
+под контролем владельца.
 
 ---
 
