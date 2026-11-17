@@ -488,6 +488,7 @@ impl EtcAccount {
 
 const RPC_BODY_CAP: usize = 2 * 1024 * 1024;
 
+#[derive(Clone)]
 pub struct EtcGateway {
     url: String,
     network: EtcNetwork,
@@ -675,6 +676,30 @@ impl EtcGateway {
             block_number,
         }))
     }
+
+    /// Транзакция ещё в mempool (eth_getTransactionByHash есть, receipt нет)?
+    pub fn in_mempool(&self, txhash: &str) -> Result<bool, ChainError> {
+        let raw = self.rpc("eth_getTransactionByHash", vec![txhash.into()])?;
+        Ok(!raw.is_null() && raw.get("hash").is_some())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Честный failover: preset с провалившимся url в конце
+// ---------------------------------------------------------------------------
+
+/// КандидатыRPC с провалившимся url в конце (порядок preset сохраняется).
+pub fn etc_failover_candidates(network: EtcNetwork, failed_url: &str) -> Vec<String> {
+    let mut list: Vec<String> = network
+        .preset_servers()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    if let Some(pos) = list.iter().position(|u| u == failed_url) {
+        let removed = list.remove(pos);
+        list.push(removed);
+    }
+    list
 }
 
 // ---------------------------------------------------------------------------

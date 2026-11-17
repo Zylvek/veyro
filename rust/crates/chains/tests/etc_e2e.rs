@@ -106,7 +106,7 @@ fn etc_mordor_full_cycle() {
         chains::etc::etc_sign_transfer(&secret, EtcNetwork::Mordor, signed_intent).expect("sign");
     assert_eq!(
         from_signed,
-        addr.address.replace("0x", "").to_lowercase().to_string(),
+        addr.address.to_lowercase().to_string(),
         "from подписи должен совпадать с адресом аккаунта (0x-hex)"
     );
     println!("step3: txhash={txhash}");

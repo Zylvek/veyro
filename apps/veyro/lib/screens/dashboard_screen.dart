@@ -16,6 +16,7 @@ import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/bch.dart';
 import 'package:veyro/src/rust/api/rvn.dart';
+import 'package:veyro/src/rust/api/etc.dart';
 import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
@@ -29,6 +30,7 @@ import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network.dart';
 import 'package:veyro/util/bch_state_cache.dart';
 import 'package:veyro/util/rvn_state_cache.dart';
+import 'package:veyro/util/etc_state_cache.dart';
 import 'package:veyro/util/xec_state_cache.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
 import 'package:veyro/util/price_source.dart';
@@ -41,6 +43,7 @@ import 'btc_screen.dart';
 import 'history_screen.dart';
 import 'bch_screen.dart';
 import 'rvn_screen.dart';
+import 'etc_screen.dart';
 import 'xec_screen.dart';
 import 'ltc_screen.dart';
 import 'tx_details_screen.dart';
@@ -83,6 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double? _bchRate;
   double? _xecRate;
   double? _rvnRate;
+  double? _etcRate;
 
   /// Курс выбранной монеты графика (id из PriceSource.chartCoins) —
   /// для подписи «≈ N {монета}» (решение владельца). Нет курса — нет
@@ -160,6 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double? bchRate;
       double? xecRate;
       double? rvnRate;
+      double? etcRate;
       List<MarketPoint>? series;
       try {
         final fiat = DisplayPrefs.fiatCurrency;
@@ -182,6 +187,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         rvnRate = await source
             .coinPriceIn('ravencoin', fiat)
             .timeout(const Duration(seconds: 12));
+        etcRate = await source
+            .coinPriceIn('ethereum-classic', fiat)
+            .timeout(const Duration(seconds: 12));
         series = await PriceSource.instance
             .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
             .timeout(const Duration(seconds: 12));
@@ -199,6 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _bchRate = bchRate;
         _xecRate = xecRate;
         _rvnRate = rvnRate;
+        _etcRate = etcRate;
         _marketPoints = series;
       });
       await _loadRecent();
@@ -537,6 +546,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
             debugPrint('veyro-flow: rvn background sync failed: $e');
           } finally {
             RvnConnectState.instance.setBusy(false);
+          }
+        }
+      }
+      // ETC: та же дисциплина тихого синка, что у XEC/RVN (пароль кэш + серверы).
+      final etcSessionLive = await etcSessionState();
+      if (!mounted) return;
+      if (etcSessionLive == null && wallet != null) {
+        var cachedEtc = false;
+        try {
+          cachedEtc = await sessionPasswordCached(walletId: wallet.id);
+        } catch (_) {}
+        if (cachedEtc) {
+          EtcConnectState.instance.setBusy(true);
+          try {
+            final servers = await etcServers();
+            String? lastGoodEtc;
+            try {
+              lastGoodEtc = await dbGetSetting(key: 'etc_last_good_server');
+            } catch (_) {}
+            final ordered = [...servers];
+            if (lastGoodEtc != null &&
+                lastGoodEtc.isNotEmpty &&
+                ordered.remove(lastGoodEtc)) {
+              ordered.insert(0, lastGoodEtc);
+            }
+            var unlockedE = false;
+            for (final server in ordered.take(2)) {
+              try {
+                await etcUnlock(
+                  walletsDir: walletsDir(),
+                  walletId: wallet.id,
+                  password: '',
+                  rpcUrl: server,
+                ).timeout(const Duration(seconds: 45));
+                unlockedE = true;
+                break;
+              } catch (e) {
+                debugPrint('veyro-flow: etc bg unlock $server failed: $e');
+              }
+            }
+            if (unlockedE) {
+              final syncE = await etcSync();
+              if (mounted) {
+                EtcStateCache.instance.store(syncE, walletId: wallet.id);
+                try {
+                  await dbSetSetting(
+                    key: 'etc_last_good_server',
+                    value: syncE.serverUrl,
+                  );
+                } catch (_) {}
+              }
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: etc background sync failed: $e');
+          } finally {
+            EtcConnectState.instance.setBusy(false);
+          }
+        }
+      } else if (etcSessionLive != null) {
+        final freshE = wallet == null
+            ? null
+            : EtcStateCache.instance.take(walletId: wallet.id);
+        if (freshE == null) {
+          EtcConnectState.instance.setBusy(true);
+          try {
+            final syncE = await etcSync();
+            if (mounted && wallet != null) {
+              EtcStateCache.instance.store(syncE, walletId: wallet.id);
+            }
+          } catch (e) {
+            debugPrint('veyro-flow: etc background sync failed: $e');
+          } finally {
+            EtcConnectState.instance.setBusy(false);
           }
         }
       }
@@ -988,6 +1070,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         BchConnectState.instance,
         XecConnectState.instance,
         RvnConnectState.instance,
+        EtcConnectState.instance,
       ]),
       builder: (context, _) => _buildAssetsCardBody(context),
     );
@@ -999,6 +1082,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bch = kAssetRegistry.firstWhere((a) => a.ticker == 'BCH');
     final xec = kAssetRegistry.firstWhere((a) => a.ticker == 'XEC');
     final rvn = kAssetRegistry.firstWhere((a) => a.ticker == 'RVN');
+    final etc = kAssetRegistry.firstWhere((a) => a.ticker == 'ETC');
     final wallet = _selected;
     // Сумма монеты — реальный подтверждённый баланс из последней
     // синхронизации ЭТОГО кошелька (кэш ключён по id; без данных — 0).
@@ -1463,6 +1547,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onTap: wallet == null
                     ? null
                     : () => _push(RvnScreen(info: wallet)),
+              ),
+            );
+          },
+        ),
+        // ETC: карточка появляется автоматом при честном переводе
+        // статуса реестра (после живого тест-цикла — правило паспорта).
+        AnimatedBuilder(
+          animation: EtcConnectState.instance,
+          builder: (context, _) {
+            if (!etc.implemented) return const SizedBox.shrink();
+            final etcBusy = EtcConnectState.instance.busy;
+            final etcSync = wallet == null
+                ? null
+                : EtcStateCache.instance.take(walletId: wallet.id);
+            // Честная wei-арифметика только в BigInt (int64 не хватает
+            // даже на 10 ETC): показываем confirmed с поправкой на
+            // отрицательную мем-дельту — как у сат-карточек.
+            BigInt etcShownWei = BigInt.zero;
+            if (etcSync != null) {
+              final confirmed = BigInt.tryParse(etcSync.confirmedWei);
+              if (confirmed != null) {
+                final delta =
+                    BigInt.tryParse(etcSync.pendingDeltaWei) ?? BigInt.zero;
+                final adjusted =
+                    delta < BigInt.zero ? confirmed + delta : confirmed;
+                if (adjusted > BigInt.zero) etcShownWei = adjusted;
+              }
+            }
+            final etcRate = _etcRate;
+            return Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: _AssetAvatar(etc),
+                title: const Text('Ethereum Classic'),
+                subtitle: etcBusy
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t('etc_connecting_badge'),
+                            style: TextStyle(
+                              fontFamily: kMonoFont,
+                              fontSize: 11.5,
+                              color: VColors.warning,
+                            ),
+                          ),
+                        ],
+                      )
+                    : VAnimatedText(
+                        '${_maskAmount(weiToEtcString(etcShownWei.toString()))} ETC',
+                        style: const TextStyle(
+                          fontFamily: kMonoFont,
+                          fontSize: 11.5,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                trailing: etcBusy
+                    ? const SizedBox(width: 46)
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (etcRate != null) ...[
+                            VAnimatedText(
+                              _maskAmount(
+                                formatFiat(
+                                  etcShownWei.toDouble() / 1e18 * etcRate,
+                                ),
+                              ),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                                color: VColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              DisplayPrefs.fiatCurrency.toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                          if (etcSync != null &&
+                              BigInt.tryParse(etcSync.pendingDeltaWei) !=
+                                  BigInt.zero)
+                            Text(
+                              '${_maskAmount(weiToEtcString(etcSync.pendingDeltaWei))} ETC ${t('mempool_suffix')}',
+                              style: TextStyle(
+                                fontFamily: kMonoFont,
+                                fontSize: 11,
+                                color: VColors.warning,
+                              ),
+                            ),
+                        ],
+                      ),
+                onTap: wallet == null
+                    ? null
+                    : () => _push(EtcScreen(info: wallet)),
               ),
             );
           },

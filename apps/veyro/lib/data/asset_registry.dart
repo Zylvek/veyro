@@ -248,11 +248,19 @@ const List<VeyroAsset> kAssetRegistry = [
     ticker: 'ETC',
     name: 'Ethereum Classic',
     network: 'L1 · EVM (chain 61)',
-    lifecycle: AssetLifecycle.researched,
+    lifecycle: AssetLifecycle.sendSupported,
+    implemented: true,
     passport: 'docs/coins/ETC.md',
     note:
-        'Legacy-газ без EIP-1559; testnet Mordor; первый кандидат '
-        'EVM-группы по простоте.',
+        'Пятый адаптер, EVM-профиль: m/44\'/61\', EIP-55 (8 векторов '
+        'ERC-55), RLP, EIP-155; wei через FFI — только строки (BigInt '
+        'отображение); estimateGas → честный fallback 21000; история '
+        'BlockScout v2. Полный живой цикл на Mordor (chainId 63) 17.11: '
+        'фаусет → self-transfer → mempool → receipt(17 414 966) → '
+        'fee-честность. ERC-20 не отображаются (честно); mainnet-send '
+        'и app-цикл не заявлены. Фаусет-паметка: faucet.etcmc-monitor '
+        'майнит, но клеймы не платит (очередь стоит ~100 дней) — '
+        'адрес пополнен через ghostchain.io Mordor-фаусет.',
   ),
   VeyroAsset(
     row: 16,

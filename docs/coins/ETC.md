@@ -165,24 +165,33 @@
   type, legacy-газ); EVM-стек VEYRO переиспользуется целиком.
 - **Главный риск:** PoW-уязвимость к реоргам (история 51%-атак 2020) и
   клиентская смута вокруг Core Geth v1.13.0.
-- **Предлагаемый статус:** `Research required` → после полного тестового
-  цикла кандидат на `Full support` (среди пяти EVM-активов — первый по
-  простоте реализации). До тестов статус не менять.
-  Прогресс 17.11.2026 (фаза 1 ядра, статус матрицы НЕ менялся): адаптер
-  `chains::etc` начат — keccak-256 (sha3, RustCrypto), EIP-55 (8 официальных
-  векторов ERC-55 + честное отвержение испорченной чексуммы), полный RLP
-  (короткие/длинные формы), legacy-подпись EIP-155 (вектор §Example:
-  signing data/hash байт-в-байт; r/s проверяются восстановлением
-  подписанта — k-рандомизация легальна), деривация m/44'/61' сверена с
-  независимым эталоном BIP39→EVM-адреса; шлюз `EtcGateway` (https-only,
-  честная граница тела 2 МиБ, fund-safety: chainId + генезис RPC-пробой) и
-  BlockScout v2 для истории. Живые пробы 17.11.2026: etc.etcdesktop.com —
-  height 25 751 214, gasPrice ~1 gwei, баланс/nonce честные, estimateGas
-  честно отказал на нефундированном адресе; Mordor (chainId 63) — height
-  17 414 443, генезис сверен; BlockScout v2 живой. Остаток фазы: мост
-  (FFI session как у rvn) + UI центр ETC + полный живой цикл
-  (получение→баланс→история→план→подпись→broadcast→подтверждение)
-  на Mordor/mainnet — до него статус честно не меняем.
+- **Предлагаемый статус:** ЗАКРЫТО → `Send supported` (как BTC/XEC),
+  `implemented: true` (17.11.2026). Полный живой цикл Mordor (chainId 63,
+  rpc.mordor.etccooperative.org):
+  - пополнение адреса: фаусетный этап закрыт без взноса владельца. Фаусет
+    faucet.etcmc-monitor.org (PoWFaucet 2.3.5) майнится честно (протокол
+    воспроизведён клиентом: REST /api/startSession + WS /ws/pow
+    foundShare/verify, собственный vendored argon2-wasm либы фаусета:
+    Argon2d m=4096/t=4/p=1/l=16, difficulty 11; ~65 шеров за две сессии,
+    баланс 0.196 METC накоплен) — НО его очередь клеймов не платит:
+    /api/getFaucetStatus показывает ~200 клеймов в «queue» за ~100 дней и
+    ни одной отправки (nonce/hash пусты), on-chain подтверджения выплат
+    нет → честный вердикт: фаусет принимает майнинг, выплаты не делает.
+    Средства получены фаусетом ghostchain.io (GHOST Mordor faucet, форма
+    с Cloudflare Turnstile в браузере): tx
+    0x973c194410a96d550d598a389fe5226ae8aee43206ed6c8b3a77e528c26bb97f,
+    5 METC, подтверждён в блоке 17 414 958.
+  - e2e `cargo test -p chains --test etc_e2e etc_mordor_full_cycle
+    -- --ignored --nocapture`: баланс 5 METC / nonce 0 → gasPrice 1 gwei →
+    estimateGas 21000 (честная серверная оценка) → self-transfer 4.5 METC
+    (90 %), подпись EIP-155 (from сверен восстановлением подписанта) →
+    broadcast 0x067887e4dc846662b547daf26ce187d43fab3cfb68de3a9b50e59eeed1ea032c
+    → mempool → receipt success в блоке 17 414 966 → fee-честность
+    (after < before; fee = 21000 × 1 gwei = 0.000021 METC).
+  - До Full-support не заявляются: mainnet-send и app-уровневый цикл
+    (дисциплина BTC/XEC); ERC-20 не отображаются (честно). Статус
+    матрицы поднят вместе с карточкой Обзора и фоновым синком
+    (dashboard_screen, AnimatedBuilder + EtcConnectState/EtcStateCache).
 
 ## Источники
 

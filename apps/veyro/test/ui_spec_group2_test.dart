@@ -69,16 +69,18 @@ void main() {
 
       // LTC реализован в ядре (receive-only, 15.11.2026); BCH — третий
       // реализованный актив (полный профиль LTC, 16.11.2026); XEC —
-      // четвёртый (профиль BCH, UAHF из общего модуля, 16.11.2026).
-      expect(researched.length, 21);
-      expect(sendSupported.length, 2);
+      // четвёртый (профиль BCH, UAHF из общего модуля, 16.11.2026);
+      // ETC — пятый (EVM-профиль: m/44'/61', EIP-155; полный живой цикл
+      // Mordor 17.11.2026).
+      expect(researched.length, 20);
+      expect(sendSupported.length, 3);
       expect(receiveSupported.length, 2);
       expect(researchRequired.length, 0);
       expect(blocked.length, 1);
       // Фиктивный XTR (historical) удалён — исторических строк нет.
       expect(historical.length, 0);
 
-      // 21 + 2 + 2 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
+      // 20 + 3 + 2 + 0 + 1 + 0 = 26: никакие статусы не потеряны.
       expect(
         researched.length +
             sendSupported.length +
@@ -90,10 +92,10 @@ void main() {
       );
     });
 
-    test('реализованные адаптеры — BTC, LTC, BCH (профиль LTC) и XEC (профиль BCH)', () {
+    test('реализованные адаптеры — BTC, LTC, BCH (профиль LTC), XEC (профиль BCH) и ETC (EVM-профиль)', () {
       final implemented =
           kAssetRegistry.where((a) => a.implemented).toList();
-      expect(implemented.length, 4);
+      expect(implemented.length, 5);
       final btc = implemented.firstWhere((a) => a.ticker == 'BTC');
       expect(btc.lifecycle, AssetLifecycle.sendSupported);
       // Send supported ≠ Full support: честное отличие защищено.
@@ -112,6 +114,14 @@ void main() {
       // 15.05.2027 и mainnet-app-цикла.
       expect(xec.lifecycle, AssetLifecycle.sendSupported);
       expect(xec.name, 'eCash');
+      final etc = implemented.firstWhere((a) => a.ticker == 'ETC');
+      // ETC: вердикт паспорта — Send supported; полный живой цикл Mordor
+      // (chainId 63) пройден 17.11.2026 (self-transfer → mempool →
+      // receipt → fee-честность); mainnet-send и app-цикл не заявлены.
+      expect(etc.lifecycle, AssetLifecycle.sendSupported);
+      expect(etc.name, 'Ethereum Classic');
+      // EVM-честность ERC-20 в матрице не заявляется нигде.
+      expect(etc.network, contains('chain 61'));
     });
 
     test('особые строки реестра на своих местах', () {
