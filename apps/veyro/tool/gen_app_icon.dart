@@ -112,11 +112,16 @@ Uint8List _icoBmpFrame(int size, Uint8List rgba) {
 }
 
 // --- PNG-вложение (для кадра 256). ------------------------------------
+// ВАЖНО: Dart int = 64 бита, а >>> здесь — 64-битный сдвиг; контрольная
+// сумма обязана жить в 32 битах, иначе CRC чанков неверен (Chromium
+// отвергает файл, хотя GDI+/WIC снисходительны). Маска после шага.
 final List<int> _crcTable = () {
   final table = List<int>.generate(256, (n) {
     var c = n;
     for (var k = 0; k < 8; k++) {
-      c = (c & 1) != 0 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      c = (c & 1) != 0
+          ? ((0xEDB88320 ^ (c >>> 1)) & 0xFFFFFFFF)
+          : ((c >>> 1) & 0xFFFFFFFF);
     }
     return c;
   });
@@ -124,11 +129,12 @@ final List<int> _crcTable = () {
 }();
 
 int _crc32(List<int> data) {
-  var crc = -1;
+  var crc = 0xFFFFFFFF;
   for (final byte in data) {
-    crc = _crcTable[(crc ^ byte) & 0xFF] ^ (crc >>> 8);
+    crc = (((crc >>> 8) & 0x00FFFFFF) ^ _crcTable[(crc ^ byte) & 0xFF]) &
+        0xFFFFFFFF;
   }
-  return (crc ^ -1) & 0xFFFFFFFF;
+  return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }
 
 void _chunk(BytesBuilder out, String type, List<int> data) {
