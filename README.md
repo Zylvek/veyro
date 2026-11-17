@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/img/veyro-logo.svg" width="120" alt="VEYRO logo" />
+<img src="docs/img/logo.png" width="140" alt="VEYRO logo" />
 
 # VEYRO
 
