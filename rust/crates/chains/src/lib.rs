@@ -18,6 +18,7 @@ pub mod bitcoin;
 pub mod cash;
 pub mod cash_sighash_data;
 pub mod electrum;
+pub mod etc;
 pub mod litecoin;
 pub mod p2p;
 pub mod raven;

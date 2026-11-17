@@ -26,6 +26,10 @@ sha2 = "0.10"
 # Same crate rust-bitcoin uses internally for hash traits (kept aligned: ^0.14).
 bitcoin_hashes = "0.14"
 kawpow_ffi = { version = "0.1.0", path = "../kawpow_ffi" }
+# ETC (Ethereum Classic): keccak-256 (Keccak-legacy padding, НЕ SHA3-256)
+# для EIP-55-чексумм, адресов и хэшей EIP-155-транзакций. RustCrypto,
+# лицензия MIT OR Apache-2.0 — как весь workspace.
+sha3 = "0.10"
 # DoH-резолв доверенных P2P-сидов (system-DNS на роутере отдаёт fake-IP
 # для чужих доменов; dns.google — в bypass-листе роутера). JSON feature:
 # в json-ответе сидов ищем Answer[].data.
@@ -37,4 +41,6 @@ ureq = { version = "2", default-features = false, features = ["tls", "gzip", "js
 # mnemonic through the audited crate (dev-only dependency); the "rand"
 # feature lets the gated E2E probe print a fresh faucet phrase.
 bip39 = { workspace = true, features = ["rand"] }
+# ETC-векторы строят секрет подписи прямо в тесте (Zeroizing из контракта ядра).
+zeroize = { workspace = true }
 
