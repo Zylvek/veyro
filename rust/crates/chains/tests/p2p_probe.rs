@@ -9,9 +9,11 @@
 //! byte-order kawpow-хэша определена пробой (не выдумкой).
 //! Тестнет RVN (seed-testnet-raven…) — вторая цель пробы.
 
-use chains::p2p::client::{quorum_sync, resolve_seed_ips};
+use std::time::Duration;
+
+use chains::p2p::client::{discover_and_scan, quorum_sync, resolve_seed_ips, NodeStatus};
 use chains::p2p::headers::{dark_gravity_wave3, Header120};
-use chains::p2p::wire::{P2pParams, RVN_MAINNET};
+use chains::p2p::wire::{P2pParams, RVN_MAINNET, XNA_MAINNET};
 
 const RVN_CHECKPOINT_HEIGHT: u32 = 2_383_550;
 const RVN_CHECKPOINT_HASH: &str =
@@ -49,7 +51,6 @@ fn validate(chain: &[Header120], param_label: &str) {
     // kawpow PoW: хвост 100 заголовков — каждая (mix, hash) и ориентация
     let tail = chain.len().saturating_sub(100);
     let mut orientation_set = false;
-    let mut orientation_desc = String::new();
     for h in &chain[tail..] {
         let (mix, hash) = h.kawpow_blockhash();
         // проверяем честно обе ориентации против wire-полей
@@ -89,7 +90,7 @@ fn validate(chain: &[Header120], param_label: &str) {
                 h.height
             );
             if !orientation_set {
-                orientation_desc = if link_as_is {
+                let orientation_desc = if link_as_is {
                     "hash==prev as-is".to_string()
                 } else {
                     "hash==prev reversed".to_string()
@@ -137,11 +138,94 @@ fn rvn_p2p_headers_sync() {
     println!("RVN P2P headers probe complete");
 }
 
+/// Discovery+скан: у живых сидов спрашиваю их списки пиров (getaddr → addr),
+/// затем классификация всех кандидатов: кто отвечает на getheaders (вне IBD).
+fn sweep_probe(
+    params: &P2pParams,
+    locator_be: &str,
+    height: u32,
+    probe_cap: usize,
+) -> Vec<NodeStatus> {
+    let reports = discover_and_scan(
+        params,
+        locator_be,
+        height,
+        10,
+        Duration::from_secs(20),
+        Duration::from_secs(20),
+        probe_cap,
+    );
+    let count = |s: NodeStatus| reports.iter().filter(|r| r.status == s).count();
+    println!(
+        "{}: скан итог — отвечающих {} / молчащих {} / handshake-отказов {} / недоступных {} (всего {})",
+        params.label,
+        count(NodeStatus::Answering),
+        count(NodeStatus::Silent),
+        count(NodeStatus::HandshakeFail),
+        count(NodeStatus::Unreachable),
+        reports.len()
+    );
+    let answered: Vec<String> = reports
+        .iter()
+        .filter(|r| r.status == NodeStatus::Answering)
+        .map(|r| {
+            format!(
+                "{} (первая пачка {} шт, их tip {})",
+                r.ip, r.first_batch, r.tip_height
+            )
+        })
+        .collect();
+    println!(
+        "отвечающие (вне IBD): {}",
+        if answered.is_empty() {
+            "НЕТ".to_string()
+        } else {
+            answered.join("; ")
+        }
+    );
+    if answered.len() < 2 {
+        println!(
+            "кворум 2+ пира невозможен: отвечающих {} — живой синк от community-сидов упирается в IBD-гейт",
+            answered.len()
+        );
+    }
+    reports.iter().map(|r| r.status).collect()
+}
+
+#[test]
+#[ignore = "live network sweep: cargo test -p chains --test p2p_probe rvn_seed_sweep -- --ignored --nocapture"]
+fn rvn_seed_sweep() {
+    let statuses = sweep_probe(
+        &RVN_MAINNET,
+        RVN_CHECKPOINT_HASH,
+        RVN_CHECKPOINT_HEIGHT,
+        160,
+    );
+    assert!(
+        statuses.len() >= 10,
+        "скан подозрительно мал: сиды отдали {} IP",
+        statuses.len()
+    );
+    println!("RVN seed sweep complete");
+}
+
+#[test]
+#[ignore = "live network sweep: cargo test -p chains --test p2p_probe xna_seed_sweep -- --ignored --nocapture"]
+fn xna_seed_sweep() {
+    let statuses = sweep_probe(&XNA_MAINNET, XNA_CHECKPOINT_HASH, XNA_CHECKPOINT_HEIGHT, 60);
+    assert!(
+        statuses.len() >= 2,
+        "скан подозрительно мал: сиды отдали {} IP",
+        statuses.len()
+    );
+    println!("XNA seed sweep complete");
+}
+
 #[test]
 #[ignore = "live network probe: cargo test -p chains --test p2p_probe -- --ignored --nocapture"]
 fn xna_p2p_headers_sync() {
     let chains = quorum_sync(
-        &XNA_PARAMS(),
+        &XNA_MAINNET,
         XNA_CHECKPOINT_HASH,
         XNA_CHECKPOINT_HEIGHT,
         20_000,
@@ -153,14 +237,4 @@ fn xna_p2p_headers_sync() {
         validate(&c.chain, &c.label);
     }
     println!("XNA P2P headers probe complete");
-}
-
-fn XNA_PARAMS() -> P2pParams {
-    P2pParams {
-        label: "Neurai mainnet",
-        magic: [0x4e, 0x45, 0x55, 0x52],
-        port: 19_000,
-        genesis_be_hex: "00000044d33c0c0ba019be5c0249730424a69cb4c222153322f68c6104484806",
-        dns_seeds: &["dns.neurai.org", "seed1.neurai.org"],
-    }
 }

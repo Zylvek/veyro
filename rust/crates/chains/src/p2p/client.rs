@@ -28,6 +28,12 @@ pub struct Peer {
     pub label: String,
     /// Высота ОЖИДАЕМОГО первого заголовка следующей пачки.
     height_hint: u32,
+    /// Их protocol version из version-payload (телеметрия, честная).
+    pub peer_version: i32,
+    /// Их user agent (обрезается до 256, как MAX_SUBVERSION_LENGTH).
+    pub peer_ua: String,
+    /// Их nStartHeight из version-payload (tip узла, по их собственной версии).
+    pub peer_start_height: i32,
 }
 
 /// Пир + его независимая цепь заголовков (для кворума).
@@ -102,7 +108,7 @@ impl Peer {
                 .map_err(|e| ChainError::InvalidServerUrl(format!("{ip}: parse: {e}")))?,
             connect_timeout,
         )
-        .map_err(|e| ChainError::Transport(format!("{ip}:{connect_timeout:?}: {e}")))?;
+        .map_err(|e| ChainError::Transport(format!("{ip}: connect: {e}")))?;
         socket
             .set_read_timeout(Some(Duration::from_secs(20)))
             .and_then(|_| socket.set_write_timeout(Some(Duration::from_secs(10))))
@@ -112,6 +118,9 @@ impl Peer {
             buf: Vec::with_capacity(64 * 1024),
             label: format!("{}:{}", ip, params.port),
             height_hint,
+            peer_version: 0,
+            peer_ua: String::new(),
+            peer_start_height: 0,
         };
         peer.handshake(params)?;
         Ok(peer)
@@ -123,13 +132,29 @@ impl Peer {
         eprintln!("{}: version payload hex: {}", self.label, hex::encode(&vp));
         self.send(params, "version", &vp)?;
         // ждём их version (или verack сразу — у форков порядок бывает разный)
-        let mut saw_peer_version = false;
         loop {
-            let reply = self.next_message(params, Duration::from_secs(30))?;
+            let reply = self.next_message(params, Duration::from_secs(15))?;
             match reply.command.as_str() {
-                "version" => saw_peer_version = true,
-                "verack" if saw_peer_version => break,
-                "verack" if !saw_peer_version => break,
+                "version" => {
+                    // version-payload: ver(4) services(8) ts(8) recv(26) from(26)
+                    // nonce(8) => UA varstr на офсете 80, затем nStartHeight i32.
+                    if reply.payload.len() > 80 {
+                        self.peer_version =
+                            i32::from_le_bytes(reply.payload[0..4].try_into().expect("4"));
+                        let ua_len = reply.payload[80] as usize;
+                        let off = 81 + ua_len;
+                        if ua_len > 0 && reply.payload.len() >= off {
+                            self.peer_ua =
+                                String::from_utf8_lossy(&reply.payload[81..off]).into_owned();
+                        }
+                        if reply.payload.len() >= off + 4 {
+                            self.peer_start_height = i32::from_le_bytes(
+                                reply.payload[off..off + 4].try_into().expect("4"),
+                            );
+                        }
+                    }
+                }
+                "verack" => break,
                 "ping" => self.send(params, "pong", &reply.payload)?,
                 "sendaddrv2" | "sendcmpct" | "addr" | "sendheaders" => {}
                 "reject" => {
@@ -206,6 +231,328 @@ impl Peer {
         }
     }
 
+    /// Одноразовая проба getheaders (сканер): БЕЗ null-locator fallback'а.
+    /// Возвращает число заголовков первой пачки; ошибка при таймауте/закрытии
+    /// (молчание = IBD-гейт net_processing:2120, классификация наверху).
+    pub fn probe_getheaders(
+        &mut self,
+        params: &P2pParams,
+        start_hash_be: &str,
+        height_hint: u32,
+        wait: Duration,
+    ) -> Result<u32, ChainError> {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&PROTOCOL_VERSION.to_le_bytes());
+        crate::p2p::headers::write_varint(1, &mut payload);
+        payload.extend_from_slice(&crate::hex_be_to_le32(start_hash_be)?);
+        payload.extend_from_slice(&[0u8; 32]); // stop = конец
+        self.send(params, "getheaders", &payload)?;
+        loop {
+            let reply = self.next_message(params, wait)?;
+            match reply.command.as_str() {
+                "headers" => {
+                    if reply.payload.is_empty() {
+                        return Ok(0);
+                    }
+                    let headers = parse_headers_payload(&reply.payload, height_hint)?;
+                    return Ok(headers.len() as u32);
+                }
+                // inv/прочие объявления пропускаем — ждём headers
+                _ => continue,
+            }
+        }
+    }
+}
+
+/// Честный парсинг addr-ответа: count | entries(time u32, services u64,
+/// ip 16BE, port u16 BE). IPv4-mapped извлечены, чистые v6 пропущены
+/// (транспорт пиров всё равно порт params.port).
+pub fn parse_addr_payload(payload: &[u8]) -> Result<Vec<String>, ChainError> {
+    let (count, mut off) = crate::p2p::headers::read_varint(payload, 0)?;
+    if count > 2000 {
+        return Err(ChainError::Protocol(format!("addr count {count}")));
+    }
+    let mut out = Vec::new();
+    for _ in 0..count {
+        if off + 30 > payload.len() {
+            break; // короткий конец честно игнорируем
+        }
+        let ip16 = &payload[off + 12..off + 28];
+        off += 30;
+        if ip16[..10] == [0u8; 10] && ip16[10] == 0xff && ip16[11] == 0xff {
+            let ip = std::net::Ipv4Addr::new(ip16[12], ip16[13], ip16[14], ip16[15]);
+            let s = ip.to_string();
+            if !out.contains(&s) {
+                out.push(s);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Статус узла в сканере сидов (кто отвечает на getheaders — узел вне IBD).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeStatus {
+    /// TCP не открылся.
+    Unreachable,
+    /// Открылся, handshake не сложился (reject/закрыли/таймаут version).
+    HandshakeFail,
+    /// Handshake ок, но getheaders молчал/закрытие — IBD-гейт.
+    Silent,
+    /// Отдал первую пачку заголовков — узел вне IBD, пригоден для синка.
+    Answering,
+}
+
+/// Отчёт сканера по одному IP: честные поля из их version-сообщения.
+#[derive(Debug, Clone)]
+pub struct NodeReport {
+    pub ip: String,
+    pub status: NodeStatus,
+    pub peer_version: i32,
+    pub peer_ua: String,
+    /// Их nStartHeight (tip по их собственной телеметрии).
+    pub tip_height: u32,
+    /// Заголовков в первой пачке (для Answering).
+    pub first_batch: u32,
+    /// Деталь ошибки (для печати).
+    pub detail: String,
+}
+
+/// Все IP всех сидов через DoH, без дублей; сид с ошибкой — не фатален.
+pub fn resolve_all_seed_ips(params: &P2pParams) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for seed in params.dns_seeds {
+        if let Ok(ips) = resolve_seed_ips(seed) {
+            for ip in ips {
+                let s = ip.to_string();
+                if !out.contains(&s) {
+                    out.push(s);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn answer_rank(s: NodeStatus) -> u8 {
+    match s {
+        NodeStatus::Answering => 0,
+        NodeStatus::Silent => 1,
+        NodeStatus::HandshakeFail => 2,
+        NodeStatus::Unreachable => 3,
+    }
+}
+
+/// Проба одного IP: connect → handshake → одна getheaders-проба. Честный
+/// отчёт с телеметрией узла (их version/UA/nStartHeight).
+fn probe_one(
+    params: &P2pParams,
+    ip: &str,
+    locator_be: &str,
+    checkpoint_height: u32,
+    wait: Duration,
+) -> NodeReport {
+    let mut report = NodeReport {
+        ip: ip.to_string(),
+        status: NodeStatus::Unreachable,
+        peer_version: 0,
+        peer_ua: String::new(),
+        tip_height: 0,
+        first_batch: 0,
+        detail: String::new(),
+    };
+    match Peer::connect(params, ip, Duration::from_secs(4), checkpoint_height + 1) {
+        Ok(mut peer) => {
+            report.peer_version = peer.peer_version;
+            report.peer_ua = peer.peer_ua.clone();
+            report.tip_height = peer.peer_start_height.max(0) as u32;
+            match peer.probe_getheaders(params, locator_be, checkpoint_height + 1, wait) {
+                Ok(n) => {
+                    report.first_batch = n;
+                    report.status = if n == 0 {
+                        NodeStatus::Silent
+                    } else {
+                        NodeStatus::Answering
+                    };
+                }
+                Err(e) => {
+                    report.status = NodeStatus::Silent;
+                    let m = e.to_string();
+                    report.detail = m.split("Transport: ").last().unwrap_or(&m).to_string();
+                }
+            }
+        }
+        Err(e) => {
+            let m = e.to_string();
+            let detail = m.split("Protocol: ").last().unwrap_or(&m);
+            let detail = detail.split("Transport: ").last().unwrap_or(detail);
+            report.status = if m.contains("connect:") || m.contains("set timeouts") {
+                NodeStatus::Unreachable
+            } else {
+                // reject/закрытие/таймаут handshake — Protocol/Transport
+                NodeStatus::HandshakeFail
+            };
+            report.detail = detail.to_string();
+        }
+    }
+    report
+}
+
+/// Пул воркеров: probe_one по списку IP; честная сортировка по статусу.
+fn scan_ips(
+    ips: &[String],
+    params: &P2pParams,
+    locator_be: &str,
+    checkpoint_height: u32,
+    workers: usize,
+    wait: Duration,
+) -> Vec<NodeReport> {
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: std::sync::Mutex<Vec<NodeReport>> = std::sync::Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if i >= ips.len() {
+                    break;
+                }
+                let r = probe_one(params, &ips[i], locator_be, checkpoint_height, wait);
+                results.lock().expect("scan lock").push(r);
+            });
+        }
+    });
+    let mut out = results.into_inner().unwrap_or_default();
+    out.sort_by(|a, b| {
+        (answer_rank(a.status), a.ip.as_str()).cmp(&(answer_rank(b.status), b.ip.as_str()))
+    });
+    for r in &out {
+        eprintln!(
+            "scan {}: {:?} ver={} tip={} first_batch={} ua={:?} {}",
+            r.ip,
+            r.status,
+            r.peer_version,
+            r.tip_height,
+            r.first_batch,
+            r.peer_ua.chars().take(28).collect::<String>(),
+            r.detail.chars().take(64).collect::<String>(),
+        );
+    }
+    out
+}
+
+/// Скан сидов: классификация всех узлов (кто отвечает на getheaders).
+/// Блокирующе, `workers` параллельных проб; honest таймауты на каждый шаг.
+pub fn scan_nodes(
+    params: &P2pParams,
+    locator_be: &str,
+    checkpoint_height: u32,
+    workers: usize,
+    wait: Duration,
+) -> Vec<NodeReport> {
+    let ips = resolve_all_seed_ips(params);
+    eprintln!(
+        "scan {}: кандидатов {} IP с {} сидов",
+        params.label,
+        ips.len(),
+        params.dns_seeds.len()
+    );
+    scan_ips(&ips, params, locator_be, checkpoint_height, workers, wait)
+}
+
+/// Discovery + скан: живые пиры через сами узлы (getaddr → addr), затем
+/// классификация каждого. DNS-RRset протухает (зомби на старых высотах и
+/// мёртвые записи), а узлы отдают СВОЙ текущий список пиров — стандартный
+/// wire-дискавери, без обхода политик узла.
+pub fn discover_and_scan(
+    params: &P2pParams,
+    locator_be: &str,
+    checkpoint_height: u32,
+    workers: usize,
+    wait: Duration,
+    addr_wait: Duration,
+    probe_cap: usize,
+) -> Vec<NodeReport> {
+    let seeds = resolve_all_seed_ips(params);
+    eprintln!(
+        "discovery {}: сид-кандидатов {} IP, спрашиваю списки пиров…",
+        params.label,
+        seeds.len()
+    );
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let found: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if i >= seeds.len() {
+                    break;
+                }
+                let ip = &seeds[i];
+                let ok = Peer::connect(params, ip, Duration::from_secs(4), checkpoint_height + 1)
+                    .and_then(|mut p| p.discover_addrs(params, addr_wait));
+                match ok {
+                    Ok(addrs) => {
+                        eprintln!("discovery {}: отдал {} пиров", ip, addrs.len());
+                        found.lock().expect("discovery lock").extend(addrs);
+                    }
+                    Err(e) => {
+                        let m = e.to_string();
+                        eprintln!("discovery {}: {m}", ip)
+                    }
+                }
+            });
+        }
+    });
+    let added = found.into_inner().unwrap_or_default();
+    let mut candidates: Vec<String> = Vec::new();
+    for s in &seeds {
+        if !candidates.contains(s) {
+            candidates.push(s.clone());
+        }
+    }
+    for a in added {
+        if !candidates.contains(&a) {
+            candidates.push(a);
+        }
+    }
+    if candidates.len() > probe_cap {
+        candidates.truncate(probe_cap);
+    }
+    eprintln!(
+        "discovery {}: итог кандидатов {} IP (cap {})",
+        params.label,
+        candidates.len(),
+        probe_cap
+    );
+    scan_ips(
+        &candidates,
+        params,
+        locator_be,
+        checkpoint_height,
+        workers,
+        wait,
+    )
+}
+
+/// Продолжение impl Peer после сканера: getheaders-синхронизация.
+impl Peer {
+    /// getaddr → addr: спрашиваем у узла его текущий список пиров
+    /// (стандартный discovery; узел сам решает, что отдать).
+    pub fn discover_addrs(
+        &mut self,
+        params: &P2pParams,
+        wait: Duration,
+    ) -> Result<Vec<String>, ChainError> {
+        self.send(params, "getaddr", &[])?;
+        loop {
+            let reply = self.next_message(params, wait)?;
+            if reply.command == "addr" {
+                return parse_addr_payload(&reply.payload);
+            }
+            // inv/прочие объявления пропускаем и ждём addr
+        }
+    }
+
     /// getheaders: запросить цепь от start_hash (BE-hex) до упора;
     /// возвращает заголовки пачки (для цикла синка).
     pub fn request_headers(
@@ -225,7 +572,7 @@ impl Peer {
         loop {
             let reply = match self.next_message(params, Duration::from_secs(60)) {
                 Ok(r) => r,
-                Err(e) if matches!(e, ChainError::Transport(ref m) if m.contains("read:")) => {
+                Err(ChainError::Transport(ref m)) if m.contains("read:") => {
                     // Тихий таймаут: узел молчит на getheaders с locator'ом.
                     // Догадка — IBD-гейт (net_processing:2120). Честная
                     // проверка вместо догадки: запрос от NULL-locator —
@@ -277,7 +624,6 @@ pub fn sync_headers(
     progress: &mut dyn FnMut(u32),
 ) -> Result<(Vec<Header120>, bool), ChainError> {
     let mut chain: Vec<Header120> = Vec::new();
-    let mut caught_up = false;
     let first_height = checkpoint_height + 1;
     // Первый запрос: locator [checkpoint, genesis]; далее — [kawpow-tip].
     let _genesis = _genesis_hash_be;
@@ -295,8 +641,16 @@ pub fn sync_headers(
         };
         let Some(batch) = batch else {
             // Пустой ответ: доехали до tip (или пир в IBD — ротация выше).
-            caught_up = true;
-            break;
+            // Первая высота ровно checkpoint+1 (высота честно в wire-заголовке)
+            if let Some(first) = chain.first() {
+                if first.height != checkpoint_height + 1 {
+                    return Err(ChainError::Protocol(format!(
+                        "{}: первая высота {} ≠ checkpoint+1",
+                        peer.label, first.height
+                    )));
+                }
+            }
+            return Ok((chain, true));
         };
         // Связность внутри пачки и с предыдущей
         if let (Some(last), Some(first)) = (chain.last(), batch.first()) {
@@ -318,17 +672,6 @@ pub fn sync_headers(
         chain.extend(batch);
         progress(chain.len() as u32);
     }
-    // Первая высота ровно checkpoint+1 (заголовок nHeight честно в wire)
-    if let Some(first) = chain.first() {
-        if first.height != checkpoint_height + 1 {
-            return Err(ChainError::Protocol(format!(
-                "{}: первая высота {} ≠ checkpoint+1",
-                peer.label, first.height
-            )));
-        }
-    }
-    let result = Ok((chain, caught_up));
-    result
 }
 
 /// hex (BE-отображение) → LE-байты (для локатора getheaders).
@@ -338,8 +681,10 @@ fn hex_le_to_be(le_bytes: [u8; 32]) -> String {
     hex::encode(rev)
 }
 
-/// Кворум: синхронизируем K пиров (по очереди, от сидов), сверяем их цепи
-/// ПОБАЙТОВО. Расхождение/ошибка пира — честный отказ с перечнем.
+/// Кворум: синхронизируем K пиров, сверяем их цепи ПОБАЙТОВО. Расхождение/
+/// ошибка пира — честный отказ с перечнем. Порядок кандидатов честный:
+/// сканируем ВСЕ сиды (кто отвечает на getheaders — узлы вне IBD), ответившие
+/// идут первыми; при пустом скане (DoH лежит) — перебор сидов как раньше.
 pub fn quorum_sync(
     params: &P2pParams,
     checkpoint_hash_be: &str,
@@ -349,64 +694,72 @@ pub fn quorum_sync(
     peers_wanted: usize,
 ) -> Result<Vec<PeerChain>, ChainError> {
     let mut chains: Vec<PeerChain> = Vec::new();
-    let mut tried = 0usize;
-    for seed in params.dns_seeds {
-        if chains.len() >= peers_wanted || tried >= 60 {
+    let checked = scan_nodes(
+        params,
+        checkpoint_hash_be,
+        checkpoint_height,
+        8,
+        Duration::from_secs(20),
+    );
+    let mut candidates: Vec<String> = checked.iter().map(|n| n.ip.clone()).collect();
+    if candidates.is_empty() {
+        for seed in params.dns_seeds {
+            if let Ok(ips) = resolve_seed_ips(seed) {
+                for ip in ips {
+                    let s = ip.to_string();
+                    if !candidates.contains(&s) {
+                        candidates.push(s);
+                    }
+                }
+            }
+        }
+    }
+    for ip in &candidates {
+        if chains.len() >= peers_wanted {
             break;
         }
-        let ips = resolve_seed_ips(seed)?;
-        for ip in ips {
-            if chains.len() >= peers_wanted || tried >= 60 {
-                break;
-            }
-            tried += 1;
-            let mut peer = match Peer::connect(
-                params,
-                &ip.to_string(),
-                Duration::from_secs(4),
-                checkpoint_height + 1,
-            ) {
+        let mut peer =
+            match Peer::connect(params, ip, Duration::from_secs(4), checkpoint_height + 1) {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("seed {seed} ip {ip}: {e}");
+                    eprintln!("candidate {ip}: {e}");
                     continue;
                 }
             };
-            let mut progress = |_n: u32| {};
-            let (chain, _up) = match sync_headers(
-                &mut peer,
-                params,
-                checkpoint_hash_be,
-                checkpoint_height,
-                max_headers,
-                genesis_hash_be,
-                &mut progress,
-            ) {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("{}: sync failed: {e}", peer.label);
-                    continue;
-                }
-            };
-            // Кворум: побайтовое сравнение с уже собранными цепями
-            if let Some(first) = chains.first() {
-                if chain.len() != first.chain.len()
-                    || chain[..]
-                        .iter()
-                        .zip(first.chain.iter())
-                        .any(|(a, b)| a.raw != b.raw)
-                {
-                    return Err(ChainError::Protocol(format!(
-                        "{}: цепь расходится с первым пиром",
-                        peer.label
-                    )));
-                }
+        let mut progress = |_n: u32| {};
+        let (chain, _up) = match sync_headers(
+            &mut peer,
+            params,
+            checkpoint_hash_be,
+            checkpoint_height,
+            max_headers,
+            genesis_hash_be,
+            &mut progress,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("{}: sync failed: {e}", peer.label);
+                continue;
             }
-            chains.push(PeerChain {
-                label: peer.label.clone(),
-                chain,
-            });
+        };
+        // Кворум: побайтовое сравнение с уже собранными цепями
+        if let Some(first) = chains.first() {
+            if chain.len() != first.chain.len()
+                || chain[..]
+                    .iter()
+                    .zip(first.chain.iter())
+                    .any(|(a, b)| a.raw != b.raw)
+            {
+                return Err(ChainError::Protocol(format!(
+                    "{}: цепь расходится с первым пиром",
+                    peer.label
+                )));
+            }
         }
+        chains.push(PeerChain {
+            label: peer.label.clone(),
+            chain,
+        });
     }
     if chains.len() < 2 {
         return Err(ChainError::Transport(format!(

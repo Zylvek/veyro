@@ -70,7 +70,7 @@ impl Header120 {
 }
 
 #[inline]
-fn read_varint(data: &[u8], off: usize) -> Result<(u64, usize), ChainError> {
+pub(crate) fn read_varint(data: &[u8], off: usize) -> Result<(u64, usize), ChainError> {
     if off >= data.len() {
         return Err(ChainError::Protocol("varint: короткий буфер".into()));
     }
@@ -134,8 +134,7 @@ pub fn parse_headers_payload(
         return Err(ChainError::Protocol(format!("headers count {count}")));
     }
     let mut out = Vec::with_capacity(count as usize);
-    let mut height = start_height_hint;
-    for _ in 0..count {
+    for height in (start_height_hint..).take(count as usize) {
         if off + 1 > payload.len() {
             return Err(ChainError::Protocol("headers payload оборван".into()));
         }
@@ -177,7 +176,6 @@ pub fn parse_headers_payload(
             ));
         }
         off += used;
-        height += 1;
     }
     Ok(out)
 }
@@ -208,9 +206,8 @@ impl BigTarget {
                     out[at] = *mb;
                 }
             }
-            // внутр. сдвиг: частичные биты (size-3) внутри байта
-            let partial = (shift_bytes % 1) as u8;
-            let _ = partial; // mantissa целиком по границе байтов — сдвиг битовый = 0
+            // Mantissa всегда целиком по границе байтов: битовый сдвиг
+            // внутри байта не нужен (Core SetCompact сдвигает байтами).
         }
         BigTarget(out)
     }
@@ -262,8 +259,8 @@ impl BigTarget {
     pub fn div_small(&self, n: u32) -> Self {
         let mut out = [0u8; 32];
         let mut rem = 0u32;
-        for i in 0..32 {
-            let cur = rem * 256 + self.0[i] as u32;
+        for (i, byte) in self.0.iter().enumerate() {
+            let cur = rem * 256 + *byte as u32;
             out[i] = (cur / n) as u8;
             rem = cur % n;
         }
