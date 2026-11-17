@@ -1,11 +1,11 @@
-//! End-to-end flows through the bridge API, called exactly the way Flutter
+﻿//! End-to-end flows through the bridge API, called exactly the way Flutter
 //! will call them (plain Rust calls — the FFI glue itself is exercised by the
 //! real app build).
 
 use veyro_bridge::api::{storage, wallet};
 
 fn tmp_base() -> String {
-    std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string())
+    std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| std::env::temp_dir().join("veyro-tests").display().to_string())
 }
 
 fn unique_dir(tag: &str) -> String {

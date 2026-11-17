@@ -1,4 +1,4 @@
-//! Gated end-to-end cycle on a LIVE Bitcoin testnet (NOT part of CI):
+﻿//! Gated end-to-end cycle on a LIVE Bitcoin testnet (NOT part of CI):
 //! faucet-funded self-transfer through the public bridge API —
 //! unlock (genesis) → sync → fees → send → broadcast → status →
 //! re-sync → history → optional confirmation wait → lock.
@@ -27,7 +27,7 @@ use veyro_bridge::api::wallet;
 
 fn tmp_dir() -> String {
     let base =
-        std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string());
+        std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| std::env::temp_dir().join("veyro-tests").display().to_string());
     let dir = std::path::Path::new(&base).join(format!("e2e-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

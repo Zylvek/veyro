@@ -1,4 +1,4 @@
-//! BTC session error paths through the bridge API — the fund-safety gate:
+﻿//! BTC session error paths through the bridge API — the fund-safety gate:
 //! a wrong network code, a malformed server URL or an unreachable server must
 //! leave NO session behind (the seed of the unlocked wallet is dropped with
 //! the failed unlock attempt).
@@ -9,7 +9,7 @@
 use veyro_bridge::api::{btc, session, wallet};
 
 fn tmp_base() -> String {
-    std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| r"D:\tmp\veyro-tests".to_string())
+    std::env::var("VEYRO_TEST_TMP").unwrap_or_else(|_| std::env::temp_dir().join("veyro-tests").display().to_string())
 }
 
 fn unique_dir(tag: &str) -> String {
