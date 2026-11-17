@@ -1,0 +1,37 @@
+# Changelog
+
+Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
+версионирование — [SemVer](https://semver.org/lang/ru/).
+
+## [1.0.0] — 2026-11-17
+
+Первый публичный релиз. Windows 10/11, некастодиальный, без серверов.
+
+### Добавлено
+- Некастодиальное хранилище ключей (Argon2id + XChaCha20-Poly1305, Rust-only),
+  восстановление исключительно по seed-фразе 12/24 (BIP39), валидация
+  ввода на границе Dart→Rust, брутфорс-дроссель unlock.
+- **BTC** — Send supported: полный живой цикл на testnet4 (faucet →
+  self-transfer → broadcast → mempool → история).
+- **XEC (eCash)** — Send supported: полный живой цикл на testnet3;
+  BIP44 m/44'/899' (Electrum ABC) + 1899 (Cashtab) как опция импорта.
+- **BCH** — Receive supported: cashaddr+legacy, Electrum TLS,
+  UAHF-подпись, проверенная векторами BCHN и живой сетью.
+- **LTC** — Receive supported: ltc1 bech32, m/84'/2', живой баланс/история.
+- **ETC** — Send supported: EVM-профиль (m/44'/61', EIP-55, RLP,
+  EIP-155), wei через FFI только строками (BigInt-отображение),
+  история BlockScout v2, полный живой цикл Mordor.
+- P2P-клиент заголовков (DoH-сид-резолв, handshake 70028, кворум 2+
+  с побайтовым кросс-чеком, DGW3 + kawpow) — готов, ждёт живой
+  инфраструктуры RVN/XNA.
+- Flutter UI: Обзор, каталог с живыми балансами, центры управления,
+  история, честные состояния (researched ≠ implemented).
+- Windows-установщик (Inno Setup): ярлыки, деинсталляция без трогания
+  кошельков, SHA-256 контрольная сумма.
+
+### Не реализовано (честно)
+- mainnet-отправка и app-уровневый цикл для реализованных монет.
+- ERC-20 токены в ETC (не отображаются).
+- Neutrino (BIP157/158), мобильные билды, XMR/ZEC, подписанные релизы.
+- RVN/XNA: P2P-механика готова, community-инфраструктура мертва
+  (вердикт 17.11.2026 в паспортах).
