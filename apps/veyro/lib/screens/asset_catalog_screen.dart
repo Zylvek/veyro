@@ -27,6 +27,7 @@ import 'package:veyro/util/display_prefs.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/ltc_state_cache.dart';
+import 'package:veyro/util/etc_state_cache.dart';
 import 'package:veyro/util/xec_state_cache.dart';
 import 'package:veyro/util/rvn_state_cache.dart';
 
@@ -34,6 +35,7 @@ import 'asset_detail_screen.dart';
 import 'bch_screen.dart';
 import 'btc_screen.dart';
 import 'ltc_screen.dart';
+import 'etc_screen.dart';
 import 'xec_screen.dart';
 import 'rvn_screen.dart';
 
@@ -78,6 +80,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
     LtcConnectState.instance.addListener(_onSyncPulse);
     BchConnectState.instance.addListener(_onSyncPulse);
     XecConnectState.instance.addListener(_onSyncPulse);
+    EtcConnectState.instance.addListener(_onSyncPulse);
     _load();
   }
 
@@ -91,6 +94,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
     LtcConnectState.instance.removeListener(_onSyncPulse);
     BchConnectState.instance.removeListener(_onSyncPulse);
     XecConnectState.instance.removeListener(_onSyncPulse);
+    EtcConnectState.instance.removeListener(_onSyncPulse);
     _searchController.dispose();
     super.dispose();
   }
@@ -102,6 +106,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
         'BCH' => BchConnectState.instance.busy,
         'XEC' => XecConnectState.instance.busy,
         'RVN' => RvnConnectState.instance.busy,
+        'ETC' => EtcConnectState.instance.busy,
         _ => false,
       };
 
@@ -110,6 +115,79 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
   Widget? _balanceLineFor(VeyroAsset asset, WalletInfoDto? wallet) {
     if (!asset.implemented) return null;
     final ticker = asset.ticker;
+    if (ticker == 'ETC') {
+      // EVM-честность: wei только строками, арифметика в BigInt.
+      final busy = EtcConnectState.instance.busy;
+      final sync = wallet?.id == null
+          ? null
+          : EtcStateCache.instance.take(walletId: wallet!.id);
+      if (sync == null && !busy) return null;
+      BigInt shown = BigInt.zero;
+      BigInt? delta;
+      if (sync != null) {
+        final confirmed = BigInt.tryParse(sync.confirmedWei);
+        if (confirmed != null) {
+          delta = BigInt.tryParse(sync.pendingDeltaWei) ?? BigInt.zero;
+          final adjusted =
+              delta < BigInt.zero ? confirmed + delta : confirmed;
+          if (adjusted > BigInt.zero) shown = adjusted;
+        }
+      }
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: sync == null
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 11,
+                    height: 11,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    t('sync_now_short'),
+                    style: TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11,
+                      color: VColors.warning,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${weiToEtcString(shown.toString())} ETC',
+                    style: TextStyle(
+                      fontFamily: kMonoFont,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: VColors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  if (delta != BigInt.zero) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '${weiToEtcString(delta.toString())} ETC',
+                      style: TextStyle(
+                        fontFamily: kMonoFont,
+                        fontSize: 10.5,
+                        color: VColors.warning,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      t('mempool_suffix'),
+                      style: TextStyle(fontSize: 10.5, color: VColors.warning),
+                    ),
+                  ],
+                ],
+              ),
+      );
+    }
     if (!const {'BTC', 'LTC', 'BCH', 'XEC', 'RVN'}.contains(ticker)) return null;
     final busy = _coinBusy(ticker);
     final view = coinBalanceView(ticker, wallet?.id);
@@ -244,6 +322,7 @@ class _AssetCatalogScreenState extends State<AssetCatalogScreen> {
         'XEC' => XecScreen(info: wallet),
         'LTC' => LtcScreen(info: wallet),
         'RVN' => RvnScreen(info: wallet),
+        'ETC' => EtcScreen(info: wallet),
         _ => AssetDetailScreen(asset: asset),
       },
     );
