@@ -19,8 +19,36 @@ pub mod cash;
 pub mod cash_sighash_data;
 pub mod electrum;
 pub mod litecoin;
+pub mod p2p;
 pub mod raven;
 pub mod xec;
+
+/// Hex (big-endian отображение) → внутренние LE-байты (для wire-поля хэша).
+pub fn hex_be_to_le32(hex: &str) -> Result<[u8; 32], ChainError> {
+    let bytes = hex::decode(hex.trim())
+        .map_err(|e| crate::ChainError::Protocol(format!("bad hex: {e}")))?;
+    if bytes.len() != 32 {
+        return Err(crate::ChainError::Protocol(format!(
+            "bad hash hex len {}",
+            bytes.len()
+        )));
+    }
+    let mut out = [0u8; 32];
+    for (i, b) in bytes.iter().enumerate() {
+        out[31 - i] = *b;
+    }
+    Ok(out)
+}
+
+/// Double-SHA256 (sha256d) — база всех BTC-семя хэшей и фреймингов.
+pub fn sha256d(data: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut out = [0u8; 32];
+    let inner = Sha256::digest(data);
+    let outer = Sha256::digest(inner);
+    out.copy_from_slice(&outer);
+    out
+}
 
 pub use crate::bitcoin::tx::SignedTransfer;
 pub use crate::bitcoin::{DEFAULT_GAP_LIMIT, P2WPKH_DUST_SAT, SEQUENCE_NO_RBF};

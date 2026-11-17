@@ -25,6 +25,7 @@ hex = { workspace = true }
 sha2 = "0.10"
 # Same crate rust-bitcoin uses internally for hash traits (kept aligned: ^0.14).
 bitcoin_hashes = "0.14"
+kawpow_ffi = { version = "0.1.0", path = "../kawpow_ffi" }
 
 [dev-dependencies]
 serde_json = { workspace = true }
@@ -32,3 +33,6 @@ serde_json = { workspace = true }
 # mnemonic through the audited crate (dev-only dependency); the "rand"
 # feature lets the gated E2E probe print a fresh faucet phrase.
 bip39 = { workspace = true, features = ["rand"] }
+
+[build-dependencies]
+cc = "1.11.2"
