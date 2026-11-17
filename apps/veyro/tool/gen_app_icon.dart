@@ -163,7 +163,17 @@ Uint8List _pngEncode(int size, Uint8List rgba) {
 }
 
 // --- Сборка ICO. -------------------------------------------------------
-void main() {
+void main(List<String> args) {
+  // Экспорт знака в PNG (README/бренд-цели): --png <size> <out.png>.
+  // Рендер 1-в-1 с painter'ом приложения (тот же суперсэмплинг).
+  final pngIdx = args.indexOf('--png');
+  if (pngIdx != -1 && args.length >= pngIdx + 3) {
+    final size = int.parse(args[pngIdx + 1]);
+    final out =
+        File(args[pngIdx + 2])..writeAsBytesSync(_pngEncode(size, _render(size)));
+    stdout.writeln('png $size -> ${out.path}');
+    return;
+  }
   const sizes = [16, 24, 32, 48, 64, 128, 256];
   final frames = <Uint8List>[];
   final asPng = <bool>[];
