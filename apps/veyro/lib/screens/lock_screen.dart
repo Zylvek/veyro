@@ -4,6 +4,8 @@
 //! Загрузка и фон — фирменная система лого-анимаций владельца (знак).
 //! Пароль нигде не хранится; лог не содержит секретов.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:veyro/design/app_colors.dart';
@@ -16,6 +18,7 @@ import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
 import 'package:veyro/util/app_dirs.dart';
 import 'package:veyro/util/btc_state_cache.dart';
+import 'package:veyro/util/coin_background_sync.dart';
 import 'package:veyro/util/format.dart';
 import 'package:veyro/util/l10n.dart';
 import 'package:veyro/util/network.dart';
@@ -224,6 +227,14 @@ class _LockScreenState extends State<LockScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       // Пароль выполннил работу: не держим его в поле ввода дольше нужного.
       _passwordController.clear();
+      // Пре-варм монет сразу после разблокировки ядра (решение владельца
+      // 17.11.2026: синхронизация идёт ВО ВРЕМЯ загрузки, а не после):
+      // LTC/BCH/XEC/ETC тихо разблокируются и синканутся параллельно с
+      // орбитой — к Обзору балансы уже свежие. Fire-and-forget: вход не
+      // ждёт сеть ни одной монеты. Тестовый путь (unlockAction) — без FFI.
+      if (widget.unlockAction == null) {
+        unawaited(runCoinBackgroundSync(_wallet));
+      }
       setState(() => _phase = _LockPhase.enter);
       _enterShell();
     } catch (e) {
