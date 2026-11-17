@@ -33,6 +33,10 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Транзакций пока нет — всё чисто.',
     'en': 'No transactions yet — all clear.',
   },
+  'recent_unavailable': {
+    'ru': 'История недоступна — повтор после синхронизации.',
+    'en': 'History unavailable — retry after sync.',
+  },
   'core_unavailable': {'ru': 'Ядро недоступно', 'en': 'Core unavailable'},
   'check_install': {
     'ru': 'Проверьте установку и повторите.',

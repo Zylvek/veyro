@@ -77,6 +77,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _historyError;
   String? _error;
 
+  // Мультикоин-карточка «Последние транзакции» (решение владельца
+  // 17.11.2026: транзакции видны для ВСЕХ реализованных монет; секция
+  // каждой монеты появляется при её живой сессии; RVN заморожен —
+  // честно вне карточки до живой инфраструктуры).
+  List<LtcHistoryItemDto>? _recentLtc;
+  List<BchHistoryItemDto>? _recentBch;
+  List<XecHistoryItemDto>? _recentXec;
+  List<EtcHistoryItemDto>? _recentEtc;
+  String? _recentLtcErr;
+  String? _recentBchErr;
+  String? _recentXecErr;
+  String? _recentEtcErr;
+  bool _ltcLive = false;
+  bool _bchLive = false;
+  bool _xecLive = false;
+  bool _etcLive = false;
+  String? _etcAccount;
+  bool _otherRecentsLoading = false;
+
   /// Курс BTC в валюте отображения; null — курс недоступен (сети нет),
   /// тогда фиатная строка честно скрыта.
   double? _fiatRate;
@@ -125,7 +144,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    // Карточка «Последние транзакции» не исчезает во время синка BTC:
+    // по факту его завершения — честный ретрай истории (и всех монет).
+    BtcConnectState.instance.addListener(_onCoinSyncPulse);
+    LtcConnectState.instance.addListener(_onCoinSyncPulse);
+    BchConnectState.instance.addListener(_onCoinSyncPulse);
+    XecConnectState.instance.addListener(_onCoinSyncPulse);
+    EtcConnectState.instance.addListener(_onCoinSyncPulse);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    BtcConnectState.instance.removeListener(_onCoinSyncPulse);
+    LtcConnectState.instance.removeListener(_onCoinSyncPulse);
+    BchConnectState.instance.removeListener(_onCoinSyncPulse);
+    XecConnectState.instance.removeListener(_onCoinSyncPulse);
+    EtcConnectState.instance.removeListener(_onCoinSyncPulse);
+    super.dispose();
+  }
+
+  /// Синк любой монеты начался/закончился → перерисовка и честный ретрай
+  /// истории (карточка не исчезает; решение владельца 17.11.2026).
+  void _onCoinSyncPulse() {
+    if (!mounted) return;
+    if (!_recentLoading && _session != null && _recent == null) {
+      _loadRecent();
+    }
+    if (_otherRecentsLoading) return;
+    final anyBusy = BtcConnectState.instance.busy ||
+        LtcConnectState.instance.busy ||
+        BchConnectState.instance.busy ||
+        XecConnectState.instance.busy ||
+        EtcConnectState.instance.busy;
+    if (!anyBusy) _loadOtherRecents();
   }
 
   Future<List<WalletInfoDto>> _loadWallets() async =>
@@ -145,6 +197,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _error = null;
       _recent = null;
       _historyError = null;
+      _recentLtc = null;
+      _recentBch = null;
+      _recentXec = null;
+      _recentEtc = null;
+      _recentLtcErr = null;
+      _recentBchErr = null;
+      _recentXecErr = null;
+      _recentEtcErr = null;
     });
     await DisplayPrefs.ensureLoaded();
     try {
@@ -166,36 +226,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       double? rvnRate;
       double? etcRate;
       List<MarketPoint>? series;
-      try {
-        final fiat = DisplayPrefs.fiatCurrency;
-        final source = PriceSource.instance;
-        rate = await source
-            .btcPriceIn(fiat)
-            .timeout(const Duration(seconds: 12));
-        chartCoinRate = await source
-            .coinPriceIn(_chartCoinId, fiat)
-            .timeout(const Duration(seconds: 12));
-        ltcRate = await source
-            .coinPriceIn('litecoin', fiat)
-            .timeout(const Duration(seconds: 12));
-        bchRate = await source
-            .coinPriceIn('bitcoin-cash', fiat)
-            .timeout(const Duration(seconds: 12));
-        xecRate = await source
-            .coinPriceIn('ecash', fiat)
-            .timeout(const Duration(seconds: 12));
-        rvnRate = await source
-            .coinPriceIn('ravencoin', fiat)
-            .timeout(const Duration(seconds: 12));
-        etcRate = await source
-            .coinPriceIn('ethereum-classic', fiat)
-            .timeout(const Duration(seconds: 12));
-        series = await PriceSource.instance
-            .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30)
-            .timeout(const Duration(seconds: 12));
-      } catch (_) {
-        // сети нет → честные пустые поля (строки/график скрыты)
+      final fiat = DisplayPrefs.fiatCurrency;
+      final source = PriceSource.instance;
+      // Каждый курс — самостоятельная попытка (решение владельца: фиаты
+      // обязаны быть видны на карточках монет): провал ОДНОГО запроса
+      // (rate-limit/сеть) не должен гасить остальные строки и график.
+      // Ошибка одного курса → null только у него, остальное честно живёт.
+      Future<T?> pick<T>(Future<T> Function() fetch) async {
+        try {
+          return await fetch().timeout(const Duration(seconds: 12));
+        } catch (_) {
+          return null;
+        }
       }
+
+      rate = await pick<double?>(() => source.btcPriceIn(fiat));
+      chartCoinRate =
+          await pick<double?>(() => source.coinPriceIn(_chartCoinId, fiat));
+      ltcRate = await pick<double?>(() => source.coinPriceIn('litecoin', fiat));
+      bchRate =
+          await pick<double?>(() => source.coinPriceIn('bitcoin-cash', fiat));
+      xecRate = await pick<double?>(() => source.coinPriceIn('ecash', fiat));
+      rvnRate =
+          await pick<double?>(() => source.coinPriceIn('ravencoin', fiat));
+      etcRate =
+          await pick<double?>(() => source.coinPriceIn('ethereum-classic', fiat));
+      series = await pick<List<MarketPoint>?>(() => source
+          .marketSeries(_chartCoinId, fiat, _periodDays[_period] ?? 30));
       if (!mounted) return;
       setState(() {
         _wallets = wallets;
@@ -211,6 +268,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _marketPoints = series;
       });
       await _loadRecent();
+      // Живые сессии остальных монет (секции карточки транзакций) —
+      // только реальная сборка; в тестах с инъекциями ядра нет.
+      if (widget.sessionLoader == null) {
+        try {
+          _ltcLive = (await ltcSessionState()) != null;
+        } catch (_) {
+          _ltcLive = false;
+        }
+        try {
+          _bchLive = (await bchSessionState()) != null;
+        } catch (_) {
+          _bchLive = false;
+        }
+        try {
+          _xecLive = (await xecSessionState()) != null;
+        } catch (_) {
+          _xecLive = false;
+        }
+        try {
+          final s = await etcSessionState();
+          _etcLive = s != null;
+          _etcAccount = s?.accountAddress;
+        } catch (_) {
+          _etcLive = false;
+        }
+        if (mounted) _loadOtherRecents();
+      }
       // Фоновая догрузка монет прямо с Обзора (решение владельца: «чтобы
       // посмотреть, есть ли монеты, не заходя на монету»): иконка загрузки
       // на карточке, балансы подливаются в кэши тихо. Только в реальной
@@ -676,18 +760,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// Последние транзакции — только при активной BTC-сессии; ошибки ядро
-  /// отдаёт как есть.
+  /// отдаёт как есть. Пока BTC синхронизируется, история честно грузится
+  /// лоадером, а карточка НЕ прячется (решение владельца 17.11.2026:
+  /// виджет транзакций не должен пропадать во время синхронизации).
+  bool _recentLoading = false;
   Future<void> _loadRecent() async {
-    if (_session == null) return;
+    if (_session == null || _recentLoading) return;
+    _recentLoading = true;
     try {
       final items = widget.historyLoader != null
           ? await widget.historyLoader!()
           : (await btcHistory()).items;
       if (!mounted) return;
-      setState(() => _recent = items.take(3).toList());
+      setState(() {
+        _recent = items.take(3).toList();
+        _historyError = null;
+      });
     } catch (e) {
       if (!mounted) return;
+      // Ошибка не прячет карточку: пока идёт синк — лоадер, после синка
+      // будет честный ретрай (см. _onCoinSyncPulse).
       setState(() => _historyError = e.toString());
+    } finally {
+      _recentLoading = false;
+    }
+  }
+
+  /// Истории остальных реализованных монет — только реальная сборка
+  /// (тесты с инъекциями — без ядра). Секция появляется при живой
+  /// сессии монеты; лоадер/ошибка честные, без выдуманных нулей.
+  Future<void> _loadOtherRecents() async {
+    if (widget.sessionLoader != null || widget.historyLoader != null) return;
+    if (_otherRecentsLoading) return;
+    _otherRecentsLoading = true;
+    try {
+      if (_ltcLive && _recentLtc == null && !LtcConnectState.instance.busy) {
+        try {
+          final h = await ltcHistory().timeout(const Duration(seconds: 30));
+          if (mounted) {
+            setState(() {
+              _recentLtc = h.items.take(2).toList();
+              _recentLtcErr = null;
+            });
+          }
+        } catch (e) {
+          if (mounted) setState(() => _recentLtcErr = e.toString());
+        }
+      }
+      if (_bchLive && _recentBch == null && !BchConnectState.instance.busy) {
+        try {
+          final h = await bchHistory().timeout(const Duration(seconds: 30));
+          if (mounted) {
+            setState(() {
+              _recentBch = h.items.take(2).toList();
+              _recentBchErr = null;
+            });
+          }
+        } catch (e) {
+          if (mounted) setState(() => _recentBchErr = e.toString());
+        }
+      }
+      if (_xecLive && _recentXec == null && !XecConnectState.instance.busy) {
+        try {
+          final h = await xecHistory().timeout(const Duration(seconds: 30));
+          if (mounted) {
+            setState(() {
+              _recentXec = h.items.take(2).toList();
+              _recentXecErr = null;
+            });
+          }
+        } catch (e) {
+          if (mounted) setState(() => _recentXecErr = e.toString());
+        }
+      }
+      if (_etcLive && _recentEtc == null && !EtcConnectState.instance.busy) {
+        try {
+          final h = await etcHistory().timeout(const Duration(seconds: 30));
+          if (mounted) {
+            setState(() {
+              _recentEtc = h.items.take(2).toList();
+              _recentEtcErr = null;
+            });
+          }
+        } catch (e) {
+          if (mounted) setState(() => _recentEtcErr = e.toString());
+        }
+      }
+    } finally {
+      _otherRecentsLoading = false;
     }
   }
 
@@ -1675,125 +1835,298 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildRecentCard(BuildContext context) {
-    final recent = _recent;
-    // Без активной сессии — истории нет и карточки нет (состояние
-    // сессии уже видно в центре BTC). Ошибка ядра (нет просканированных
-    // адресов до btc_sync) — сырым текстом на Обзоре не сыпем:
-    // Обзор остаётся спокойным, диагностика — в центре BTC.
-    if (_session == null || _historyError != null) {
-      return const SizedBox.shrink();
+    // Мультикоин-карточка (решение владельца 17.11.2026: транзакции видны
+    // для ВСЕХ реализованных монет). Секция появляется только при живой
+    // сессии монеты; лоадер/«нет транзакций»/«недоступно» — честные
+    // состояния, без выдуманных нулей. RVN вне карточки (инфраструктура
+    // честно заморожена — см. вердикт P2P 17.11).
+    String dispName(String ticker) =>
+        kAssetRegistry.firstWhere((a) => a.ticker == ticker).name;
+
+    void dirInto(
+      List<Widget> out, {
+      required String direction,
+      required String amountText,
+      required String subtitle,
+      VoidCallback? onTap,
+    }) {
+      out.add(
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          // Кружок-иконка как в референсе: зелёный приход, красный уход,
+          // нейтральный internal.
+          leading: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: switch (direction) {
+                'incoming' => VColors.success.withValues(alpha: 0.14),
+                'outgoing' => VColors.error.withValues(alpha: 0.14),
+                _ => VColors.elevated,
+              },
+            ),
+            child: Icon(
+              switch (direction) {
+                'incoming' => Icons.south_west,
+                'outgoing' => Icons.north_east,
+                'internal' => Icons.swap_horiz,
+                _ => Icons.help_outline,
+              },
+              size: 16,
+              color: switch (direction) {
+                'incoming' => VColors.success,
+                'outgoing' => VColors.error,
+                _ => VColors.textSecondary,
+              },
+            ),
+          ),
+          title: Text(
+            switch (direction) {
+              'incoming' => t('dir_incoming'),
+              'outgoing' => t('dir_outgoing'),
+              'internal' => t('tx_internal_short'),
+              _ => direction,
+            },
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(fontFamily: kMonoFont, fontSize: 11),
+          ),
+          trailing: Text(
+            amountText,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: switch (direction) {
+                'incoming' => VColors.success,
+                'outgoing' => VColors.error,
+                _ => VColors.textPrimary,
+              },
+            ),
+          ),
+          onTap: onTap,
+        ),
+      );
     }
+
+    Widget header(String name) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 2),
+        child: Text(
+          name,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: VColors.textSecondary,
+            letterSpacing: 0.4,
+          ),
+        ),
+      );
+    }
+
+    Widget loaderLine() => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Center(
+            child: LogoLoader(mode: LogoLoaderMode.loading, size: 32),
+          ),
+        );
+
+    Widget noteLine(String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Center(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        );
+
+    // Сборка секций.
+    final List<Widget> children = [];
+    final wallet = _selected;
+
+    if (_session != null) {
+      final btcBusy = BtcConnectState.instance.busy;
+      final recent = _recent;
+      children.add(header('Bitcoin'));
+      if (_recent == null && (btcBusy || _historyError == null)) {
+        children.add(loaderLine());
+      } else if (recent == null) {
+        // Ошибка в покое: честная подпись (диагностика в центре BTC).
+        children.add(noteLine(t('recent_unavailable')));
+      } else if (recent.isEmpty) {
+        children.add(noteLine(t('no_transactions')));
+      } else {
+        for (final item in recent) {
+          dirInto(
+            children,
+            direction: item.direction,
+            amountText: switch (item.direction) {
+              'incoming' =>
+                '+${satToBtcString(item.receivedSat.toInt())} BTC',
+              'outgoing' =>
+                '-${satToBtcString(item.sentNetSat.toInt())} BTC',
+              'internal' => '0 BTC',
+              _ => '—',
+            },
+            subtitle: item.height >= 1
+                ? tf('height_n', {'height': '${item.height}'})
+                : t('in_mempool'),
+            onTap: () => _push(
+              TxDetailsScreen(
+                item: item,
+                networkCode: _session?.networkCode,
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    void satCoinSection({
+      required String ticker,
+      required bool live,
+      required bool busy,
+      required String? err,
+      required List<({String direction, int received, int sentNet, int height})>?
+          items,
+    }) {
+      if (!live) return;
+      children.add(header(dispName(ticker)));
+      if (busy) {
+        children.add(loaderLine());
+      } else if (err != null) {
+        children.add(noteLine(t('recent_unavailable')));
+      } else if (items == null) {
+        children.add(loaderLine());
+      } else if (items.isEmpty) {
+        children.add(noteLine(t('no_transactions')));
+      } else {
+        for (final item in items) {
+          final format = ticker == 'XEC' ? satToXecString : satToBtcString;
+          final sign = switch (item.direction) {
+            'incoming' => '+',
+            'outgoing' => '-',
+            _ => '',
+          };
+          final value = switch (item.direction) {
+            'incoming' => item.received,
+            'outgoing' => item.sentNet,
+            _ => 0,
+          };
+          dirInto(
+            children,
+            direction: item.direction,
+            amountText:
+                '$sign${format(value)} $ticker',
+            subtitle: item.height >= 1
+                ? tf('height_n', {'height': '${item.height}'})
+                : t('in_mempool'),
+          );
+        }
+      }
+    }
+
+    satCoinSection(
+      ticker: 'LTC',
+      live: _ltcLive,
+      busy: LtcConnectState.instance.busy,
+      err: _recentLtcErr,
+      items: _recentLtc
+          ?.map((i) => (
+                direction: i.direction,
+                received: i.receivedSat.toInt(),
+                sentNet: i.sentNetSat.toInt(),
+                height: i.height.toInt(),
+              ))
+          .toList(),
+    );
+    satCoinSection(
+      ticker: 'BCH',
+      live: _bchLive,
+      busy: BchConnectState.instance.busy,
+      err: _recentBchErr,
+      items: _recentBch
+          ?.map((i) => (
+                direction: i.direction,
+                received: i.receivedSat.toInt(),
+                sentNet: i.sentNetSat.toInt(),
+                height: i.height.toInt(),
+              ))
+          .toList(),
+    );
+    satCoinSection(
+      ticker: 'XEC',
+      live: _xecLive,
+      busy: XecConnectState.instance.busy,
+      err: _recentXecErr,
+      items: _recentXec
+          ?.map((i) => (
+                direction: i.direction,
+                received: i.receivedSat.toInt(),
+                sentNet: i.sentNetSat.toInt(),
+                height: i.height.toInt(),
+              ))
+          .toList(),
+    );
+
+    if (_etcLive) {
+      children.add(header('Ethereum Classic'));
+      final etcBusy = EtcConnectState.instance.busy;
+      final etcSync = wallet == null
+          ? null
+          : EtcStateCache.instance.take(walletId: wallet.id);
+      final account = _etcAccount ?? etcSync?.accountAddress;
+      if (etcBusy) {
+        children.add(loaderLine());
+      } else if (_recentEtcErr != null) {
+        children.add(noteLine(t('recent_unavailable')));
+      } else if (_recentEtc == null) {
+        children.add(loaderLine());
+      } else if (_recentEtc!.isEmpty) {
+        children.add(noteLine(t('no_transactions')));
+      } else {
+        for (final item in _recentEtc!) {
+          final incoming =
+              account != null && item.from.toLowerCase() == account.toLowerCase();
+          final sign = incoming ? '+' : '-';
+          final abs = weiToEtcString(item.valueWei);
+          final absBody = abs.startsWith('-') ? abs.substring(1) : abs;
+          dirInto(
+            children,
+            direction: incoming ? 'incoming' : 'outgoing',
+            amountText: '$sign$absBody ETC',
+            subtitle: item.block == null
+                ? t('in_mempool')
+                : tf('etc_block_row', {'value': '${item.block}'}),
+          );
+        }
+      }
+    }
+
+    if (children.isEmpty) return const SizedBox.shrink();
     return VCard(
       icon: Icons.receipt_long_outlined,
       title: t('recent_transactions'),
       children: [
-        if (recent == null)
-          const Padding(
-            padding: EdgeInsets.all(8),
-            // Фирменная загрузка знака (система владельца), мини-версия.
-            child: Center(
-              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
-            ),
-          )
-        else if (recent.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Center(child: VeyroMark(size: 40, opacity: 0.45)),
-                const SizedBox(height: 8),
-                Text(
-                  t('no_transactions'),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          )
-        else ...[
-          for (final item in recent)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              // Кружок-иконка как в референсе: зелёный приход, красный
-              // уход, нейтральный internal.
-              leading: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: switch (item.direction) {
-                    'incoming' => VColors.success.withValues(alpha: 0.14),
-                    'outgoing' => VColors.error.withValues(alpha: 0.14),
-                    _ => VColors.elevated,
-                  },
-                ),
-                child: Icon(
-                  switch (item.direction) {
-                    'incoming' => Icons.south_west,
-                    'outgoing' => Icons.north_east,
-                    'internal' => Icons.swap_horiz,
-                    _ => Icons.help_outline,
-                  },
-                  size: 16,
-                  color: switch (item.direction) {
-                    'incoming' => VColors.success,
-                    'outgoing' => VColors.error,
-                    _ => VColors.textSecondary,
-                  },
-                ),
-              ),
-              title: Text(
-                switch (item.direction) {
-                  'incoming' => t('dir_incoming'),
-                  'outgoing' => t('dir_outgoing'),
-                  'internal' => t('tx_internal_short'),
-                  _ => item.direction,
-                },
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                item.height >= 1
-                    ? tf('height_n', {'height': '${item.height}'})
-                    : t('in_mempool'),
-                style: Theme.of(context).textTheme.bodySmall!
-                    .copyWith(fontFamily: kMonoFont, fontSize: 11),
-              ),
-              // Сумма справа, цветом направления.
-              trailing: Text(
-                switch (item.direction) {
-                  'incoming' =>
-                    '+${satToBtcString(item.receivedSat.toInt())} BTC',
-                  'outgoing' =>
-                    '-${satToBtcString(item.sentNetSat.toInt())} BTC',
-                  'internal' => '0 BTC',
-                  _ => '—',
-                },
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  color: switch (item.direction) {
-                    'incoming' => VColors.success,
-                    'outgoing' => VColors.error,
-                    _ => VColors.textPrimary,
-                  },
-                ),
-              ),
-              onTap: () => _push(
-                TxDetailsScreen(item: item, networkCode: _session?.networkCode),
-              ),
-            ),
-          const SizedBox(height: 4),
-          VButton.secondary(
-            t('full_history'),
-            icon: Icons.history,
-            onPressed: () => _push(const HistoryScreen(), reload: true),
-          ),
-        ],
+        ...children,
+        const SizedBox(height: 4),
+        VButton.secondary(
+          t('full_history'),
+          icon: Icons.history,
+          onPressed: () => _push(const HistoryScreen(), reload: true),
+        ),
       ],
     );
   }
