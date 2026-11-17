@@ -66,6 +66,9 @@ class _EtcScreenState extends State<EtcScreen> {
   final _amount = TextEditingController();
   EtcFeesDto? _fees;
   bool _loadingFees = false;
+
+  /// Форма отправки скрыта за тайлом «Отправить», как у BTC/XEC.
+  bool _sendOpen = false;
   bool _sending = false;
   String? _formError;
 
@@ -369,6 +372,12 @@ class _EtcScreenState extends State<EtcScreen> {
         _loadingFees = false;
       });
     }
+  }
+
+  /// Тайлы «Отправить/История»: отправка раскрывает форму (как у BTC/XEC
+  /// один формат центра), история — честный ретрай inline-истории ниже.
+  Future<void> _openHistory() async {
+    await _loadHistory();
   }
 
   /// Wei-дельта как строка для карты баланса — считается на ходу.
@@ -792,16 +801,34 @@ class _EtcScreenState extends State<EtcScreen> {
                     ),
                     Expanded(
                       child: CoinActionTile(
+                        icon: Icons.north_east,
+                        label: t('send_btn'),
+                        enabled: unlocked && _availableWei() != null,
+                        onTap: unlocked
+                            ? () async {
+                                final open = !_sendOpen;
+                                setState(() => _sendOpen = open);
+                                if (open) {
+                                  await _loadFees();
+                                }
+                              }
+                            : null,
+                      ),
+                    ),
+                    Expanded(
+                      child: CoinActionTile(
                         icon: Icons.history,
                         label: t('history_btn'),
                         enabled: unlocked,
-                        onTap: unlocked ? _loadHistory : null,
+                        onTap: unlocked ? _openHistory : null,
                       ),
                     ),
                   ],
                 ),
                 // Отправка: честная EVM-форма (адрес/сумма/газ от оценки).
-                if (unlocked) ...[
+                // Скрыта за тайлом «Отправить», как у BTC/XEC (решение
+                // владельца 17.11.2026: центр одного формата у всех монет).
+                if (unlocked && _sendOpen) ...[
                   const SizedBox(height: 16),
                   SectionCard(
                     title: t('send_title_etc'),

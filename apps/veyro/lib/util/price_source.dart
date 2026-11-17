@@ -337,6 +337,7 @@ class PriceSource {
     'XRP': 'ripple',
     'XEC': 'ecash',
     'RVN': 'ravencoin',
+    'ETC': 'ethereum-classic',
   };
 
   // ============================================================

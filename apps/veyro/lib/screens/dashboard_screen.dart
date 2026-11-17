@@ -1835,13 +1835,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildRecentCard(BuildContext context) {
-    // Мультикоин-карточка (решение владельца 17.11.2026: транзакции видны
-    // для ВСЕХ реализованных монет). Секция появляется только при живой
-    // сессии монеты; лоадер/«нет транзакций»/«недоступно» — честные
-    // состояния, без выдуманных нулей. RVN вне карточки (инфраструктура
-    // честно заморожена — см. вердикт P2P 17.11).
-    String dispName(String ticker) =>
-        kAssetRegistry.firstWhere((a) => a.ticker == ticker).name;
+    // Мультикоин-карточка транзакций всех реализованных монет (решение
+    // владельца 17.11.2026); RVN вне карточки — честная заморозка P2P.
 
     void dirInto(
       List<Widget> out, {
@@ -1919,21 +1914,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    Widget header(String name) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 2),
-        child: Text(
-          name,
-          style: const TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: VColors.textSecondary,
-            letterSpacing: 0.4,
-          ),
-        ),
-      );
-    }
-
     Widget loaderLine() => const Padding(
           padding: EdgeInsets.symmetric(vertical: 4),
           child: Center(
@@ -1952,25 +1932,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
 
-    // Сборка секций.
-    final List<Widget> children = [];
-    final wallet = _selected;
+    // Единая лента, БЕЗ секционных заголовков (решение владельца
+    // 17.11.2026: «просто все транзакции по мере их поступления и всё»):
+    // каждая строка несёт тикер в сумме; порядок — самые свежие сверху
+    // (ETC по времени провайдера, сат-строки по высоте внутри своей
+    // цепи; межмонетный порядок, где времени нет, не утверждается).
+    // Пусто у всех → одна честная строка на всю карточку.
+    final List<Widget> rows = [];
+
+    bool anyLoading = false;
+    bool anyErrorIdle = false;
 
     if (_session != null) {
       final btcBusy = BtcConnectState.instance.busy;
       final recent = _recent;
-      children.add(header('Bitcoin'));
       if (_recent == null && (btcBusy || _historyError == null)) {
-        children.add(loaderLine());
+        anyLoading = true;
       } else if (recent == null) {
         // Ошибка в покое: честная подпись (диагностика в центре BTC).
-        children.add(noteLine(t('recent_unavailable')));
-      } else if (recent.isEmpty) {
-        children.add(noteLine(t('no_transactions')));
+        anyErrorIdle = true;
       } else {
         for (final item in recent) {
           dirInto(
-            children,
+            rows,
             direction: item.direction,
             amountText: switch (item.direction) {
               'incoming' =>
@@ -1994,7 +1978,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    void satCoinSection({
+    void satCoinRows({
       required String ticker,
       required bool live,
       required bool busy,
@@ -2003,42 +1987,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           items,
     }) {
       if (!live) return;
-      children.add(header(dispName(ticker)));
       if (busy) {
-        children.add(loaderLine());
-      } else if (err != null) {
-        children.add(noteLine(t('recent_unavailable')));
-      } else if (items == null) {
-        children.add(loaderLine());
-      } else if (items.isEmpty) {
-        children.add(noteLine(t('no_transactions')));
-      } else {
-        for (final item in items) {
-          final format = ticker == 'XEC' ? satToXecString : satToBtcString;
-          final sign = switch (item.direction) {
-            'incoming' => '+',
-            'outgoing' => '-',
-            _ => '',
-          };
-          final value = switch (item.direction) {
-            'incoming' => item.received,
-            'outgoing' => item.sentNet,
-            _ => 0,
-          };
-          dirInto(
-            children,
-            direction: item.direction,
-            amountText:
-                '$sign${format(value)} $ticker',
-            subtitle: item.height >= 1
-                ? tf('height_n', {'height': '${item.height}'})
-                : t('in_mempool'),
-          );
-        }
+        anyLoading = true;
+        return;
+      }
+      if (err != null) {
+        anyErrorIdle = true;
+        return;
+      }
+      if (items == null) {
+        anyLoading = true;
+        return;
+      }
+      final format = ticker == 'XEC' ? satToXecString : satToBtcString;
+      for (final item in items) {
+        final sign = switch (item.direction) {
+          'incoming' => '+',
+          'outgoing' => '-',
+          _ => '',
+        };
+        final value = switch (item.direction) {
+          'incoming' => item.received,
+          'outgoing' => item.sentNet,
+          _ => 0,
+        };
+        dirInto(
+          rows,
+          direction: item.direction,
+          amountText: '$sign${format(value)} $ticker',
+          subtitle: item.height >= 1
+              ? tf('height_n', {'height': '${item.height}'})
+              : t('in_mempool'),
+        );
       }
     }
 
-    satCoinSection(
+    satCoinRows(
       ticker: 'LTC',
       live: _ltcLive,
       busy: LtcConnectState.instance.busy,
@@ -2052,7 +2036,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ))
           .toList(),
     );
-    satCoinSection(
+    satCoinRows(
       ticker: 'BCH',
       live: _bchLive,
       busy: BchConnectState.instance.busy,
@@ -2066,7 +2050,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ))
           .toList(),
     );
-    satCoinSection(
+    satCoinRows(
       ticker: 'XEC',
       live: _xecLive,
       busy: XecConnectState.instance.busy,
@@ -2082,20 +2066,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (_etcLive) {
-      children.add(header('Ethereum Classic'));
       final etcBusy = EtcConnectState.instance.busy;
-      final etcSync = wallet == null
-          ? null
-          : EtcStateCache.instance.take(walletId: wallet.id);
+      final etcSync =
+          _selected == null ? null : EtcStateCache.instance.take(walletId: _selected!.id);
       final account = _etcAccount ?? etcSync?.accountAddress;
       if (etcBusy) {
-        children.add(loaderLine());
+        anyLoading = true;
       } else if (_recentEtcErr != null) {
-        children.add(noteLine(t('recent_unavailable')));
+        anyErrorIdle = true;
       } else if (_recentEtc == null) {
-        children.add(loaderLine());
-      } else if (_recentEtc!.isEmpty) {
-        children.add(noteLine(t('no_transactions')));
+        anyLoading = true;
       } else {
         for (final item in _recentEtc!) {
           final incoming =
@@ -2104,7 +2084,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final abs = weiToEtcString(item.valueWei);
           final absBody = abs.startsWith('-') ? abs.substring(1) : abs;
           dirInto(
-            children,
+            rows,
             direction: incoming ? 'incoming' : 'outgoing',
             amountText: '$sign$absBody ETC',
             subtitle: item.block == null
@@ -2115,7 +2095,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    if (children.isEmpty) return const SizedBox.shrink();
+    if (rows.isEmpty &&
+        _session == null &&
+        !_ltcLive &&
+        !_bchLive &&
+        !_xecLive &&
+        !_etcLive) {
+      return const SizedBox.shrink();
+    }
+    final List<Widget> children = [...rows];
+    if (rows.isEmpty) {
+      if (anyLoading) {
+        children.add(loaderLine());
+      } else if (anyErrorIdle) {
+        children.add(noteLine(t('recent_unavailable')));
+      } else {
+        children.add(noteLine(t('no_transactions')));
+      }
+    } else if (anyLoading) {
+      children.add(loaderLine());
+    }
     return VCard(
       icon: Icons.receipt_long_outlined,
       title: t('recent_transactions'),
