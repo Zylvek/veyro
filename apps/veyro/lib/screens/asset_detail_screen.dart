@@ -17,6 +17,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/design/motion.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/etc.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
 import 'package:veyro/src/rust/api/session.dart';
 import 'package:veyro/src/rust/api/wallet.dart';
@@ -31,6 +32,7 @@ import 'package:veyro/util/ui_helpers.dart';
 
 import 'btc_screen.dart';
 import 'bch_screen.dart';
+import 'etc_screen.dart';
 import 'ltc_screen.dart';
 import 'xec_screen.dart';
 import 'asset_catalog_screen.dart' show CoinIcon;
@@ -63,6 +65,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
   LtcSessionStateDto? _ltcSession;
   BchSessionStateDto? _bchSession;
   XecSessionStateDto? _xecSession;
+  EtcSessionStateDto? _etcSession;
   bool _sessionChecked = false;
   List<WalletInfoDto>? _wallets;
   String? _walletError;
@@ -78,9 +81,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
 
   Future<void> _load() async {
     await DisplayPrefs.ensureLoaded();
-    // Кошелёк нужен для активов с центром управления (BTC/LTC/BCH/XEC).
+    // Кошелёк нужен для активов с центром управления (BTC/LTC/BCH/XEC/ETC).
     if (_asset.ticker == 'BTC' || _asset.ticker == 'LTC' ||
-        _asset.ticker == 'BCH' || _asset.ticker == 'XEC') {
+        _asset.ticker == 'BCH' || _asset.ticker == 'XEC' ||
+        _asset.ticker == 'ETC') {
       try {
         final list = widget.walletLoader != null
             ? await widget.walletLoader!()
@@ -138,6 +142,30 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
           if (!mounted) return;
           setState(() {
             _bchSession = null;
+            _session = null;
+            _sessionChecked = true;
+            _walletError ??= tf('ltc_session_read_error', {'error': '$e'});
+          });
+          return;
+        }
+      }
+      if (_asset.ticker == 'ETC') {
+        try {
+          final state = await etcSessionState().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () => throw StateError(t('ltc_session_timeout')),
+          );
+          if (!mounted) return;
+          setState(() {
+            _etcSession = state;
+            _session = null;
+            _sessionChecked = true;
+          });
+          return;
+        } catch (e) {
+          if (!mounted) return;
+          setState(() {
+            _etcSession = null;
             _session = null;
             _sessionChecked = true;
             _walletError ??= tf('ltc_session_read_error', {'error': '$e'});
@@ -302,6 +330,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
                 const SizedBox(height: 14),
               ] else if (_asset.ticker == 'XEC') ...[
                 _buildXecCard(context),
+                const SizedBox(height: 14),
+              ] else if (_asset.ticker == 'ETC') ...[
+                _buildEtcCard(context),
                 const SizedBox(height: 14),
               ],
             ],
@@ -486,6 +517,84 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> {
         ),
       ],
     );
+  }
+
+  /// Карточка управления ETC (зеркало XEC, честный EVM-адрес аккаунта).
+  Widget _buildEtcCard(BuildContext context) {
+    final session = _etcSession;
+    return VCard(
+      icon: Icons.settings_backup_restore,
+      title: t('management_card'),
+      children: [
+        if (!_sessionChecked)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(
+              child: LogoLoader(mode: LogoLoaderMode.loading, size: 44),
+            ),
+          )
+        else if (session != null) ...[
+          kvRow(
+            t('network_label'),
+            ruNetworkText(session.networkDisplay) ?? '—',
+          ),
+          VMonoCopyRow(label: t('server_label'), value: session.serverUrl),
+          kvRow(t('account_row'), "m/44'/61'/${session.account}'/0/0"),
+        ] else
+          Text(
+            t('session_closed_note'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        const SizedBox(height: 12),
+        if (_walletError != null) ...[
+          Text(
+            tf('wallets_read_error', {'error': '$_walletError'}),
+            style: Theme.of(context).textTheme.bodySmall!
+                .copyWith(color: VColors.error),
+          ),
+        ] else if (_wallets != null && _wallets!.isEmpty) ...[
+          Text(
+            t('no_wallets_etc'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ] else if (_wallets != null && _wallets!.length > 1) ...[
+          DropdownButtonFormField<String>(
+            initialValue: _chosenWallet?.id,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: tf('wallet_for_coin', {'coin': _asset.ticker}),
+            ),
+            items: [
+              for (final w in _wallets!)
+                DropdownMenuItem(value: w.id, child: Text(w.name)),
+            ],
+            onChanged: (id) async {
+              final chosen = _wallets!.firstWhere((w) => w.id == id);
+              setState(() => _chosenWallet = chosen);
+              await DisplayPrefs.setWalletId(chosen.id);
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
+        VButton.primary(
+          session != null
+              ? t('open_coin_center')
+              : tf('unlock_for_coin', {'coin': 'ETC'}),
+          icon: Icons.lock_open_outlined,
+          onPressed: _chosenWallet == null ? null : _openEtcWorkbench,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openEtcWorkbench() async {
+    final wallet = _chosenWallet;
+    if (wallet == null) return;
+    await pushVeyro<void>(context, EtcScreen(info: wallet));
+    // Возврат из центра — перечитать сессию (могли unlock/lock).
+    if (mounted) {
+      await _loadSession();
+    }
   }
 
   /// Карточка управления XEC (зеркало BCH): живая сессия ядра и честный

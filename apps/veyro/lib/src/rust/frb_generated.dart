@@ -5,6 +5,7 @@
 
 import 'api/bch.dart';
 import 'api/btc.dart';
+import 'api/etc.dart';
 import 'api/ltc.dart';
 import 'api/rvn.dart';
 import 'api/session.dart';
@@ -74,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1191904953;
+  int get rustContentHash => -1713284576;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -163,6 +164,35 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiStorageDbSetSetting({
     required String key,
     required String value,
+  });
+
+  Future<EtcFeesDto> crateApiEtcEtcFees();
+
+  Future<EtcHistoryDto> crateApiEtcEtcHistory();
+
+  Future<void> crateApiEtcEtcLock();
+
+  Future<EtcAddressDto> crateApiEtcEtcReceiveAddress();
+
+  Future<EtcSendResultDto> crateApiEtcEtcSend({
+    required String recipient,
+    required String amountWei,
+    String? gasPriceWeiOverride,
+  });
+
+  Future<List<String>> crateApiEtcEtcServers();
+
+  Future<EtcSessionStateDto?> crateApiEtcEtcSessionState();
+
+  Future<EtcSyncDto> crateApiEtcEtcSync();
+
+  Future<EtcTxStatusDto> crateApiEtcEtcTxStatus({required String txhash});
+
+  Future<EtcUnlockDto> crateApiEtcEtcUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String rpcUrl,
   });
 
   Future<List<WalletInfoDto>> crateApiWalletListWallets({
@@ -1067,6 +1097,297 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<EtcFeesDto> crateApiEtcEtcFees() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_fees_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcFeesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcFeesConstMeta =>
+      const TaskConstMeta(debugName: "etc_fees", argNames: []);
+
+  @override
+  Future<EtcHistoryDto> crateApiEtcEtcHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_history_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcHistoryConstMeta =>
+      const TaskConstMeta(debugName: "etc_history", argNames: []);
+
+  @override
+  Future<void> crateApiEtcEtcLock() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcLockConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcLockConstMeta =>
+      const TaskConstMeta(debugName: "etc_lock", argNames: []);
+
+  @override
+  Future<EtcAddressDto> crateApiEtcEtcReceiveAddress() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_address_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcReceiveAddressConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcReceiveAddressConstMeta =>
+      const TaskConstMeta(debugName: "etc_receive_address", argNames: []);
+
+  @override
+  Future<EtcSendResultDto> crateApiEtcEtcSend({
+    required String recipient,
+    required String amountWei,
+    String? gasPriceWeiOverride,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(recipient, serializer);
+          sse_encode_String(amountWei, serializer);
+          sse_encode_opt_String(gasPriceWeiOverride, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_send_result_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcSendConstMeta,
+        argValues: [recipient, amountWei, gasPriceWeiOverride],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcSendConstMeta => const TaskConstMeta(
+    debugName: "etc_send",
+    argNames: ["recipient", "amountWei", "gasPriceWeiOverride"],
+  );
+
+  @override
+  Future<List<String>> crateApiEtcEtcServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEtcEtcServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcServersConstMeta =>
+      const TaskConstMeta(debugName: "etc_servers", argNames: []);
+
+  @override
+  Future<EtcSessionStateDto?> crateApiEtcEtcSessionState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_etc_session_state_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcSessionStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcSessionStateConstMeta =>
+      const TaskConstMeta(debugName: "etc_session_state", argNames: []);
+
+  @override
+  Future<EtcSyncDto> crateApiEtcEtcSync() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 34,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_sync_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcSyncConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcSyncConstMeta =>
+      const TaskConstMeta(debugName: "etc_sync", argNames: []);
+
+  @override
+  Future<EtcTxStatusDto> crateApiEtcEtcTxStatus({required String txhash}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(txhash, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_tx_status_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcTxStatusConstMeta,
+        argValues: [txhash],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcTxStatusConstMeta =>
+      const TaskConstMeta(debugName: "etc_tx_status", argNames: ["txhash"]);
+
+  @override
+  Future<EtcUnlockDto> crateApiEtcEtcUnlock({
+    required String walletsDir,
+    required String walletId,
+    required String password,
+    required String rpcUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(walletsDir, serializer);
+          sse_encode_String(walletId, serializer);
+          sse_encode_String(password, serializer);
+          sse_encode_String(rpcUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 36,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_etc_unlock_dto,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiEtcEtcUnlockConstMeta,
+        argValues: [walletsDir, walletId, password, rpcUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEtcEtcUnlockConstMeta => const TaskConstMeta(
+    debugName: "etc_unlock",
+    argNames: ["walletsDir", "walletId", "password", "rpcUrl"],
+  );
+
+  @override
   Future<List<WalletInfoDto>> crateApiWalletListWallets({
     required String walletsDir,
   }) {
@@ -1078,7 +1399,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1105,7 +1426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1132,7 +1453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1159,7 +1480,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1186,7 +1507,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1220,7 +1541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1249,7 +1570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1276,7 +1597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1304,7 +1625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1332,7 +1653,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1368,7 +1689,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1408,7 +1729,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1445,7 +1766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1475,7 +1796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1502,7 +1823,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1529,7 +1850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1556,7 +1877,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1590,7 +1911,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 54,
             port: port_,
           );
         },
@@ -1619,7 +1940,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 55,
             port: port_,
           );
         },
@@ -1646,7 +1967,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 56,
             port: port_,
           );
         },
@@ -1674,7 +1995,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 57,
             port: port_,
           );
         },
@@ -1702,7 +2023,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 58,
             port: port_,
           );
         },
@@ -1738,7 +2059,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 59,
             port: port_,
           );
         },
@@ -1770,7 +2091,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 60,
             port: port_,
           );
         },
@@ -1803,7 +2124,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 61,
             port: port_,
           );
         },
@@ -1840,7 +2161,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 62,
             port: port_,
           );
         },
@@ -1869,7 +2190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 63,
             port: port_,
           );
         },
@@ -1896,7 +2217,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 64,
             port: port_,
           );
         },
@@ -1923,7 +2244,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 65,
             port: port_,
           );
         },
@@ -1950,7 +2271,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 66,
             port: port_,
           );
         },
@@ -1984,7 +2305,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 67,
             port: port_,
           );
         },
@@ -2013,7 +2334,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 68,
             port: port_,
           );
         },
@@ -2040,7 +2361,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 69,
             port: port_,
           );
         },
@@ -2068,7 +2389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 70,
             port: port_,
           );
         },
@@ -2096,7 +2417,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 61,
+            funcId: 71,
             port: port_,
           );
         },
@@ -2132,7 +2453,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 62,
+            funcId: 72,
             port: port_,
           );
         },
@@ -2326,6 +2647,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EtcSessionStateDto dco_decode_box_autoadd_etc_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_etc_session_state_dto(raw);
+  }
+
+  @protected
   LtcSessionStateDto dco_decode_box_autoadd_ltc_session_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_ltc_session_state_dto(raw);
@@ -2515,6 +2842,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EtcAddressDto dco_decode_etc_address_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return EtcAddressDto(
+      address: dco_decode_String(arr[0]),
+      index: dco_decode_u_32(arr[1]),
+      path: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  EtcFeesDto dco_decode_etc_fees_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return EtcFeesDto(
+      gasPriceWei: dco_decode_String(arr[0]),
+      gasLimit: dco_decode_u_64(arr[1]),
+      fallback: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  EtcHistoryDto dco_decode_etc_history_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return EtcHistoryDto(
+      items: dco_decode_list_etc_history_item_dto(arr[0]),
+      totalEntries: dco_decode_i_64(arr[1]),
+      truncated: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  EtcHistoryItemDto dco_decode_etc_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return EtcHistoryItemDto(
+      hash: dco_decode_String(arr[0]),
+      from: dco_decode_String(arr[1]),
+      to: dco_decode_String(arr[2]),
+      valueWei: dco_decode_String(arr[3]),
+      block: dco_decode_opt_box_autoadd_u_64(arr[4]),
+      status: dco_decode_opt_String(arr[5]),
+      feeWei: dco_decode_opt_String(arr[6]),
+      timestamp: dco_decode_opt_String(arr[7]),
+    );
+  }
+
+  @protected
+  EtcSendResultDto dco_decode_etc_send_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return EtcSendResultDto(
+      txhash: dco_decode_String(arr[0]),
+      rawHex: dco_decode_String(arr[1]),
+      alreadyKnown: dco_decode_bool(arr[2]),
+      recipient: dco_decode_String(arr[3]),
+      amountWei: dco_decode_String(arr[4]),
+      feeWei: dco_decode_String(arr[5]),
+      nonce: dco_decode_u_64(arr[6]),
+      gasPriceWei: dco_decode_String(arr[7]),
+      gasLimit: dco_decode_u_64(arr[8]),
+      fallback: dco_decode_bool(arr[9]),
+      status: dco_decode_String(arr[10]),
+    );
+  }
+
+  @protected
+  EtcSessionStateDto dco_decode_etc_session_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return EtcSessionStateDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      account: dco_decode_u_32(arr[2]),
+      accountAddress: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  EtcSyncDto dco_decode_etc_sync_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return EtcSyncDto(
+      confirmedWei: dco_decode_String(arr[0]),
+      pendingDeltaWei: dco_decode_String(arr[1]),
+      nonce: dco_decode_u_64(arr[2]),
+      tipHeight: dco_decode_u_64(arr[3]),
+      serverUrl: dco_decode_String(arr[4]),
+      accountAddress: dco_decode_String(arr[5]),
+    );
+  }
+
+  @protected
+  EtcTxStatusDto dco_decode_etc_tx_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return EtcTxStatusDto(
+      state: dco_decode_String(arr[0]),
+      block: dco_decode_opt_box_autoadd_u_64(arr[1]),
+      txhash: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  EtcUnlockDto dco_decode_etc_unlock_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return EtcUnlockDto(
+      networkDisplay: dco_decode_String(arr[0]),
+      serverUrl: dco_decode_String(arr[1]),
+      chainId: dco_decode_u_64(arr[2]),
+      genesisHashHex: dco_decode_String(arr[3]),
+      tipHeight: dco_decode_u_64(arr[4]),
+      accountAddress: dco_decode_String(arr[5]),
+      path: dco_decode_String(arr[6]),
+    );
+  }
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeI64(raw);
@@ -2548,6 +3013,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<BtcHistoryItemDto> dco_decode_list_btc_history_item_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_btc_history_item_dto).toList();
+  }
+
+  @protected
+  List<EtcHistoryItemDto> dco_decode_list_etc_history_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_etc_history_item_dto).toList();
   }
 
   @protected
@@ -2765,6 +3236,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_btc_session_state_dto(raw);
+  }
+
+  @protected
+  EtcSessionStateDto? dco_decode_opt_box_autoadd_etc_session_state_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_etc_session_state_dto(raw);
   }
 
   @protected
@@ -3344,6 +3825,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EtcSessionStateDto sse_decode_box_autoadd_etc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_etc_session_state_dto(deserializer));
+  }
+
+  @protected
   LtcSessionStateDto sse_decode_box_autoadd_ltc_session_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -3571,6 +4060,171 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  EtcAddressDto sse_decode_etc_address_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_address = sse_decode_String(deserializer);
+    var var_index = sse_decode_u_32(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    return EtcAddressDto(
+      address: var_address,
+      index: var_index,
+      path: var_path,
+    );
+  }
+
+  @protected
+  EtcFeesDto sse_decode_etc_fees_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_gasPriceWei = sse_decode_String(deserializer);
+    var var_gasLimit = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    return EtcFeesDto(
+      gasPriceWei: var_gasPriceWei,
+      gasLimit: var_gasLimit,
+      fallback: var_fallback,
+    );
+  }
+
+  @protected
+  EtcHistoryDto sse_decode_etc_history_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_etc_history_item_dto(deserializer);
+    var var_totalEntries = sse_decode_i_64(deserializer);
+    var var_truncated = sse_decode_bool(deserializer);
+    return EtcHistoryDto(
+      items: var_items,
+      totalEntries: var_totalEntries,
+      truncated: var_truncated,
+    );
+  }
+
+  @protected
+  EtcHistoryItemDto sse_decode_etc_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hash = sse_decode_String(deserializer);
+    var var_from = sse_decode_String(deserializer);
+    var var_to = sse_decode_String(deserializer);
+    var var_valueWei = sse_decode_String(deserializer);
+    var var_block = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_status = sse_decode_opt_String(deserializer);
+    var var_feeWei = sse_decode_opt_String(deserializer);
+    var var_timestamp = sse_decode_opt_String(deserializer);
+    return EtcHistoryItemDto(
+      hash: var_hash,
+      from: var_from,
+      to: var_to,
+      valueWei: var_valueWei,
+      block: var_block,
+      status: var_status,
+      feeWei: var_feeWei,
+      timestamp: var_timestamp,
+    );
+  }
+
+  @protected
+  EtcSendResultDto sse_decode_etc_send_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_txhash = sse_decode_String(deserializer);
+    var var_rawHex = sse_decode_String(deserializer);
+    var var_alreadyKnown = sse_decode_bool(deserializer);
+    var var_recipient = sse_decode_String(deserializer);
+    var var_amountWei = sse_decode_String(deserializer);
+    var var_feeWei = sse_decode_String(deserializer);
+    var var_nonce = sse_decode_u_64(deserializer);
+    var var_gasPriceWei = sse_decode_String(deserializer);
+    var var_gasLimit = sse_decode_u_64(deserializer);
+    var var_fallback = sse_decode_bool(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    return EtcSendResultDto(
+      txhash: var_txhash,
+      rawHex: var_rawHex,
+      alreadyKnown: var_alreadyKnown,
+      recipient: var_recipient,
+      amountWei: var_amountWei,
+      feeWei: var_feeWei,
+      nonce: var_nonce,
+      gasPriceWei: var_gasPriceWei,
+      gasLimit: var_gasLimit,
+      fallback: var_fallback,
+      status: var_status,
+    );
+  }
+
+  @protected
+  EtcSessionStateDto sse_decode_etc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_account = sse_decode_u_32(deserializer);
+    var var_accountAddress = sse_decode_String(deserializer);
+    return EtcSessionStateDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      account: var_account,
+      accountAddress: var_accountAddress,
+    );
+  }
+
+  @protected
+  EtcSyncDto sse_decode_etc_sync_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_confirmedWei = sse_decode_String(deserializer);
+    var var_pendingDeltaWei = sse_decode_String(deserializer);
+    var var_nonce = sse_decode_u_64(deserializer);
+    var var_tipHeight = sse_decode_u_64(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_accountAddress = sse_decode_String(deserializer);
+    return EtcSyncDto(
+      confirmedWei: var_confirmedWei,
+      pendingDeltaWei: var_pendingDeltaWei,
+      nonce: var_nonce,
+      tipHeight: var_tipHeight,
+      serverUrl: var_serverUrl,
+      accountAddress: var_accountAddress,
+    );
+  }
+
+  @protected
+  EtcTxStatusDto sse_decode_etc_tx_status_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_state = sse_decode_String(deserializer);
+    var var_block = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_txhash = sse_decode_String(deserializer);
+    return EtcTxStatusDto(
+      state: var_state,
+      block: var_block,
+      txhash: var_txhash,
+    );
+  }
+
+  @protected
+  EtcUnlockDto sse_decode_etc_unlock_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_networkDisplay = sse_decode_String(deserializer);
+    var var_serverUrl = sse_decode_String(deserializer);
+    var var_chainId = sse_decode_u_64(deserializer);
+    var var_genesisHashHex = sse_decode_String(deserializer);
+    var var_tipHeight = sse_decode_u_64(deserializer);
+    var var_accountAddress = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    return EtcUnlockDto(
+      networkDisplay: var_networkDisplay,
+      serverUrl: var_serverUrl,
+      chainId: var_chainId,
+      genesisHashHex: var_genesisHashHex,
+      tipHeight: var_tipHeight,
+      accountAddress: var_accountAddress,
+      path: var_path,
+    );
+  }
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
@@ -3640,6 +4294,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <BtcHistoryItemDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_btc_history_item_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<EtcHistoryItemDto> sse_decode_list_etc_history_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <EtcHistoryItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_etc_history_item_dto(deserializer));
     }
     return ans_;
   }
@@ -3956,6 +4624,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_btc_session_state_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  EtcSessionStateDto? sse_decode_opt_box_autoadd_etc_session_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_etc_session_state_dto(deserializer));
     } else {
       return null;
     }
@@ -4573,6 +5254,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_etc_session_state_dto(
+    EtcSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_etc_session_state_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_ltc_session_state_dto(
     LtcSessionStateDto self,
     SseSerializer serializer,
@@ -4745,6 +5435,117 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_etc_address_dto(
+    EtcAddressDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.address, serializer);
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_String(self.path, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_fees_dto(EtcFeesDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.gasPriceWei, serializer);
+    sse_encode_u_64(self.gasLimit, serializer);
+    sse_encode_bool(self.fallback, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_history_dto(
+    EtcHistoryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_etc_history_item_dto(self.items, serializer);
+    sse_encode_i_64(self.totalEntries, serializer);
+    sse_encode_bool(self.truncated, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_history_item_dto(
+    EtcHistoryItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.hash, serializer);
+    sse_encode_String(self.from, serializer);
+    sse_encode_String(self.to, serializer);
+    sse_encode_String(self.valueWei, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.block, serializer);
+    sse_encode_opt_String(self.status, serializer);
+    sse_encode_opt_String(self.feeWei, serializer);
+    sse_encode_opt_String(self.timestamp, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_send_result_dto(
+    EtcSendResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.txhash, serializer);
+    sse_encode_String(self.rawHex, serializer);
+    sse_encode_bool(self.alreadyKnown, serializer);
+    sse_encode_String(self.recipient, serializer);
+    sse_encode_String(self.amountWei, serializer);
+    sse_encode_String(self.feeWei, serializer);
+    sse_encode_u_64(self.nonce, serializer);
+    sse_encode_String(self.gasPriceWei, serializer);
+    sse_encode_u_64(self.gasLimit, serializer);
+    sse_encode_bool(self.fallback, serializer);
+    sse_encode_String(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_session_state_dto(
+    EtcSessionStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_32(self.account, serializer);
+    sse_encode_String(self.accountAddress, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_sync_dto(EtcSyncDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.confirmedWei, serializer);
+    sse_encode_String(self.pendingDeltaWei, serializer);
+    sse_encode_u_64(self.nonce, serializer);
+    sse_encode_u_64(self.tipHeight, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_String(self.accountAddress, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_tx_status_dto(
+    EtcTxStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.state, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.block, serializer);
+    sse_encode_String(self.txhash, serializer);
+  }
+
+  @protected
+  void sse_encode_etc_unlock_dto(EtcUnlockDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.networkDisplay, serializer);
+    sse_encode_String(self.serverUrl, serializer);
+    sse_encode_u_64(self.chainId, serializer);
+    sse_encode_String(self.genesisHashHex, serializer);
+    sse_encode_u_64(self.tipHeight, serializer);
+    sse_encode_String(self.accountAddress, serializer);
+    sse_encode_String(self.path, serializer);
+  }
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
@@ -4804,6 +5605,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_btc_history_item_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_etc_history_item_dto(
+    List<EtcHistoryItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_etc_history_item_dto(item, serializer);
     }
   }
 
@@ -5053,6 +5866,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_btc_session_state_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_etc_session_state_dto(
+    EtcSessionStateDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_etc_session_state_dto(self, serializer);
     }
   }
 

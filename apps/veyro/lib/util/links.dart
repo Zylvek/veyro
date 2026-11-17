@@ -57,3 +57,12 @@ const String kRvnExplorerName = 'ravencoin.network';
 String? rvnTxUrl(String txid) {
   return 'https://ravencoin.network/tx/$txid';
 }
+
+/// Имя explorer'а для ETC mainnet (паспорт ETC §5: BlockScout, API v2
+/// проверен 11.11.2026).
+const String kEtcExplorerName = 'etc.blockscout.com';
+
+/// URL транзакции ETC mainnet.
+String? etcTxUrl(String txhash) {
+  return 'https://etc.blockscout.com/tx/$txhash';
+}

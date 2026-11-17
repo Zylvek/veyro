@@ -8,6 +8,7 @@
 
 import 'api/bch.dart';
 import 'api/btc.dart';
+import 'api/etc.dart';
 import 'api/ltc.dart';
 import 'api/rvn.dart';
 import 'api/session.dart';
@@ -73,6 +74,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BtcSessionStateDto dco_decode_box_autoadd_btc_session_state_dto(dynamic raw);
 
   @protected
+  EtcSessionStateDto dco_decode_box_autoadd_etc_session_state_dto(dynamic raw);
+
+  @protected
   LtcSessionStateDto dco_decode_box_autoadd_ltc_session_state_dto(dynamic raw);
 
   @protected
@@ -118,6 +122,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CreatedWalletDto dco_decode_created_wallet_dto(dynamic raw);
 
   @protected
+  EtcAddressDto dco_decode_etc_address_dto(dynamic raw);
+
+  @protected
+  EtcFeesDto dco_decode_etc_fees_dto(dynamic raw);
+
+  @protected
+  EtcHistoryDto dco_decode_etc_history_dto(dynamic raw);
+
+  @protected
+  EtcHistoryItemDto dco_decode_etc_history_item_dto(dynamic raw);
+
+  @protected
+  EtcSendResultDto dco_decode_etc_send_result_dto(dynamic raw);
+
+  @protected
+  EtcSessionStateDto dco_decode_etc_session_state_dto(dynamic raw);
+
+  @protected
+  EtcSyncDto dco_decode_etc_sync_dto(dynamic raw);
+
+  @protected
+  EtcTxStatusDto dco_decode_etc_tx_status_dto(dynamic raw);
+
+  @protected
+  EtcUnlockDto dco_decode_etc_unlock_dto(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
@@ -134,6 +165,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<BtcHistoryItemDto> dco_decode_list_btc_history_item_dto(dynamic raw);
+
+  @protected
+  List<EtcHistoryItemDto> dco_decode_list_etc_history_item_dto(dynamic raw);
 
   @protected
   List<LtcAddressDto> dco_decode_list_ltc_address_dto(dynamic raw);
@@ -196,6 +230,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BtcSessionStateDto? dco_decode_opt_box_autoadd_btc_session_state_dto(
+    dynamic raw,
+  );
+
+  @protected
+  EtcSessionStateDto? dco_decode_opt_box_autoadd_etc_session_state_dto(
     dynamic raw,
   );
 
@@ -340,6 +379,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  EtcSessionStateDto sse_decode_box_autoadd_etc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LtcSessionStateDto sse_decode_box_autoadd_ltc_session_state_dto(
     SseDeserializer deserializer,
   );
@@ -395,6 +439,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CreatedWalletDto sse_decode_created_wallet_dto(SseDeserializer deserializer);
 
   @protected
+  EtcAddressDto sse_decode_etc_address_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcFeesDto sse_decode_etc_fees_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcHistoryDto sse_decode_etc_history_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcHistoryItemDto sse_decode_etc_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EtcSendResultDto sse_decode_etc_send_result_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcSessionStateDto sse_decode_etc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EtcSyncDto sse_decode_etc_sync_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcTxStatusDto sse_decode_etc_tx_status_dto(SseDeserializer deserializer);
+
+  @protected
+  EtcUnlockDto sse_decode_etc_unlock_dto(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
@@ -417,6 +492,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<BtcHistoryItemDto> sse_decode_list_btc_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<EtcHistoryItemDto> sse_decode_list_etc_history_item_dto(
     SseDeserializer deserializer,
   );
 
@@ -499,6 +579,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BtcSessionStateDto? sse_decode_opt_box_autoadd_btc_session_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EtcSessionStateDto? sse_decode_opt_box_autoadd_etc_session_state_dto(
     SseDeserializer deserializer,
   );
 
@@ -670,6 +755,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_etc_session_state_dto(
+    EtcSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_ltc_session_state_dto(
     LtcSessionStateDto self,
     SseSerializer serializer,
@@ -742,6 +833,45 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_etc_address_dto(EtcAddressDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_etc_fees_dto(EtcFeesDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_etc_history_dto(EtcHistoryDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_etc_history_item_dto(
+    EtcHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_etc_send_result_dto(
+    EtcSendResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_etc_session_state_dto(
+    EtcSessionStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_etc_sync_dto(EtcSyncDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_etc_tx_status_dto(
+    EtcTxStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_etc_unlock_dto(EtcUnlockDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
@@ -768,6 +898,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_btc_history_item_dto(
     List<BtcHistoryItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_etc_history_item_dto(
+    List<EtcHistoryItemDto> self,
     SseSerializer serializer,
   );
 
@@ -873,6 +1009,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_btc_session_state_dto(
     BtcSessionStateDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_etc_session_state_dto(
+    EtcSessionStateDto? self,
     SseSerializer serializer,
   );
 

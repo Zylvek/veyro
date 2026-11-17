@@ -13,6 +13,7 @@ import 'package:veyro/design/components.dart';
 import 'package:veyro/design/veyro_mark.dart';
 import 'package:veyro/src/rust/api/btc.dart';
 import 'package:veyro/src/rust/api/bch.dart';
+import 'package:veyro/src/rust/api/etc.dart';
 import 'package:veyro/src/rust/api/rvn.dart';
 import 'package:veyro/src/rust/api/xec.dart';
 import 'package:veyro/src/rust/api/ltc.dart';
@@ -71,6 +72,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         network = (await xecSessionState())?.networkDisplay;
       } else if (widget.coin == WalletCoin.rvn) {
         network = (await rvnSessionState())?.networkDisplay;
+      } else if (widget.coin == WalletCoin.etc) {
+        network = (await etcSessionState())?.networkDisplay;
       } else {
         network = (await btcSessionState())?.networkDisplay;
       }
@@ -92,6 +95,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         address = (await xecReceiveAddress()).address;
       } else if (widget.coin == WalletCoin.rvn) {
         address = (await rvnReceiveAddress()).address;
+      } else if (widget.coin == WalletCoin.etc) {
+        address = (await etcReceiveAddress()).address;
       } else {
         address = (await btcReceiveAddress()).address;
       }
@@ -120,6 +125,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
           WalletCoin.bch => t('receive_title_bch'),
           WalletCoin.xec => t('receive_title_xec'),
           WalletCoin.rvn => t('receive_title_rvn'),
+          WalletCoin.etc => t('receive_title_etc'),
           _ => t('receive_title'),
         }),
       ),

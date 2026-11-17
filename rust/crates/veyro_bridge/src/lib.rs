@@ -21,6 +21,7 @@
 pub mod api;
 mod bch_session;
 mod btc_session;
+mod etc_session;
 mod frb_generated;
 mod ltc_session;
 mod raven_session;

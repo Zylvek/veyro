@@ -80,6 +80,55 @@ String signedSatToBtcString(int signedSat) {
   return '0';
 }
 
+// ---------------------------------------------------------------------------
+// ETC (Ethereum Classic): wei — 10^18 на монету. int64 хватает меньше чем на
+// 10 ETC, поэтому честно BigInt: ядро присылает wei десятичными Strings,
+// отображение — только через BigInt, без double.
+// ---------------------------------------------------------------------------
+
+/// Масштаб ETC: 1 ETC = 10^18 wei (паспорт ETC §Криптография).
+final BigInt weiPerEtc = BigInt.parse('1000000000000000000');
+
+/// wei (десятичный String/u128 от ядра) → строка ETC; минус — для дельт.
+/// Пример: "1230000000000000000" → "1.23".
+String weiToEtcString(String weiRaw) {
+  var s = weiRaw.trim();
+  var negative = false;
+  if (s.startsWith('-')) {
+    negative = true;
+    s = s.substring(1);
+  }
+  if (s.startsWith('+')) s = s.substring(1);
+  final v = BigInt.tryParse(s);
+  if (v == null) return '—';
+  final negativeFinal = negative || v.isNegative;
+  final abs = v.abs();
+  final whole = abs ~/ weiPerEtc;
+  final frac = (abs % weiPerEtc).toString().padLeft(18, '0');
+  final trimmed = frac.replaceAll(_trailingZeros, '');
+  final body = trimmed.isEmpty ? '$whole' : '$whole.$trimmed';
+  return negativeFinal && !abs.isNegative ? '-$body' : body;
+}
+
+/// Разбор строки ETC (≤ 18 знаков после точки) → wei десятичным String.
+/// null — некорректный ввод (не-цифры/пусто/переполнение wei-введённой
+/// величины по числу разрядов). Точность честно ограничена 18 знаками.
+String? parseEtcToWei(String input) {
+  final s = input.trim().replaceAll('\u00A0', '').replaceAll(' ', '');
+  if (s.isEmpty) return null;
+  final parts = s.split('.');
+  if (parts.length > 2) return null;
+  final whole = parts[0];
+  final frac = parts.length == 2 ? parts[1] : '';
+  if (whole.isEmpty && frac.isEmpty) return null;
+  if (whole.isNotEmpty && !_digits.hasMatch(whole)) return null;
+  if (frac.isNotEmpty && !_digits.hasMatch(frac)) return null;
+  if (frac.length > 18) return null; // точность ETC = 18 знаков
+  final wholePart = BigInt.parse(whole.isEmpty ? '0' : whole);
+  final fracPart = BigInt.parse(frac.padRight(18, '0'));
+  return (wholePart * weiPerEtc + fracPart).toString();
+}
+
 /// Сатоши с разделением тысяч для сайд-подписи: `150000` → `150 000`.
 String groupDigits(int value) {
   final digits = value.abs().toString();

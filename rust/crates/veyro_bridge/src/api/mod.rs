@@ -5,6 +5,7 @@
 
 pub mod bch;
 pub mod btc;
+pub mod etc;
 pub mod ltc;
 pub mod rvn;
 pub mod session;

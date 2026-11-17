@@ -569,6 +569,124 @@ const Map<String, Map<String, String>> _strings = {
     'ru': 'Комиссия сети: {rvn} RVN ({sats} сат)',
     'en': 'Network fee: {rvn} RVN ({sats} sats)',
   },
+  // ETC/Ethereum Classic (EVM-профиль: один адрес аккаунта m/44'/61'/0'/0/0,
+  // nonce вместо change-индексов; legacy-газ, публичный RPC https; история —
+  // BlockScout v2, третья сторона).
+  'etc_connecting': {'ru': 'Подключение ETC…', 'en': 'Connecting ETC…'},
+  'etc_unlock_title': {
+    'ru': 'Разблокировать {name} для ETC',
+    'en': 'Unlock {name} for ETC',
+  },
+  'unlock_etc_btn': {'ru': 'Разблокировать ETC', 'en': 'Unlock ETC'},
+  'etc_backoff_wait': {
+    'ru': 'Пауза {sec} с — даём серверам выдохнуть (частые попытки копят блокировки)',
+    'en': 'Pausing {sec} s — giving the servers a breather (frequent retries earn bans)',
+  },
+  'etc_candidate_progress': {
+    'ru': 'Подключение: сервер {n} из {m} — {host}…',
+    'en': 'Connecting: server {n} of {m} — {host}…',
+  },
+  'etc_syncing': {
+    'ru': 'Сверяем баланс и nonce вашего адреса в сети ETC…',
+    'en': 'Checking your balance and nonce on the ETC network…',
+  },
+  'etc_connecting_badge': {'ru': 'Подключается…', 'en': 'Connecting…'},
+  'no_wallets_etc': {
+    'ru': 'Кошельков нет — создайте на экране кошельков (ETC использует тот же seed).',
+    'en': 'No wallets — create one on the wallets screen (ETC shares the same seed).',
+  },
+  'receive_title_etc': {'ru': 'Получение ETC', 'en': 'Receive ETC'},
+  'history_title_etc': {'ru': 'История ETC', 'en': 'ETC History'},
+  'send_title_etc': {'ru': 'Отправить ETC', 'en': 'Send ETC'},
+  'available_row_etc': {
+    'ru': 'Доступно: {value} ETC',
+    'en': 'Available: {value} ETC',
+  },
+  'fee_row_etc': {
+    'ru': 'Комиссия сети: {fee} ETC (газ {limit} × {price} wei)',
+    'en': 'Network fee: {fee} ETC (gas {limit} × {price} wei)',
+  },
+  'etc_fee_estimate_row': {
+    'ru': 'Газ: сервер оценил {limit} × {price} wei',
+    'en': 'Gas: server estimated {limit} × {price} wei',
+  },
+  'etc_fee_fallback_row': {
+    'ru': 'Газ: сервер не оценил — берём честный минимум перевода ({limit} × {price} wei)',
+    'en': 'Gas: server refused to estimate — using the honest transfer minimum ({limit} × {price} wei)',
+  },
+  'etc_send_confirm_title': {'ru': 'Подтверждение', 'en': 'Confirm'},
+  'etc_irreversible_note': {
+    'ru': 'Необратимая отправка. Проверьте адрес получателя.',
+    'en': 'Irreversible transfer. Check the recipient address.',
+  },
+  'etc_send_btn_confirm': {'ru': 'Отправить', 'en': 'Send'},
+  'etc_sending': {'ru': 'Отправляем в сеть ETC…', 'en': 'Broadcasting to the ETC network…'},
+  'etc_result_title': {'ru': 'Транзакция отправлена', 'en': 'Transaction sent'},
+  'etc_result_broadcast': {
+    'ru': 'Передана в сеть (ожидает блок)',
+    'en': 'Broadcast to the network (awaiting a block)',
+  },
+  'etc_result_mempool': {
+    'ru': 'Повтор не нужен — она уже в mempool',
+    'en': 'No re-send needed — it is already in the mempool',
+  },
+  'etc_result_confirmed': {'ru': 'Включена в блок {block}', 'en': 'Included in block {block}'},
+  'etc_result_failed': {'ru': 'Отвергнута сетью', 'en': 'Rejected by the network'},
+  'etc_nonce_row': {'ru': 'Nonce: {value}', 'en': 'Nonce: {value}'},
+  'etc_native_note': {
+    'ru': 'Нативные переводы ETC; токены ERC-20 не отображаются.',
+    'en': 'Native ETC transfers only; ERC-20 tokens are not shown.',
+  },
+  'etc_history_empty': {
+    'ru': 'Переводов пока нет (история из BlockScout, третьей стороны).',
+    'en': 'No transfers yet (history from BlockScout, a third party).',
+  },
+  'etc_history_error': {
+    'ru': 'История недоступна: {error}',
+    'en': 'History unavailable: {error}',
+  },
+  'etc_history_showing_of': {
+    'ru': 'Показаны последние {n} из {total}',
+    'en': 'Showing latest {n} of {total}',
+  },
+  'etc_status_unknown': {'ru': 'Статус неизвестен', 'en': 'Status unknown'},
+  'etc_status_mempool': {'ru': 'В mempool', 'en': 'In mempool'},
+  'etc_status_success': {'ru': 'Подтверждена', 'en': 'Confirmed'},
+  'etc_status_failed': {'ru': 'Не прошла', 'en': 'Failed'},
+  'etc_status_label': {'ru': 'Статус', 'en': 'Status'},
+  'etc_block_row': {'ru': 'Блок: {value}', 'en': 'Block: {value}'},
+  'etc_from_row': {'ru': 'Откуда: {value}', 'en': 'From: {value}'},
+  'etc_to_row': {'ru': 'Куда: {value}', 'en': 'To: {value}'},
+  'etc_recipient_field': {
+    'ru': 'Адрес получателя (0x…)',
+    'en': 'Recipient address (0x…)',
+  },
+  'etc_amount_field': {'ru': 'Сумма, ETC', 'en': 'Amount, ETC'},
+  'etc_max_btn': {
+    'ru': 'Доступный максимум (минус оценка комиссии)',
+    'en': 'Available maximum (minus the estimated fee)',
+  },
+  'etc_err_address': {
+    'ru': 'Адрес получателя должен быть 0x + 40 hex-символов (EVM).',
+    'en': 'The recipient address must be 0x + 40 hex chars (EVM).',
+  },
+  'etc_err_insufficient': {
+    'ru': 'Недостаточно средств (баланс минус оценка комиссии).',
+    'en': 'Insufficient funds (balance minus the estimated fee).',
+  },
+  'etc_fee_unavailable': {
+    'ru': 'Оценка газа недоступна — попробуйте ещё раз.',
+    'en': 'Gas estimation unavailable — try again.',
+  },
+  'etc_explorer_note': {
+    'ru': 'Explorer: etc.blockscout.com (ссылка копируется как данные).',
+    'en': 'Explorer: etc.blockscout.com (link copied as data).',
+  },
+  'etc_explorer_short': {'ru': 'Explorer:', 'en': 'Explorer:'},
+  'etc_history_source_note': {
+    'ru': 'История нативных переводов — BlockScout (третья сторона).',
+    'en': 'Native-transfer history — BlockScout (a third party).',
+  },
   'connecting_title': {'ru': 'Подключение', 'en': 'Connecting'},
   'balance_asof_row': {
     'ru': 'Данные: {value} (прошлая синхронизация)',

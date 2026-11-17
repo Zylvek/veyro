@@ -3,7 +3,7 @@
 //! LTC — вторая реализованная, BCH — третья (профиль LTC: UTXO+Electrum,
 //! cashaddr, forkid-подпись).
 
-enum WalletCoin { btc, ltc, bch, xec, rvn }
+enum WalletCoin { btc, ltc, bch, xec, rvn, etc }
 
 extension WalletCoinX on WalletCoin {
   /// Отображаемая тикер-единица (в суммах и подтверждениях).
@@ -13,6 +13,7 @@ extension WalletCoinX on WalletCoin {
         WalletCoin.bch => 'BCH',
         WalletCoin.xec => 'XEC',
         WalletCoin.rvn => 'RVN',
+        WalletCoin.etc => 'ETC',
       };
 
   /// Полное название монеты (заголовокAppBar и карточки).
@@ -22,5 +23,6 @@ extension WalletCoinX on WalletCoin {
         WalletCoin.bch => 'Bitcoin Cash',
         WalletCoin.xec => 'eCash',
         WalletCoin.rvn => 'Ravencoin',
+        WalletCoin.etc => 'Ethereum Classic',
       };
 }
