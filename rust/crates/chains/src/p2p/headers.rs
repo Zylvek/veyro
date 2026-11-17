@@ -7,7 +7,6 @@
 //! следующего заголовка фиксируется живой пробой (обе ориентации
 //! проверяются при первом прогоне, дальше — константа).
 
-use crate::sha256d;
 use crate::p2p::kawpow::blockhash_kawpow;
 use crate::ChainError;
 
@@ -60,8 +59,7 @@ impl Header120 {
 
     /// (mix, block_hash) — как CBlockHeader::GetHashFull для kawpow-эры.
     pub fn kawpow_blockhash(&self) -> ([u8; 32], [u8; 32]) {
-        let hh = crate::sha256d(&self.kawpow_input());
-        kawpow::hash_pair(&hh, self.nonce64, self.height as i32)
+        blockhash_kawpow(&self.raw)
     }
 }
 

@@ -10,5 +10,7 @@
 //! Никаких выдуманных «верификаторов»: каждый проверенный заголовок действительно
 //! прогнали через kawpow.
 
+pub mod client;
+pub mod headers;
 pub mod kawpow;
 pub mod wire;
