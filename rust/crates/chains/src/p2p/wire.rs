@@ -104,11 +104,11 @@ pub fn parse_frame(params: &P2pParams, buf: &[u8]) -> Result<Option<(Reply, usiz
 }
 
 /// payload «version»: как BTC, но без address Relay-наворотов (спец для
-/// SPV-клиента): ver 70016 | services 0 | ts | recv-addr | from-addr | nonce
+/// SPV-клиента): ver 70028 | services 0 | ts | recv-addr | from-addr | nonce
 /// | UA varstr | start_height 0 | relay false.
 pub fn version_payload(ua: &'static str) -> Vec<u8> {
     let mut p = Vec::with_capacity(90 + ua.len());
-    p.extend_from_slice(&70016i32.to_le_bytes());
+    p.extend_from_slice(&70028i32.to_le_bytes());
     p.extend_from_slice(&0u64.to_le_bytes());
     p.extend_from_slice(&(chrono_seconds() as i64).to_le_bytes());
     p.extend_from_slice(&[0u8; 26]); // addr_recv
@@ -173,7 +173,7 @@ mod tests {
         let p = version_payload("/veyro:0.1/");
         // 4(ver)+8(services)+8(time)+26+26+8(nonce)+1(uаlen)+11(UA)+4(h)+1(relay)
         assert_eq!(p.len(), 97);
-        assert_eq!(&p[..2], &[0x80, 0x11]); // 70016 LEB
+        assert_eq!(&p[..2], &[0x8c, 0x11]); // 70028 LEB
         assert_eq!(p[80], 11); // UA len (4+8+8+26+26+8 = 80)
     }
 

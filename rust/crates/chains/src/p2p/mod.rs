@@ -13,4 +13,7 @@
 pub mod client;
 pub mod headers;
 pub mod kawpow;
+/// RVN/XNA: KAWPOW активация — 2020-05-06 18:00 UTC (chainparams).
+pub const KAWPOW_ACTIVATION_TIME: u32 = 1_588_788_000;
+
 pub mod wire;

@@ -9,7 +9,6 @@
 //! byte-order kawpow-хэша определена пробой (не выдумкой).
 //! Тестнет RVN (seed-testnet-raven…) — вторая цель пробы.
 
-
 use chains::p2p::client::{quorum_sync, resolve_seed_ips};
 use chains::p2p::headers::{dark_gravity_wave3, Header120};
 use chains::p2p::wire::{P2pParams, RVN_MAINNET};
@@ -34,12 +33,8 @@ fn validate(chain: &[Header120], param_label: &str) {
     // DGW3: предсказание nBits == факт (окно 180; первые 180 — скип)
     for i in 181..chain.len() {
         let start = i.saturating_sub(180);
-        let predicted = dark_gravity_wave3(
-            &chain[start..i],
-            chain[i].time,
-            KAWPOW_ACTIVATION_TIME,
-        )
-        .expect("dgw3");
+        let predicted = dark_gravity_wave3(&chain[start..i], chain[i].time, KAWPOW_ACTIVATION_TIME)
+            .expect("dgw3");
         assert_eq!(
             predicted, chain[i].n_bits,
             "{}: DGW3 на высоте {} предсказано {:08x} ≠ факт {:08x}",
@@ -113,10 +108,10 @@ fn rvn_p2p_headers_sync() {
     let ips: Vec<String> = RVN_MAINNET
         .dns_seeds
         .iter()
-        .flat_map(|s| resolve_seed_ips(s).expect("resolve"))
+        .flat_map(|s| resolve_seed_ips(s).unwrap_or_default())
         .map(|ip| ip.to_string())
         .collect();
-    println!("RVN seeds: {} живых IP", ips.len());
+    println!("RVN seeds (DoH, справочно): {} IP", ips.len());
 
     // Кворум 2 пира + честная синхронизация до 60 000 заголовков
     let chains = quorum_sync(
@@ -124,13 +119,17 @@ fn rvn_p2p_headers_sync() {
         RVN_CHECKPOINT_HASH,
         RVN_CHECKPOINT_HEIGHT,
         60_000,
+        "0000006b444bc2f2ffe627be9d9e7e7a0730000870ef6eb6da46c8eae389df90",
         2,
     )
     .expect("quorum");
     println!(
         "кворум: {} пиров; высоты {:#?}",
         chains.len(),
-        chains.iter().map(|c| c.chain.last().map(|h| h.height)).collect::<Vec<_>>()
+        chains
+            .iter()
+            .map(|c| c.chain.last().map(|h| h.height))
+            .collect::<Vec<_>>()
     );
     for c in &chains {
         validate(&c.chain, &c.label);
@@ -146,6 +145,7 @@ fn xna_p2p_headers_sync() {
         XNA_CHECKPOINT_HASH,
         XNA_CHECKPOINT_HEIGHT,
         20_000,
+        "00000044d33c0c0ba019be5c0249730424a69cb4c222153322f68c6104484806",
         2,
     )
     .expect("quorum");

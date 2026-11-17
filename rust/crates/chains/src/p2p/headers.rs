@@ -24,24 +24,30 @@ pub struct Header120 {
 }
 
 impl Header120 {
-    pub fn parse(raw: &[u8]) -> Result<Self, ChainError> {
-        if raw.len() != 120 {
-            return Err(ChainError::Protocol(format!(
-                "kawpow-заголовок 120 байт, получено {}",
-                raw.len()
-            )));
+    /// Парсинг kawpow-заголовка (120 байт). Для legacy 80-байтового — false.
+    pub fn parse(raw: &[u8], height_hint: u32) -> Result<Self, ChainError> {
+        match raw.len() {
+            120 => Ok(Self {
+                version: i32::from_le_bytes(raw[0..4].try_into().expect("4")),
+                prev: raw[4..36].try_into().expect("32"),
+                merkle: raw[36..68].try_into().expect("32"),
+                time: u32::from_le_bytes(raw[68..72].try_into().expect("4")),
+                n_bits: u32::from_le_bytes(raw[72..76].try_into().expect("4")),
+                height: u32::from_le_bytes(raw[76..80].try_into().expect("4")),
+                nonce64: u64::from_le_bytes(raw[80..88].try_into().expect("8")),
+                mix_hash: raw[88..120].try_into().expect("32"),
+                raw: raw.try_into().expect("120"),
+            }),
+            80 => {
+                let _ = height_hint;
+                Err(ChainError::Protocol(
+                    "legacy-заголовок вне цели этой ветки p2p (RVN kawpow-эра)".into(),
+                ))
+            }
+            n => Err(ChainError::Protocol(format!(
+                "заголовок нестандартного размера {n}"
+            ))),
         }
-        Ok(Self {
-            version: i32::from_le_bytes(raw[0..4].try_into().expect("4")),
-            prev: raw[4..36].try_into().expect("32"),
-            merkle: raw[36..68].try_into().expect("32"),
-            time: u32::from_le_bytes(raw[68..72].try_into().expect("4")),
-            n_bits: u32::from_le_bytes(raw[72..76].try_into().expect("4")),
-            height: u32::from_le_bytes(raw[76..80].try_into().expect("4")),
-            nonce64: u64::from_le_bytes(raw[80..88].try_into().expect("8")),
-            mix_hash: raw[88..120].try_into().expect("32"),
-            raw: raw.try_into().expect("120"),
-        })
     }
 
     /// CKAWPOWInput (80 байт) — сериализация, что хашируется в
@@ -91,7 +97,10 @@ fn read_varint(data: &[u8], off: usize) -> Result<(u64, usize), ChainError> {
             if off + 9 > data.len() {
                 return Err(ChainError::Protocol("varint ff".into()));
             }
-            Ok((u64::from_le_bytes(data[off + 1..off + 9].try_into().expect("8")), 9))
+            Ok((
+                u64::from_le_bytes(data[off + 1..off + 9].try_into().expect("8")),
+                9,
+            ))
         }
         v => Ok((v as u64, 1)),
     }
@@ -113,21 +122,54 @@ pub fn write_varint(v: u64, out: &mut Vec<u8>) {
     }
 }
 
-/// Парсинг payload «headers» (kawpow-эра: 120 байт + tx-count 0).
-pub fn parse_headers_payload(payload: &[u8]) -> Result<Vec<Header120>, ChainError> {
+/// Парсинг payload «headers»: 120-байтовые kawpow- и 80-байтовые
+/// legacy-заголовки (RVN старше KAWPOW-активации). `start_height_hint` —
+/// высота первого заголовка в пачке (для legacy их высоты считаются).
+pub fn parse_headers_payload(
+    payload: &[u8],
+    start_height_hint: u32,
+) -> Result<Vec<Header120>, ChainError> {
     let (count, mut off) = read_varint(payload, 0)?;
     if count > 2000 {
         return Err(ChainError::Protocol(format!("headers count {count}")));
     }
     let mut out = Vec::with_capacity(count as usize);
+    let mut height = start_height_hint;
     for _ in 0..count {
-        if off + 121 > payload.len() {
-            return Err(ChainError::Protocol(
-                "headers payload короче заголовка".into(),
-            ));
+        if off + 1 > payload.len() {
+            return Err(ChainError::Protocol("headers payload оборван".into()));
         }
-        out.push(Header120::parse(&payload[off..off + 120])?);
-        off += 120;
+        // Реальный размер заголовка читаем по полю nBits/time? Нет: kawpow
+        // заголовок 120 и legacy 80 различаются по времени активации —
+        // но в пределах пачки размер одинаков; честный маркер: первый
+        // заголовок пробуем как 120 (kawpow-эра), иначе 80.
+        let size = 120;
+        if off + size + 3 > payload.len() {
+            // попробуем 80 (legacy)
+            if off + 81 > payload.len() {
+                return Err(ChainError::Protocol("headers payload короткий".into()));
+            }
+            out.push(Header120::parse(&payload[off..off + 80], height)?);
+            off += 80;
+        } else {
+            // проверка реального размера: считываем nTime и nNonce...
+            // У RVN формат определяется эрой; KAWPOW-активация 2020-05-06 —
+            // заголовки с time >= activation идут 120 байтами, до неё 80.
+            let time_field = u32::from_le_bytes(payload[off + 68..off + 72].try_into().expect("4"));
+            if time_field >= crate::p2p::KAWPOW_ACTIVATION_TIME {
+                if off + 121 > payload.len() {
+                    return Err(ChainError::Protocol("kawpow-заголовок оборван".into()));
+                }
+                out.push(Header120::parse(&payload[off..off + 120], height)?);
+                off += 120;
+            } else {
+                if off + 81 > payload.len() {
+                    return Err(ChainError::Protocol("legacy заголовок оборван".into()));
+                }
+                out.push(Header120::parse(&payload[off..off + 80], height)?);
+                off += 80;
+            }
+        }
         let (tx_count, used) = read_varint(payload, off)?;
         if tx_count != 0 {
             return Err(ChainError::Protocol(
@@ -135,6 +177,7 @@ pub fn parse_headers_payload(payload: &[u8]) -> Result<Vec<Header120>, ChainErro
             ));
         }
         off += used;
+        height += 1;
     }
     Ok(out)
 }
@@ -295,7 +338,9 @@ pub fn dark_gravity_wave3(
     let target_span = N_PAST_BLOCKS as i64 * TARGET_SPACING_SEC;
     let clamped = actual.clamp(target_span / 3, target_span * 3);
 
-    let mut bn_new = avg_be.mul_small(clamped as u32).div_small(target_span as u32);
+    let mut bn_new = avg_be
+        .mul_small(clamped as u32)
+        .div_small(target_span as u32);
     if BigTarget::cmp_be(&bn_new, &POW_LIMIT) == std::cmp::Ordering::Greater {
         bn_new = POW_LIMIT;
     }
